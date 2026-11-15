@@ -18,9 +18,6 @@ use tauri_plugin_autostart::MacosLauncher;
 use crate::error::AppError;
 use crate::state::{lock, AppState};
 
-/// Notes stay recoverable in the trash for this long.
-const TRASH_RETENTION_MS: i64 = 24 * 60 * 60 * 1000;
-
 /// What a launch (or a second launch forwarded to the running instance)
 /// asked for on the command line.
 #[derive(Debug, PartialEq, Eq)]
@@ -67,7 +64,7 @@ fn open_database(app: &AppHandle) -> Result<Db, AppError> {
         )
     })?;
     let mut db = Db::open(&dir.join("posthaste.db"))?;
-    let cutoff = posthaste_core::now_ms() - TRASH_RETENTION_MS;
+    let cutoff = posthaste_core::now_ms() - posthaste_core::TRASH_RETENTION_MS;
     match db.purge_trashed(cutoff) {
         Ok(0) => {}
         Ok(n) => log::info!("emptied {n} old note(s) from the trash"),
@@ -114,11 +111,17 @@ pub fn run() {
             commands::notes_counts,
             commands::categories_list,
             commands::glance_get,
+            commands::notes_day_marks,
+            commands::inbox_open_date,
             commands::today_dismiss,
             commands::note_update,
             commands::note_set_status,
+            commands::note_set_later,
             commands::note_delete,
             commands::note_undelete,
+            commands::trash_list,
+            commands::trash_purge,
+            commands::trash_empty,
             commands::details_open,
             commands::details_dismiss,
             commands::details_current,

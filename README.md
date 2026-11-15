@@ -29,7 +29,7 @@ Your notes live in one SQLite file on your machine. No account, no sync, no
 telemetry — nothing leaves your computer unless you turn on AI polish yourself.
 
 <p align="center">
-  <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg" width="720" controls muted playsinline></video>
+  <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4?v=3" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg?v=3" width="720" controls muted playsinline></video>
 </p>
 
 ## Why Posthaste
@@ -43,6 +43,14 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 - **AI polish** — optional. Off by default; when you turn it on, your note goes
   straight to the provider you picked with your own API key
 - **In-app updates** — signed installers, one click, nothing auto-runs
+- **Later** — press L on a to-do you won't get to today. It leaves Today and
+  the inbox and waits in Later, your backlog, until you bring it back. No dates,
+  no reminders
+- **Trash** — deleting a note moves it to Trash, where it waits 30 days. Restore
+  it exactly as it was, or erase it for good
+- **Earlier days** — ← and → in Today step back through earlier days, as they
+  stood then; carried notes say which day they came from, and the inbox's
+  calendar marks the days that still have open notes
 - **Note details** — press Enter on a to-do in Today (or O in the inbox) for a
   description and attached files, images and docs; it saves as you type
 - **Keyboard-driven** — every action has a shortcut; see them all with `?`
@@ -57,11 +65,15 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 
 In the capture window: Enter saves, Shift+Enter adds a line, Esc keeps a draft.
 In the inbox: ↑/↓ move, E edit, X complete, A archive, C copy, / search,
-1/2/3 switch sections, N new note, O note details. In the Today window: ↑/↓
-move, X marks a note done or not done, Enter opens note details, Esc closes.
+L later (or back to the inbox), Delete moves to Trash, 1–5 switch sections
+(Inbox, Today, Later, Archive, Trash), N new note, O note details. In Trash:
+R or Enter restores, Delete erases for good (it asks first). In the Today window: ↑/↓ move, X marks a
+note done or not done, L moves it to Later, ←/→ show the previous or next day,
+T comes back to today, C opens the calendar, Enter opens note details, Esc closes.
 In note details: Esc saves and closes, Ctrl/⌘+Enter marks done, Ctrl/⌘+O adds
 files, paste adds an image, Delete on a file removes it. All three shortcuts are changeable in
-Settings. Command line: `posthaste --capture`, `--today`, `--inbox`,
+Settings, and so is how big the floating windows open (Compact, Standard or
+Roomy). Command line: `posthaste --capture`, `--today`, `--inbox`,
 `--settings`, `--minimized`.
 
 ## Build from source

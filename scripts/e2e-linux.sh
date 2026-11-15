@@ -146,11 +146,47 @@ eval "$(xdotool getwindowgeometry --shell "$CAP2")"
 CX=$((X + WIDTH/2)); CY=$((Y + HEIGHT/2))
 check "capture still opens centred after the today window" "[ $((CX-720)) -ge -3 ] && [ $((CX-720)) -le 3 ] && [ $((CY-450)) -ge -30 ] && [ $((CY-450)) -le 30 ]"
 xdotool key Escape; wait_for '[ -z "$(capture_visible)" ]' 30
+echo "Later"
+later_count(){ sql 'SELECT count(*) FROM notes WHERE later_at IS NOT NULL AND deleted_at IS NULL'; }
+xdotool windowactivate --sync "$EDITOR_WIN"; sleep 0.3
+xdotool key ctrl+alt+g; wait_for '[ -n "$(today_visible)" ]' 50; sleep 0.5
+xdotool key l
+check "L in Today parks the selected note in Later" "wait_for '[ \"\$(later_count)\" = 1 ]' 30"
+check "the parked note is an open one" "[ \"\$(sql \"SELECT status FROM notes WHERE later_at IS NOT NULL\")\" = inbox ]"
+check "Today stays open and focused after L" "[ -n \"\$(today_visible)\" ] && [ \"\$(active)\" = \"\$(today_visible)\" ]"
+sleep 0.4; shot 08-today-after-later
+xdotool key Escape; wait_for '[ -z "$(today_visible)" ]' 30
+
+echo "Day view"
+done_count(){ sql "SELECT count(*) FROM notes WHERE status = 'completed' AND deleted_at IS NULL"; }
+# Make the oldest open note two days old, so it is carried with a tag.
+sql "UPDATE notes SET created_at = created_at - 172800000 WHERE id = (SELECT id FROM notes WHERE status = 'inbox' AND later_at IS NULL AND deleted_at IS NULL ORDER BY created_at LIMIT 1)"
+DONE_BEFORE="$(done_count)"
+xdotool windowactivate --sync "$EDITOR_WIN"; sleep 0.3
+xdotool key ctrl+alt+g; wait_for '[ -n "$(today_visible)" ]' 50; sleep 0.5
+shot 10-today-origin
+xdotool key Left; sleep 0.5
+shot 11-today-yesterday
+xdotool key x; sleep 0.5
+check "X on a past day changes nothing" "[ \"\$(done_count)\" = \"$DONE_BEFORE\" ]"
+# A day before any note: the empty state, for a look at its spacing.
+xdotool key Left Left Left Left Left Left; sleep 0.8
+shot 12-today-empty-day
+xdotool key t; sleep 0.5
+xdotool key x
+check "T returns to today, where X works again" "wait_for '[ \"\$(done_count)\" != \"$DONE_BEFORE\" ]' 30"
+xdotool key x
+check "X again undoes it" "wait_for '[ \"\$(done_count)\" = \"$DONE_BEFORE\" ]' 30"
+xdotool key Left; sleep 0.3; xdotool key t; sleep 0.3
+xdotool key Escape
+check "Esc still closes Today after browsing days" "wait_for '[ -z \"\$(today_visible)\" ]' 30"
 NOTES_BEFORE_CRASH="$(sql 'SELECT count(*) FROM notes')"
 
 echo "Crash and restart"
 xdotool key ctrl+shift+space; wait_for '[ -n "$(capture_visible)" ]' 50; sleep 0.4
 xdotool type --delay 15 "typed just before a crash"; sleep 0.6
+# Roomy windows from the next start (settings are read at launch).
+sql "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', '{\"window_size\":\"large\"}')"
 kill -9 $APP; sleep 0.5
 "$BIN" >"$WORK/app2.log" 2>&1 & APP=$!
 check "app restarts after being killed" "wait_for 'xdotool search --onlyvisible --name \"^Posthaste\$\" >/dev/null 2>&1' 150"
@@ -164,6 +200,47 @@ check "a second launch exits instead of running twice" "[ \$(pgrep -fc \"^$BIN\"
 check "\"--capture\" on a second launch opens capture in the running app" "wait_for '[ -n \"\$(capture_visible)\" ]' 50"
 sleep 0.5; shot 05-draft-after-crash
 xdotool key Escape; sleep 0.3
+
+echo "Trash"
+trashed(){ sql 'SELECT count(*) FROM notes WHERE deleted_at IS NOT NULL'; }
+all_notes(){ sql 'SELECT count(*) FROM notes'; }
+INBOX_WIN="$(for w in $(xdotool search --onlyvisible --name '^Posthaste$' 2>/dev/null); do
+  eval "$(xdotool getwindowgeometry --shell "$w")"; echo "$HEIGHT $w"; done | sort -rn | head -1 | cut -d' ' -f2)"
+xdotool windowactivate --sync "$INBOX_WIN"; sleep 0.5
+TRASHED_BEFORE="$(trashed)"; ALL_BEFORE="$(all_notes)"
+xdotool key 1; sleep 0.4; xdotool key j; sleep 0.2; xdotool key Delete
+check "Delete in the inbox moves the note to the trash" "wait_for '[ \"\$(trashed)\" -gt \"$TRASHED_BEFORE\" ]' 30"
+xdotool key 5; sleep 0.6
+shot 13-trash
+xdotool key j; sleep 0.2; xdotool key r
+check "R in Trash restores it" "wait_for '[ \"\$(trashed)\" = \"$TRASHED_BEFORE\" ]' 30"
+xdotool key 1; sleep 0.4; xdotool key j; sleep 0.2; xdotool key Delete; sleep 0.4
+xdotool key 5; sleep 0.6; xdotool key j; sleep 0.2; xdotool key Delete; sleep 0.5
+shot 14-trash-confirm
+xdotool key Tab Return
+check "Delete forever in Trash erases the note" "wait_for '[ \"\$(all_notes)\" -lt \"$ALL_BEFORE\" ]' 30"
+check "nothing else was erased" "[ \"\$(all_notes)\" = \"\$(( $ALL_BEFORE - 1 ))\" ] && [ \"\$(trashed)\" = \"$TRASHED_BEFORE\" ]"
+xdotool key 1; sleep 0.3
+
+echo "Window size (Roomy)"
+near(){ [ $(( $1 - $2 )) -ge -2 ] && [ $(( $1 - $2 )) -le 2 ]; }
+xdotool windowactivate --sync "$EDITOR_WIN"; sleep 0.3
+# The inbox window has the same title as capture: take the shortest one.
+xdotool key ctrl+shift+space; wait_for '[ -n "$(capture_visible)" ]' 50; sleep 0.4
+eval "$(for w in $(xdotool search --onlyvisible --name '^Posthaste$' 2>/dev/null); do
+  eval "$(xdotool getwindowgeometry --shell "$w")"; echo "$HEIGHT $w"; done | sort -n | head -1 |
+  { read -r _ w; xdotool getwindowgeometry --shell "$w"; })"
+echo "        (capture ${WIDTH}x${HEIGHT})"
+check "capture is 1.2 times as tall" "near $HEIGHT 322"
+check "capture width follows the grown bounds (520 x 1.2)" "near $WIDTH 624"
+sleep 0.3; shot 09-capture-roomy
+xdotool key Escape; wait_for '[ -z "$(capture_visible)" ]' 30
+xdotool key ctrl+alt+g; wait_for '[ -n "$(today_visible)" ]' 50; sleep 0.4
+eval "$(xdotool getwindowgeometry --shell "$(today_visible)")"
+echo "        (today ${WIDTH}x${HEIGHT})"
+check "Today is 1.2 times as big" "near $WIDTH 528 && near $HEIGHT 648"
+sleep 0.3; shot 10-today-roomy
+xdotool key Escape; wait_for '[ -z "$(today_visible)" ]' 30
 
 echo
 echo "$PASS passed, $FAIL failed"

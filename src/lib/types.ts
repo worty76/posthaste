@@ -17,6 +17,8 @@ export interface Note {
   has_details: boolean;
   /** How many files are attached. */
   attachment_count: number;
+  /** When the note was parked in Later; null when it is not. */
+  later_at: number | null;
 }
 
 /** A file attached to a note. The bytes stay in the database until asked for. */
@@ -63,6 +65,8 @@ export interface NoteQuery {
   statuses?: Status[];
   created_from?: number | null;
   created_to?: number | null;
+  /** true: only notes in Later; false: only notes not in Later; unset: either. */
+  later?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -70,7 +74,25 @@ export interface NoteQuery {
 export interface Counts {
   inbox: number;
   today: number;
+  later: number;
   archive: number;
+  /** Notes in the trash that can still be restored. */
+  trash: number;
+}
+
+/** How long a deleted note waits in the trash (mirrors the Rust constant). */
+export const TRASH_RETENTION_MS = 30 * 86_400_000;
+
+/** A note in the trash, with when it was put there. */
+export interface TrashedNote {
+  note: Note;
+  deleted_at: number;
+}
+
+/** Notes captured on one day, and how many of them are still open. */
+export interface DayMark {
+  total: number;
+  open: number;
 }
 
 /** What the Today window shows for one day. Carry-over is derived: nothing is moved. */
@@ -90,6 +112,8 @@ export interface Draft {
 export type Theme = "system" | "light" | "dark";
 export type AiProvider = "none" | "anthropic" | "openai" | "gemini";
 export type CapturePosition = "center" | "upper";
+/** Shown as Compact, Standard and Roomy. */
+export type WindowSize = "small" | "medium" | "large";
 export type EnterBehavior = "save" | "newline";
 export type DraftRetention = "forever" | "week" | "day";
 
@@ -101,6 +125,7 @@ export interface Settings {
   inbox_shortcut: string;
   today_shortcut: string;
   capture_position: CapturePosition;
+  window_size: WindowSize;
   hide_after_save: boolean;
   hide_on_blur: boolean;
   enter_behavior: EnterBehavior;
@@ -218,7 +243,7 @@ export interface ImportReport {
   skipped_invalid: number;
 }
 
-export type View = "inbox" | "today" | "archive" | "settings";
+export type View = "inbox" | "today" | "later" | "archive" | "trash" | "settings";
 
 export const DEFAULT_CAPTURE_SHORTCUT = "CmdOrCtrl+Shift+Space";
 export const defaultInboxShortcut = (os: Os) => (os === "macos" ? "Cmd+Ctrl+N" : "Ctrl+Alt+N");

@@ -47,6 +47,10 @@ pub struct Note {
     /// How many files are attached. Lists never carry the files themselves.
     #[serde(default)]
     pub attachment_count: u32,
+    /// When the note was parked in Later. `None` means it is not parked.
+    /// Only an open (inbox) note can be parked.
+    #[serde(default)]
+    pub later_at: Option<i64>,
 }
 
 /// Largest file that can be attached to a note.
@@ -97,6 +101,9 @@ pub struct NoteQuery {
     pub created_from: Option<i64>,
     /// Exclusive upper bound on `created_at`.
     pub created_to: Option<i64>,
+    /// `Some(true)`: only notes parked in Later. `Some(false)`: only notes
+    /// that are not. `None`: either.
+    pub later: Option<bool>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
@@ -105,7 +112,21 @@ pub struct NoteQuery {
 pub struct Counts {
     pub inbox: i64,
     pub today: i64,
+    /// Open notes parked in Later.
+    pub later: i64,
     pub archive: i64,
+    /// Notes in the trash that can still be restored.
+    pub trash: i64,
+}
+
+/// How long a deleted note waits in the trash before it is erased for good.
+pub const TRASH_RETENTION_MS: i64 = 30 * 86_400_000;
+
+/// A note in the trash, with when it was put there.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TrashedNote {
+    pub note: Note,
+    pub deleted_at: i64,
 }
 
 /// How many rows of each glance group are returned. The `done` and `total`
@@ -121,6 +142,14 @@ pub struct Glance {
     pub today: Vec<Note>,
     pub done: i64,
     pub total: i64,
+}
+
+/// How many notes were captured on one day, and how many of those are still
+/// open. Drives the dots in the calendar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct DayMark {
+    pub total: i64,
+    pub open: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +174,38 @@ pub enum CapturePosition {
     Center,
     /// Horizontally centred, in the upper third (launcher style).
     Upper,
+}
+
+/// How big the floating windows (capture, Today, note details) open. Only
+/// the room changes; text keeps its size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowSize {
+    /// "Compact" in Settings.
+    Small,
+    /// "Standard" in Settings: the original sizes.
+    #[default]
+    Medium,
+    /// "Roomy" in Settings.
+    Large,
+}
+
+impl WindowSize {
+    /// What the base window sizes are multiplied by.
+    pub fn factor(self) -> f64 {
+        match self {
+            WindowSize::Small => 0.9,
+            WindowSize::Medium => 1.0,
+            WindowSize::Large => 1.2,
+        }
+    }
+}
+
+/// Reads a window size, taking anything it does not know as Standard, so one
+/// odd value never resets the other settings to their defaults.
+fn lenient_window_size<'de, D: serde::Deserializer<'de>>(d: D) -> Result<WindowSize, D::Error> {
+    let value = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(value).unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,6 +273,9 @@ pub struct Settings {
     /// Opens the Today window: a small glance at today's notes.
     pub today_shortcut: String,
     pub capture_position: CapturePosition,
+    /// How big the capture, Today and details windows open.
+    #[serde(deserialize_with = "lenient_window_size")]
+    pub window_size: WindowSize,
     /// Hide the capture window after a successful save.
     pub hide_after_save: bool,
     /// Hide the capture window when it loses focus (the draft is kept).
@@ -238,6 +302,7 @@ impl Default for Settings {
             inbox_shortcut: DEFAULT_INBOX_SHORTCUT.into(),
             today_shortcut: DEFAULT_TODAY_SHORTCUT.into(),
             capture_position: CapturePosition::Center,
+            window_size: WindowSize::Medium,
             hide_after_save: true,
             hide_on_blur: true,
             enter_behavior: EnterBehavior::Save,

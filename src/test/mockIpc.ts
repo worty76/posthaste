@@ -12,6 +12,7 @@ export const defaultSettings: Settings = {
   inbox_shortcut: "Ctrl+Alt+N",
   today_shortcut: "Ctrl+Alt+G",
   capture_position: "center",
+  window_size: "medium",
   hide_after_save: true,
   hide_on_blur: true,
   enter_behavior: "save",
@@ -49,6 +50,7 @@ export function note(content: string, patch: Partial<Note> = {}): Note {
     archived_at: null,
     has_details: false,
     attachment_count: 0,
+    later_at: null,
     ...patch,
   };
 }
@@ -71,11 +73,17 @@ export const api = {
   notesCounts: vi.fn(),
   categoriesList: vi.fn(),
   glanceGet: vi.fn(),
+  notesDayMarks: vi.fn(),
+  inboxOpenDate: vi.fn(),
   todayDismiss: vi.fn(),
   noteUpdate: vi.fn(),
   noteSetStatus: vi.fn(),
+  noteSetLater: vi.fn(),
   noteDelete: vi.fn(),
   noteUndelete: vi.fn(),
+  trashList: vi.fn(),
+  trashPurge: vi.fn(),
+  trashEmpty: vi.fn(),
   detailsOpen: vi.fn(),
   detailsDismiss: vi.fn(),
   detailsCurrent: vi.fn(),
@@ -117,8 +125,13 @@ export function resetIpc() {
   api.settingsUpdate.mockImplementation(async (s: Settings) => settingsState(s));
   api.draftGet.mockResolvedValue(null);
   api.notesList.mockResolvedValue([]);
-  api.notesCounts.mockResolvedValue({ inbox: 0, today: 0, archive: 0 });
+  api.notesCounts.mockResolvedValue({ inbox: 0, today: 0, later: 0, archive: 0, trash: 0 });
+  api.trashList.mockResolvedValue([]);
+  api.trashPurge.mockResolvedValue(undefined);
+  api.trashEmpty.mockResolvedValue(0);
   api.categoriesList.mockResolvedValue([]);
+  api.notesDayMarks.mockResolvedValue([]);
+  api.inboxOpenDate.mockResolvedValue(undefined);
   api.glanceGet.mockResolvedValue({ carried: [], today: [], done: 0, total: 0 });
   api.dataInfo.mockResolvedValue({
     path: "/data/posthaste.db",

@@ -12,7 +12,7 @@ import {
   toDataUrl,
   typeLabel,
 } from "../lib/attachments";
-import { dayLabel, timeLabel } from "../lib/dates";
+import { dayLabel, daysBetween, timeLabel } from "../lib/dates";
 import { DraftSync } from "../lib/draftSync";
 import { api, on, onFileDrop, toAppError } from "../lib/ipc";
 import { hasMod } from "../lib/shortcut";
@@ -308,6 +308,11 @@ export function DetailsWindow({ os }: { os: Os }) {
   const done = note?.status === "completed";
   const mod = os === "macos" ? "⌘" : "Ctrl";
   const now = Date.now();
+  // Open and not parked: how many days it has been carried to the next one.
+  const carriedDays =
+    note && note.status === "inbox" && note.later_at === null
+      ? daysBetween(note.created_at, now)
+      : 0;
 
   return (
     <div className="details">
@@ -347,7 +352,13 @@ export function DetailsWindow({ os }: { os: Os }) {
               onClick={toggleDone}
             >
               {done && <Icon name="check" size={12} />}
-              {done ? "Done" : note.status === "archived" ? "Archived" : "Inbox"}
+              {done
+                ? "Done"
+                : note.status === "archived"
+                  ? "Archived"
+                  : note.later_at !== null
+                    ? "Later"
+                    : "Inbox"}
             </button>
           )}
           <IconButton icon="close" label="Close (Esc)" onClick={() => void close()} />
@@ -356,6 +367,13 @@ export function DetailsWindow({ os }: { os: Os }) {
         {note && (
           <p className="details__meta">
             Created {dayLabel(note.created_at, now).toLowerCase()}, {timeLabel(note.created_at)}
+            {note.source && <> · from {note.source}</>}
+            {carriedDays > 0 && (
+              <>
+                {" "}
+                · carried over {carriedDays} {carriedDays === 1 ? "day" : "days"}
+              </>
+            )}
             {note.updated_at - note.created_at > 60_000 && (
               <>
                 {" "}

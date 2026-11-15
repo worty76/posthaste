@@ -9,6 +9,8 @@ import { Toasts, useToasts } from "../components/Toasts";
 import { useAppearance } from "../hooks/useAppearance";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateCheck } from "../hooks/useUpdateCheck";
+import { DateFilter } from "./DateFilter";
+import { TrashView } from "./TrashView";
 import { copyText } from "../lib/clipboard";
 import { dayRange, groupByDay } from "../lib/dates";
 import { api, on, toAppError } from "../lib/ipc";
@@ -22,13 +24,17 @@ const PAGE = 200;
 const TITLES: Record<View, string> = {
   inbox: "Inbox",
   today: "Today",
+  later: "Later",
   archive: "Archive",
+  trash: "Trash",
   settings: "Settings",
 };
 const NAV: { view: Exclude<View, "settings">; icon: IconName }[] = [
   { view: "inbox", icon: "inbox" },
   { view: "today", icon: "sun" },
+  { view: "later", icon: "later" },
   { view: "archive", icon: "archive" },
+  { view: "trash", icon: "trash" },
 ];
 
 function isView(v: string): v is View {
@@ -68,8 +74,10 @@ export function MainWindow({ info }: { info: AppInfo }) {
 
   // ---- data ----------------------------------------------------------------
 
+  // Trash loads its own list; it only shares the search box.
+  const trashShown = view === "trash" && !searching;
   useEffect(() => {
-    if (view === "settings") return;
+    if (view === "settings" || (view === "trash" && !isSearching(filters))) return;
     const id = ++requestId.current;
     const now = Date.now();
     // A short pause while typing keeps a fast typist from queueing queries.
@@ -125,6 +133,19 @@ export function MainWindow({ info }: { info: AppInfo }) {
       }),
     [go],
   );
+  // From the "where it came from" tag in Today: the notes captured that day.
+  // Subscribed once, so a view change never leaves a gap with no listener.
+  const goRef = useRef(go);
+  goRef.current = go;
+  useEffect(
+    () =>
+      on("inbox-show-date", (date) => {
+        goRef.current("inbox");
+        setFilters({ ...NO_FILTERS, date });
+        setFiltersOpen(true);
+      }),
+    [],
+  );
 
   const visible = useMemo(() => notes.slice(0, limit), [notes, limit]);
   const hasMore = notes.length > limit;
@@ -157,11 +178,24 @@ export function MainWindow({ info }: { info: AppInfo }) {
           ? void setStatus(note, "inbox", "Marked as not completed")
           : void setStatus(note, "completed", "Completed"),
       archive: (note) => void setStatus(note, "archived", "Archived"),
+      toggleLater: (note) => {
+        const later = note.later_at === null;
+        api.noteSetLater(note.id, later).then(
+          () =>
+            show(later ? "Moved to Later" : "Moved back to Inbox", {
+              action: {
+                label: "Undo",
+                run: () => void api.noteSetLater(note.id, !later).catch(fail),
+              },
+            }),
+          fail,
+        );
+      },
       restore: (note) => void setStatus(note, "inbox", "Moved back to Inbox"),
       remove: (note) => {
         api.noteDelete(note.id).then(
           () =>
-            show("Note deleted", {
+            show("Moved to Trash", {
               action: {
                 label: "Undo",
                 run: () => void api.noteUndelete(note.id).catch(fail),
@@ -238,7 +272,9 @@ export function MainWindow({ info }: { info: AppInfo }) {
 
       if (e.key === "1") return go("inbox");
       if (e.key === "2") return go("today");
-      if (e.key === "3") return go("archive");
+      if (e.key === "3") return go("later");
+      if (e.key === "4") return go("archive");
+      if (e.key === "5") return go("trash");
       if (e.key === "?") return setHelpOpen(true);
       if (e.key === "/") {
         e.preventDefault();
@@ -248,6 +284,8 @@ export function MainWindow({ info }: { info: AppInfo }) {
       }
       if (e.key === "n") return void api.captureOpen();
       if (view === "settings") return;
+      // Trash has its own keys.
+      if (view === "trash" && !searching) return;
 
       const index = visible.findIndex((n) => n.id === selectedId);
       const current = index >= 0 ? visible[index] : undefined;
@@ -296,6 +334,11 @@ export function MainWindow({ info }: { info: AppInfo }) {
             if (view === "archive" && !searching) advance();
           }
           break;
+        case "l":
+          e.preventDefault();
+          actions.toggleLater(current);
+          if (view !== "archive" && !searching) advance();
+          break;
         case "c":
           actions.copy(current);
           break;
@@ -321,7 +364,16 @@ export function MainWindow({ info }: { info: AppInfo }) {
     shortcuts?.capture.registered && shortcuts.capture.accelerator
       ? formatAccelerator(shortcuts.capture.accelerator, os)
       : null;
-  const count = (v: View) => (v === "inbox" ? counts?.inbox : v === "today" ? counts?.today : null);
+  const count = (v: View) =>
+    v === "inbox"
+      ? counts?.inbox
+      : v === "today"
+        ? counts?.today
+        : v === "later"
+          ? counts?.later
+          : v === "trash"
+            ? counts?.trash
+            : null;
 
   return (
     <div className={`app os-${os}`}>
@@ -436,15 +488,11 @@ export function MainWindow({ info }: { info: AppInfo }) {
               ]}
               onChange={(status) => setFilters((f) => ({ ...f, status }))}
             />
-            <TextField
-              type="date"
-              aria-label="Captured on date"
-              title="Show notes captured on a date"
-              data-empty={filters.date === ""}
+            <DateFilter
               value={filters.date}
-              onChange={(e) => {
+              onChange={(date) => {
                 setLimit(PAGE);
-                setFilters((f) => ({ ...f, date: e.target.value }));
+                setFilters((f) => ({ ...f, date }));
               }}
             />
             {searching && loaded && (
@@ -475,6 +523,8 @@ export function MainWindow({ info }: { info: AppInfo }) {
                   onCheck={updates.check}
                 />
               ) : null
+            ) : trashShown ? (
+              <TrashView show={show} fail={fail} />
             ) : !loaded ? null : visible.length === 0 ? (
               <Empty view={view} filters={filters} captureKeys={captureKeys} />
             ) : (
@@ -542,6 +592,14 @@ function Empty({
       <EmptyState title="Nothing captured today">Notes you capture today show up here.</EmptyState>
     );
   }
+  if (view === "later") {
+    return (
+      <EmptyState title="Nothing parked">
+        Press <Kbd keys={["L"]} /> on a note to keep it here, out of Today and the inbox, until you
+        want it back.
+      </EmptyState>
+    );
+  }
   if (view === "archive") {
     return (
       <EmptyState title="The archive is empty">
@@ -571,10 +629,13 @@ function ShortcutHelp({ open, onClose, mod }: { open: boolean; onClose: () => vo
     ["Complete", ["X"]],
     ["Archive", ["A"]],
     ["Move back to Inbox", ["R"]],
+    ["Later, or back to Inbox", ["L"]],
     ["Copy", ["C"]],
     ["Delete", ["Del"]],
     ["Search", ["/"]],
-    ["Inbox, Today, Archive", ["1", "2", "3"]],
+    ["Inbox, Today, Later, Archive, Trash", ["1", "2", "3", "4", "5"]],
+    ["Restore (in Trash)", ["R", "↵"]],
+    ["Delete forever (in Trash)", ["Del"]],
     ["New note", ["N"]],
     ["Settings", [mod, ","]],
   ];

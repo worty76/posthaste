@@ -12,6 +12,7 @@ html.is-today body {
 }
 
 .today__panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -26,10 +27,56 @@ html.is-today body {
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--border);
 }
+.today__day {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: calc(-1 * var(--s-2));
+}
 .today__date {
+  min-width: 0;
   font-size: var(--t-lg);
   font-weight: 600;
   color: var(--text);
+}
+.today__date-button {
+  padding: 2px var(--s-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.today__date-button:hover {
+  background: var(--hover);
+}
+.today__back {
+  margin-left: auto;
+  padding: 2px var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.today__back:hover {
+  color: var(--text);
+}
+/* Over the list, inside the panel (which clips). */
+.today__calendar {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+}
+.today__past {
+  color: var(--text-muted);
 }
 .today__count {
   margin-top: 2px;
@@ -119,6 +166,15 @@ html.is-today body {
   font-size: var(--t-xs);
 }
 
+/* The shared empty state has no side padding (the inbox column supplies it);
+   here the panel does not, so give it the header's inset. */
+.today .empty {
+  flex: 1;
+  align-content: start;
+  max-width: none;
+  padding: var(--s-6) var(--s-4);
+}
+
 .today__error {
   margin: auto;
   padding: var(--s-5);
@@ -129,8 +185,9 @@ html.is-today body {
 
 .today__hints {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-4);
+  gap: var(--s-1) var(--s-3);
   padding: var(--s-2) var(--s-4);
   border-top: 1px solid var(--border);
   color: var(--text-faint);
@@ -140,6 +197,7 @@ html.is-today body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .today__row .badges {
@@ -154,4 +212,22 @@ html.is-today body {
 .today__row[data-selected="true"] .today__open,
 .today__open:focus-visible {
   opacity: 1;
+}
+
+/* Where a carried note came from: plain muted text that links to its day. */
+.today__origin {
+  flex: none;
+  padding: 2px var(--s-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.today__origin:hover {
+  color: var(--text);
+}
+.today__origin:hover {
+  text-decoration: underline;
 }

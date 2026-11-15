@@ -23,7 +23,14 @@ A global shortcut opens a small window, you type, Enter saves, the window
 disappears, and focus returns to what you were doing. Later the note is in the
 inbox. A second glance shortcut opens a small Today window: what is on today's
 plate and how much of it is done, gone with Esc. Enter on a note there opens
-Note details: a description and attached files for that one note. There are
+Note details: a description and attached files for that one note. L parks a
+note in Later, out of Today and the inbox; it has no date and never comes back
+by itself (that would be a reminder). ← and → in Today show earlier days,
+read-only and rebuilt from timestamps; there are no future days, because notes
+have no dates. A carried note names the day it came from in plain text, never
+as a warning or a count. Delete moves a note to Trash: one list for the whole
+app, kept 30 days, then erased for good; restoring changes nothing but
+`deleted_at`. There are
 four windows — capture, glance, details, inbox — and every change is judged
 against that loop: it must not get slower, need more keystrokes, or become
 less reliable.
