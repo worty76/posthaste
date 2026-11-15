@@ -1,7 +1,7 @@
 // Copy for the "what it does" blocks, as data so a test can check every
 // block has a heading and a sentence naming a key, a number or a behaviour.
 
-export type BlockId = "capture" | "inbox" | "undo" | "looks" | "ai" | "keys";
+export type BlockId = "capture" | "inbox" | "details" | "undo" | "looks" | "ai" | "keys";
 
 export interface Block {
   id: BlockId;
@@ -19,6 +19,11 @@ export const BLOCKS: Block[] = [
     id: "inbox",
     title: "Inbox and search",
     fact: "Notes wait in the inbox, grouped by day. Search finds one by any word in it.",
+  },
+  {
+    id: "details",
+    title: "Details for any note",
+    fact: "Add a description and attach images or documents to a note. It saves as you type, and the files stay in your one database file.",
   },
   {
     id: "undo",

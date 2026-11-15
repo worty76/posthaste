@@ -112,6 +112,56 @@ export function UndoDemo() {
   );
 }
 
+const DETAIL_FILES = [
+  { id: 1, name: "changelog-draft.png", size: "43 KB" },
+  { id: 2, name: "release-checklist.pdf", size: "94 KB" },
+];
+
+export function DetailsDemo() {
+  const [text, setText] = useState("Minh has the release notes. Check the router with Dung first.");
+  const [files, setFiles] = useState(DETAIL_FILES);
+  return (
+    <div className="mini mini--details">
+      <p className="mini__label">
+        <b>Ship v0.2.3 on Friday</b>
+      </p>
+      <label className="visually-hidden" htmlFor="details-text">
+        Description of the demo note
+      </label>
+      <textarea
+        id="details-text"
+        className="mini__area"
+        rows={3}
+        placeholder="Add a description"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      {files.length === 0 ? (
+        <p className="quiet">No files attached.</p>
+      ) : (
+        <ul className="mini__list">
+          {files.map((f) => (
+            <li key={f.id}>
+              <span>
+                {f.name} <span className="quiet">{f.size}</span>
+              </span>
+              <button
+                type="button"
+                className="link-button"
+                aria-label={`Remove ${f.name}`}
+                onClick={() => setFiles((all) => all.filter((x) => x.id !== f.id))}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mini__fine">A demo. Nothing is stored or sent.</p>
+    </div>
+  );
+}
+
 const ROUGH = "chek router w dung b4 fri";
 const POLISHED = "Check the router with Dung before Friday.";
 

@@ -36,11 +36,24 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       ["Edit", () => ["E"]],
       ["Done", () => ["X"]],
       ["Archive", () => ["A"]],
+      ["Note details", () => ["O"]],
       ["Search", () => ["/"]],
       ["Every shortcut", () => ["?"]],
     ],
   },
+  {
+    title: "In note details",
+    rows: [
+      ["Open from Today", () => ["Enter"]],
+      ["Add files", (os) => [mod(os), "O"]],
+      ["Mark done", (os) => [mod(os), "Enter"]],
+      ["Save and close", () => ["esc"]],
+    ],
+  },
 ];
+
+/** Three columns; the short first column carries the note-details keys. */
+const COLUMNS = [["From any app", "In note details"], ["While writing"], ["In the inbox"]];
 
 const ORDER: Os[] = ["mac", "windows", "linux"];
 
@@ -65,19 +78,25 @@ export function ShortcutSheet() {
         ))}
       </div>
       <div className="sheet__groups">
-        {GROUPS.map((g) => (
-          <div className="sheet__group" key={g.title}>
-            <h3 className="sheet__title">{g.title}</h3>
-            <dl className="sheet__rows">
-              {g.rows.map(([label, keys]) => (
-                <div className="sheet__row" key={label}>
-                  <dt>{label}</dt>
-                  <dd>
-                    <Keys keys={keys(os)} />
-                  </dd>
+        {COLUMNS.map((titles) => (
+          <div className="sheet__col" key={titles.join("+")}>
+            {titles
+              .map((t) => GROUPS.find((g) => g.title === t)!)
+              .map((g) => (
+                <div className="sheet__group" key={g.title}>
+                  <h3 className="sheet__title">{g.title}</h3>
+                  <dl className="sheet__rows">
+                    {g.rows.map(([label, keys]) => (
+                      <div className="sheet__row" key={label}>
+                        <dt>{label}</dt>
+                        <dd>
+                          <Keys keys={keys(os)} />
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               ))}
-            </dl>
           </div>
         ))}
       </div>

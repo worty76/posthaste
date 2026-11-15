@@ -1,10 +1,11 @@
-import { AiPolishDemo, CaptureMini, InboxDemo, UndoDemo } from "./MiniDemos";
+import { AiPolishDemo, CaptureMini, DetailsDemo, InboxDemo, UndoDemo } from "./MiniDemos";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { BLOCKS, type BlockId } from "@/lib/blocks";
 
 const DEMOS: Partial<Record<BlockId, React.ReactNode>> = {
   capture: <CaptureMini />,
   inbox: <InboxDemo />,
+  details: <DetailsDemo />,
   undo: <UndoDemo />,
   ai: <AiPolishDemo />,
   looks: (

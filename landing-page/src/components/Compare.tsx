@@ -4,6 +4,7 @@ import {
   COMPARE_ROWS,
   PICK_OTHERS,
   PICK_POSTHASTE,
+  VS_TODOGLOW,
 } from "@/lib/compare";
 
 import { formatIsoDate as formatChecked } from "@/lib/dates";
@@ -76,6 +77,33 @@ export function Compare() {
           </span>
         ))}
       </p>
+
+      <h3 className="h3 compare__vs-title">Next to TodoGlow</h3>
+      <p className="compare__vs-lede">
+        TodoGlow is the closest in spirit: a keyboard-first to-do app that one global shortcut
+        opens. Where its page says nothing, this says it doesn&apos;t list the thing, not that the
+        app lacks it.
+      </p>
+      <div className="compare__picks compare__picks--vs">
+        <div>
+          <h4 className="compare__vs-head">
+            What Posthaste has that TodoGlow&apos;s page doesn&apos;t list
+          </h4>
+          <ul className="ledger">
+            {VS_TODOGLOW.ours.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4 className="compare__vs-head">What TodoGlow has that Posthaste doesn&apos;t</h4>
+          <ul className="ledger">
+            {VS_TODOGLOW.theirs.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
       <div className="compare__picks">
         <div>

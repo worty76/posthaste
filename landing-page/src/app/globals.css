@@ -722,6 +722,11 @@ kbd {
   gap: clamp(24px, 4vw, 48px);
   margin-top: 28px;
 }
+.sheet__col {
+  display: grid;
+  align-content: start;
+  gap: clamp(24px, 4vw, 40px);
+}
 .sheet__title {
   padding-bottom: 10px;
   border-bottom: 2px solid var(--text);
@@ -1078,6 +1083,22 @@ kbd {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(32px, 6vw, 72px);
   margin-top: 48px;
+}
+.compare__vs-title {
+  margin-top: 56px;
+}
+.compare__vs-lede {
+  margin-top: 10px;
+  max-width: 60ch;
+  color: var(--muted);
+}
+.compare__picks--vs {
+  margin-top: 24px;
+}
+.compare__vs-head {
+  margin: 0 0 12px;
+  font-size: var(--t-md);
+  font-weight: 700;
 }
 .compare__both {
   margin-top: 28px;
@@ -1476,10 +1497,15 @@ kbd {
   background: var(--surface);
 }
 .feature--inbox,
-.feature--undo,
+.feature--undo {
+  grid-column: span 2;
+}
+.feature--details {
+  grid-column: span 4;
+}
 .feature--ai,
 .feature--looks {
-  grid-column: span 2;
+  grid-column: span 3;
 }
 .feature--keys {
   grid-column: 1 / -1;
@@ -1494,6 +1520,7 @@ kbd {
   .feature,
   .feature--capture,
   .feature--inbox,
+  .feature--details,
   .feature--undo,
   .feature--ai,
   .feature--looks {
@@ -1545,6 +1572,17 @@ kbd {
   background: var(--bg);
   color: var(--text);
   font: inherit;
+}
+.mini__area {
+  width: 100%;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
 }
 .mini__count {
   margin: 10px 0 4px;
@@ -1664,9 +1702,9 @@ kbd {
   }
 }
 
-/* The compare table grew to eight apps: keep the topic column in view. */
+/* The compare table grew to nine apps: keep the topic column in view. */
 .compare__table {
-  min-width: 1180px;
+  min-width: 1320px;
 }
 .compare__table tbody th {
   position: sticky;

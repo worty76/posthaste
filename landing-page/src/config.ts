@@ -44,13 +44,17 @@ export const PRODUCT = {
 export const DEMO_VIDEO = {
   src: "/demo/posthaste-demo.mp4",
   poster: "/demo/posthaste-demo-poster.jpg",
-  seconds: 61,
+  seconds: 73,
 } as const;
 
 /** Release notes written for people, by version. They replace the automatic
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {
-  "0.3.0": ["A maintenance build: new installers, no changes to the app."],
+  "0.3.0": [
+    "Note details: give any note a description and attach files, images and documents.",
+    "Search now finds words inside descriptions.",
+    "New installers for macOS, Windows and Linux.",
+  ],
   "0.2.2": [
     "The Today window: today's notes and the unfinished ones from before, on its own shortcut.",
     "Change the Today shortcut in Settings.",
