@@ -29,7 +29,7 @@ Your notes live in one SQLite file on your machine. No account, no sync, no
 telemetry — nothing leaves your computer unless you turn on AI polish yourself.
 
 <p align="center">
-  <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg" width="720" controls muted playsinline></video>
+  <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4?v=3" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg?v=3" width="720" controls muted playsinline></video>
 </p>
 
 ## Why Posthaste
