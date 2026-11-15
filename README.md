@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://posthaste.worty.id.vn">Download for macOS, Windows and Linux</a>
+  <a href="https://posthaste.ink">Download for macOS, Windows and Linux</a>
   ·
   <a href="https://github.com/worty76/Posthaste/releases/latest">Releases</a>
 </p>

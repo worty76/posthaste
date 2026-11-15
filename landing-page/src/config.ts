@@ -18,8 +18,8 @@ export const PRODUCT = {
   version: "0.2.2",
   repoUrl: "https://github.com/worty76/Posthaste",
   releasesUrl: "https://github.com/worty76/Posthaste/releases/latest",
-  /** Set when the site has a permanent home; canonical and share URLs use it. */
-  siteUrl: "https://posthaste.worty.id.vn" as string | null,
+  /** The canonical home; canonical and share URLs use it. */
+  siteUrl: "https://posthaste.ink" as string | null,
   /**
    * The v0.2.2 installers, checked against the published release on
    * 15 Nov 2026. The build replaces these with the latest release's assets

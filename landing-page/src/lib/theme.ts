@@ -4,7 +4,7 @@
 // different look by carrying the attribute itself (the look tiles do).
 
 import { deriveTokens } from "./derive";
-import { LOOKS, defaultLookId, lookById, type Look } from "./looks";
+import { DEFAULT_LOOK_ID, LOOKS, lookById, type Look } from "./looks";
 
 /** Recursive's casual and mono axes stand in for the app's font modes. */
 const FONT_AXES: Record<Look["font"], { casl: number; mono: number }> = {
@@ -50,14 +50,11 @@ function block(selector: string, look: Look): string {
 
 /**
  * The stylesheet for every look. With no data-look on <html> (first paint,
- * or JavaScript off) the colour scheme picks the default look.
+ * or JavaScript off) the page wears the default look, Ink.
  */
 export function themeCss(): string {
-  const light = lookById(defaultLookId(false));
-  const dark = lookById(defaultLookId(true));
   return [
-    block(":root", light),
-    `@media (prefers-color-scheme: dark){${block(":root:not([data-look])", dark)}}`,
+    block(":root", lookById(DEFAULT_LOOK_ID)),
     ...LOOKS.map((look) => block(`[data-look="${look.id}"]`, look)),
   ].join("\n");
 }

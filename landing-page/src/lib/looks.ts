@@ -76,7 +76,5 @@ export function lookById(id: string): Look {
   return LOOKS.find((l) => l.id === id) ?? FALLBACK_LOOK;
 }
 
-/** Which look a first-time visitor starts on, per their colour scheme. */
-export function defaultLookId(prefersDark: boolean): string {
-  return prefersDark ? "midnight-grape" : "strawberry-milk";
-}
+/** Every visitor starts on Ink, the look a fresh install of the app wears. */
+export const DEFAULT_LOOK_ID = "ink";

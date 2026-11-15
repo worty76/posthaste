@@ -20,7 +20,7 @@ jobs:
             --arg actor "$ACTOR" \
             --arg repo "$REPO" \
             --arg color "$COLOR" \
-            --arg avatar "https://posthaste.worty.id.vn/logo-256.png?v=2" \
+            --arg avatar "https://posthaste.ink/logo-256.png" \
             '{
               username: "Posthaste",
               avatar_url: $avatar,

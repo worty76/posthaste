@@ -11,12 +11,11 @@ describe("look switching", () => {
     for (const look of LOOKS) expect(css).toContain(`[data-look="${look.id}"]{`);
   });
 
-  it("defaults to Strawberry Milk, and to Midnight Grape when the system is dark", () => {
+  it("defaults to Ink, whatever the system colour scheme", () => {
     const css = themeCss();
-    expect(css.startsWith(":root{--bg:#fff5f7")).toBe(true);
-    expect(css).toContain(
-      "@media (prefers-color-scheme: dark){:root:not([data-look]){--bg:#1a1423",
-    );
+    expect(css.startsWith(":root{--bg:#0f0f0f")).toBe(true);
+    expect(css.split("\n")[0]).toContain("--mono:1");
+    expect(css).not.toContain("prefers-color-scheme");
   });
 
   it("sets every variable the stylesheet uses, for every look", () => {

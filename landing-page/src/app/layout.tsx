@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { PRODUCT } from "@/config";
 import { themeCss } from "@/lib/theme";
-import { defaultLookId, lookById } from "@/lib/looks";
+import { DEFAULT_LOOK_ID, lookById } from "@/lib/looks";
 import "./globals.css";
 
 // One self-hosted, open-licence variable font (licence in src/fonts/).
@@ -37,10 +37,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: lookById(defaultLookId(false)).colors.bg },
-    { media: "(prefers-color-scheme: dark)", color: lookById(defaultLookId(true)).colors.bg },
-  ],
+  themeColor: lookById(DEFAULT_LOOK_ID).colors.bg,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

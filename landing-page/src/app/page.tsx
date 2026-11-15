@@ -2,9 +2,9 @@ import { CaptureHero } from "@/components/CaptureHero";
 import { ContrastToy } from "@/components/ContrastToy";
 import { Downloads } from "@/components/Downloads";
 import { GitHubMark } from "@/components/icons";
-import { LookChips } from "@/components/LookChips";
+import { KeyboardBackdrop } from "@/components/KeyboardBackdrop";
 import { LookTiles } from "@/components/LookTiles";
-import { OsKeys } from "@/components/os";
+import { ShortcutSheet } from "@/components/ShortcutSheet";
 import { ShareCodeRow } from "@/components/ShareCodeRow";
 import { SiteStateProvider } from "@/components/SiteState";
 import { StarChip } from "@/components/StarChip";
@@ -98,19 +98,19 @@ export default async function Page() {
 
       <main>
         <section className="page hero" aria-labelledby="hero-title">
+          <KeyboardBackdrop />
           <div className="hero__top">
             <h1 className="hero__title" id="hero-title">
               Get it out of your head in two seconds.
             </h1>
             <div className="hero__side">
               <p className="hero__sub">
-                Press <OsKeys which="capture" /> anywhere, type, press Enter. The window closes and
+                Posthaste lives on your keyboard. A shortcut opens it over any app, Enter saves, and
                 you&apos;re back where you were. Try it here: the box is ready.
               </p>
               <noscript>
                 <p className="hero__sub">Turn on JavaScript to try the box below.</p>
               </noscript>
-              <LookChips />
             </div>
           </div>
           <CaptureHero />
@@ -122,17 +122,30 @@ export default async function Page() {
               Later, see what&apos;s left.
             </h2>
             <p>
-              <OsKeys which="today" /> opens a small window with today&apos;s notes and the
-              unfinished ones from before. X ticks one off. Esc puts it away and you&apos;re back
-              again.
+              Another shortcut opens a small window with today&apos;s notes and the unfinished ones
+              from before. X ticks one off. Esc puts it away and you&apos;re back again.
             </p>
             <TodayCount />
             <p className="quiet">
-              Everything else is in the inbox, <OsKeys which="inbox" />. Search finds a note by any
+              Everything else waits in the inbox, one more shortcut away. Search finds a note by any
               word in it. A deleted note waits 24 hours in the trash, so Undo always works.
             </p>
           </div>
           <TodayDemo />
+        </section>
+
+        <section className="page keys-section" aria-labelledby="keys-title">
+          <div className="keys-section__copy">
+            <h2 className="h2" id="keys-title">
+              Every move is a key.
+            </h2>
+            <p>
+              No menus to dig through. The mouse works too, but the keyboard is faster once your
+              hands know the way. Every global shortcut can be changed in Settings, and <kbd>?</kbd>{" "}
+              lists them all inside the app.
+            </p>
+          </div>
+          <ShortcutSheet />
         </section>
 
         <section className="page looks" aria-labelledby="looks-title">

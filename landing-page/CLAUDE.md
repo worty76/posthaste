@@ -33,7 +33,14 @@ to Latin plus key symbols, weights 450 to 800, slant -12 to 0. Its `CASL` and
 `--casl` and `--mono`.
 
 Motion: the main gesture (save, switch look, tick a note off) is a hard
-cut. No transitions on it, no scroll-triggered animation.
+cut. No transitions on it, no scroll-triggered animation. The hero's
+background keyboard (`KeyboardBackdrop`) only moves in answer to the
+visitor's own keystrokes, and is still under reduced motion.
+
+Shortcuts: the copy does not lean on one key combination; the app is
+keyboard-first and will gain shortcuts. Specific keys live in one place,
+the "Every move is a key" sheet (`ShortcutSheet`), with facts from the
+README.
 
 Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the

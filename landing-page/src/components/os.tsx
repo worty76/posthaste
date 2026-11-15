@@ -70,9 +70,3 @@ export function Keys({ keys }: { keys: string[] }) {
     </span>
   );
 }
-
-/** The shortcut for the visitor's system; macOS until we know. */
-export function OsKeys({ which }: { which: "capture" | "today" | "inbox" }) {
-  const os = useOs() ?? "mac";
-  return <Keys keys={SHORTCUTS[os][which]} />;
-}

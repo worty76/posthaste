@@ -5,7 +5,7 @@
 
 import { useEffect, useRef } from "react";
 import { useSite } from "./SiteState";
-import { Keys, OsKeys, useBrowserName } from "./os";
+import { Keys, useBrowserName } from "./os";
 import { MAX_NOTE_CHARS, formatSeconds, savedStack } from "@/lib/demo";
 
 export function CaptureHero() {
@@ -72,8 +72,8 @@ export function CaptureHero() {
       <ol className="stack" aria-label="Notes you saved in this demo">
         {stack.length === 0 ? (
           <li className="stack__empty">
-            This is a demo: nothing here is stored or sent. In the app, <OsKeys which="capture" />{" "}
-            opens this window from anywhere and Enter writes the note to a file on your computer.
+            This is a demo: nothing here is stored or sent. In the app, a shortcut opens this window
+            from anywhere and Enter writes the note to a file on your computer.
           </li>
         ) : (
           stack.map((n) => (

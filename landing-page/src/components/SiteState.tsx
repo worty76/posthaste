@@ -4,7 +4,7 @@
 // hero and the Today window both show. Memory only: nothing is stored.
 
 import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
-import { LOOKS, defaultLookId } from "@/lib/looks";
+import { DEFAULT_LOOK_ID, LOOKS } from "@/lib/looks";
 import { applyLook } from "@/lib/theme";
 import { demoReducer, initialDemo, type DemoAction, type DemoState } from "@/lib/demo";
 
@@ -31,19 +31,10 @@ function isTyping(target: EventTarget | null): boolean {
 
 export function SiteStateProvider({ children }: { children: React.ReactNode }) {
   const [demo, dispatch] = useReducer(demoReducer, undefined, initialDemo);
-  // Server render and first paint follow the colour scheme through CSS
-  // alone; the effect below catches the state up without a flash.
-  const [lookId, setLookId] = useState<string>(defaultLookId(false));
+  // The page starts in Ink through CSS alone; data-look is only set once
+  // the visitor picks another look.
+  const [lookId, setLookId] = useState<string>(DEFAULT_LOOK_ID);
   const [chosen, setChosen] = useState(false);
-
-  useEffect(() => {
-    if (chosen) return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const follow = () => setLookId(defaultLookId(media.matches));
-    follow();
-    media.addEventListener("change", follow);
-    return () => media.removeEventListener("change", follow);
-  }, [chosen]);
 
   useEffect(() => {
     if (chosen) applyLook(lookId);

@@ -51,6 +51,7 @@ html {
 
 body {
   margin: 0;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
@@ -280,8 +281,106 @@ kbd {
 /* ---- Hero: the capture window ---- */
 
 .hero {
+  position: relative;
+  isolation: isolate;
   padding-top: clamp(40px, 8vw, 96px);
-  padding-bottom: var(--section);
+  padding-bottom: calc(var(--section) + 120px);
+}
+
+/* ---- Hero background: a dot grid, a light behind the window, and a faint
+   keyboard whose keys light up as you type ---- */
+
+.backdrop {
+  position: absolute;
+  z-index: -1;
+  inset: -80px calc(50% - 50vw) 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1.6px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 75%);
+}
+.backdrop::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 68%;
+  width: min(1100px, 120vw);
+  height: 520px;
+  translate: -50% -50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--accent) 16%, transparent),
+    transparent
+  );
+}
+
+.backdrop__board {
+  --u: 62px;
+  position: absolute;
+  left: 50%;
+  top: 84%;
+  display: grid;
+  gap: calc(var(--u) * 0.12);
+  translate: -50% -50%;
+  transform: perspective(1600px) rotateX(56deg) rotateZ(-8deg);
+  mask-image: radial-gradient(ellipse 62% 75% at 50% 40%, #000 20%, transparent 78%);
+}
+.backdrop__row {
+  display: flex;
+  gap: calc(var(--u) * 0.12);
+}
+.backdrop__key {
+  display: grid;
+  place-items: center;
+  width: var(--u);
+  height: var(--u);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 4px;
+  border-radius: var(--r-md);
+  color: var(--faint);
+  font-size: calc(var(--u) * 0.26);
+  font-variation-settings:
+    "CASL" var(--casl),
+    "MONO" 1,
+    "slnt" 0;
+  transition:
+    background-color 700ms ease-out,
+    color 700ms ease-out,
+    box-shadow 700ms ease-out;
+}
+.backdrop__key[data-w="1_25"] {
+  width: calc(var(--u) * 1.25 + var(--u) * 0.03);
+}
+.backdrop__key[data-w="1_5"] {
+  width: calc(var(--u) * 1.5 + var(--u) * 0.06);
+}
+.backdrop__key[data-w="1_75"] {
+  width: calc(var(--u) * 1.75 + var(--u) * 0.09);
+}
+.backdrop__key[data-w="2"] {
+  width: calc(var(--u) * 2 + var(--u) * 0.12);
+}
+.backdrop__key[data-w="2_25"] {
+  width: calc(var(--u) * 2.25 + var(--u) * 0.15);
+}
+.backdrop__key[data-w="2_75"] {
+  width: calc(var(--u) * 2.75 + var(--u) * 0.21);
+}
+.backdrop__key[data-w="6"] {
+  width: calc(var(--u) * 6 + var(--u) * 0.6);
+}
+/* Lights up on the keystroke itself, fades out afterwards. */
+.backdrop__key.is-lit {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 calc(var(--u) * 0.6) color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: none;
 }
 
 .hero__top {
@@ -419,52 +518,6 @@ kbd {
 .stack__text {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-/* Look chips: each wears the look it stands for. */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 18px;
-  margin-top: 26px;
-}
-.chips__row {
-  display: flex;
-  gap: 8px;
-}
-.chip {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 50%;
-  background: var(--bg);
-  cursor: pointer;
-}
-.chip__dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--surface);
-}
-.chip[aria-checked="true"] {
-  outline: 2px solid var(--text);
-  outline-offset: 3px;
-}
-.chips__name {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  font-weight: 700;
-}
-.chips__tip {
-  color: var(--muted);
-  font-size: var(--t-sm);
-  font-weight: 450;
 }
 
 /* ---- Today: a band, the count large beside a narrow window ---- */
@@ -620,6 +673,76 @@ kbd {
 .glance__keys .keys + span,
 .glance__keys > .keys {
   margin-left: 2px;
+}
+
+/* ---- Every move is a key: a cheat sheet ---- */
+
+.keys-section {
+  padding-block: var(--section);
+}
+.keys-section__copy p {
+  margin-top: 18px;
+  max-width: 56ch;
+  color: var(--muted);
+  font-size: var(--t-lg);
+}
+.sheet {
+  margin-top: 40px;
+}
+.sheet__os {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+}
+.sheet__os-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+.sheet__os-btn[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.sheet__groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 4vw, 48px);
+  margin-top: 28px;
+}
+.sheet__title {
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+  font-size: var(--t-sm);
+  font-weight: 750;
+}
+.sheet__rows {
+  margin: 0;
+}
+.sheet__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--t-sm);
+}
+.sheet__row dt {
+  color: var(--muted);
+}
+.sheet__row dd {
+  margin: 0;
+  white-space: nowrap;
 }
 
 /* ---- Looks: tiles that each wear their own look ---- */
@@ -942,6 +1065,7 @@ kbd {
 /* ---- Small screens ---- */
 
 @media (max-width: 860px) {
+  .sheet__groups,
   .hero__top,
   .today,
   .looks__tools,
@@ -968,11 +1092,9 @@ kbd {
   .stack {
     padding-inline: 0;
   }
-  .chips__row {
-    gap: 6px;
-  }
-  .chips__tip {
-    display: none;
+  .backdrop__board {
+    --u: 34px;
+    top: 90%;
   }
   .tiles {
     grid-template-columns: minmax(0, 1fr);
@@ -996,5 +1118,8 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .backdrop__key {
+    transition: none;
   }
 }
