@@ -16,6 +16,7 @@ import type {
   Counts,
   DataInfo,
   Draft,
+  DayMark,
   Glance,
   ImportReport,
   LookDoc,
@@ -27,6 +28,7 @@ import type {
   SettingsState,
   Status,
   UpdateInfo,
+  TrashedNote,
 } from "./types";
 
 export const api = {
@@ -48,11 +50,17 @@ export const api = {
   glanceGet: (todayFrom: number, todayTo: number) =>
     invoke<Glance>("glance_get", { todayFrom, todayTo }),
   todayDismiss: () => invoke<void>("today_dismiss"),
+  notesDayMarks: (edges: number[]) => invoke<DayMark[]>("notes_day_marks", { edges }),
+  inboxOpenDate: (day: string) => invoke<void>("inbox_open_date", { day }),
   noteUpdate: (id: string, content: string, category: string | null) =>
     invoke<Note>("note_update", { id, content, category }),
   noteSetStatus: (id: string, status: Status) => invoke<Note>("note_set_status", { id, status }),
+  noteSetLater: (id: string, later: boolean) => invoke<Note>("note_set_later", { id, later }),
   noteDelete: (id: string) => invoke<void>("note_delete", { id }),
   noteUndelete: (id: string) => invoke<Note>("note_undelete", { id }),
+  trashList: () => invoke<TrashedNote[]>("trash_list"),
+  trashPurge: (id: string) => invoke<void>("trash_purge", { id }),
+  trashEmpty: (upTo: number) => invoke<number>("trash_empty", { upTo }),
 
   detailsOpen: (id: string, from: DetailsTarget["from"]) =>
     invoke<void>("details_open", { id, from }),
@@ -148,6 +156,7 @@ export interface Events {
   "today-returned": null;
   "details-open": DetailsTarget;
   "details-close-requested": null;
+  "inbox-show-date": string;
   navigate: string;
 }
 

@@ -34,11 +34,13 @@ export function buildQuery(view: View, filters: Filters, now: number): NoteQuery
   switch (view) {
     case "today": {
       const { from, to } = dayRange(now);
-      return { created_from: from, created_to: to };
+      return { created_from: from, created_to: to, later: false };
     }
+    case "later":
+      return { statuses: ["inbox"], later: true };
     case "archive":
       return { statuses: ["completed", "archived"] };
     default:
-      return { statuses: ["inbox"] };
+      return { statuses: ["inbox"], later: false };
   }
 }

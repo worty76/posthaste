@@ -107,10 +107,6 @@
   border-color: var(--accent-ink);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-/* An empty date input shows a format hint; keep it from reading as a value. */
-.field[type="date"][data-empty="true"] {
-  color: var(--text-faint);
-}
 .field:disabled {
   opacity: 0.5;
 }
@@ -252,6 +248,15 @@
   color: var(--text-muted);
   font-size: var(--t-sm);
 }
+/* The note a confirmation is about, quoted so the user knows which one. */
+.dialog__quote {
+  margin-bottom: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-left: 2px solid var(--border-strong);
+  color: var(--text);
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
 .dialog__alert {
   color: var(--danger);
   font-size: var(--t-sm);
@@ -326,4 +331,116 @@
 .empty__text {
   color: var(--text-muted);
   line-height: var(--lh-read);
+}
+
+/* ---- Calendar ---- */
+.calendar {
+  position: static;
+  margin: 0;
+  width: 272px;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-float);
+  animation: pop var(--quick) var(--ease);
+}
+.calendar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-2);
+}
+.calendar__month {
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.calendar__grid {
+  display: grid;
+  gap: 2px;
+}
+.calendar__row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.calendar__weekday {
+  padding-bottom: var(--s-1);
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+  text-align: center;
+}
+.calendar__day {
+  position: relative;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--fast) var(--ease);
+}
+.calendar__day:hover:not(:disabled) {
+  background: var(--hover);
+}
+.calendar__day[data-outside] {
+  color: var(--text-faint);
+}
+.calendar__day:disabled {
+  opacity: 0.35;
+}
+.calendar__day[data-today] {
+  border-color: var(--border-strong);
+}
+.calendar__day[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* The dot: filled when the day still has open notes, a ring when all done. */
+.calendar__day[data-mark]::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+.calendar__day[data-mark="open"]::after {
+  background: currentColor;
+}
+.calendar__day[data-mark="done"]::after {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.calendar__day[data-mark]:not([aria-selected="true"])::after {
+  color: var(--text-muted);
+}
+.calendar__foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s-2);
+}
+.calendar__link {
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+}
+.calendar__link:hover {
+  color: var(--text);
+}
+.calendar__hints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin: var(--s-2) 0 0;
+  color: var(--text-faint);
+  font-size: var(--t-xs);
 }

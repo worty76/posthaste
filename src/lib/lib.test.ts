@@ -7,7 +7,20 @@ import {
   typeLabel,
 } from "./attachments";
 import { describe, expect, it, vi } from "vitest";
-import { dayLabel, dayRange, dayRangeFromInput, groupByDay } from "./dates";
+import {
+  dayKey,
+  dayLabel,
+  dayRange,
+  dayRangeFromInput,
+  daysBetween,
+  erasedOn,
+  groupByDeletedDay,
+  groupByDay,
+  monthEdges,
+  monthGrid,
+  originLabel,
+  weekStart,
+} from "./dates";
 import { DraftSync } from "./draftSync";
 import { buildQuery, isSearching, NO_FILTERS } from "./query";
 import { acceleratorFromEvent, formatAccelerator } from "./shortcut";
@@ -51,21 +64,102 @@ describe("dates", () => {
     ]);
     expect(groupByDay([], now)).toEqual([]);
   });
+
+  it("keys a day as local YYYY-MM-DD", () => {
+    expect(dayKey(at(2026, 11, 9, 23))).toBe("2026-11-09");
+    expect(dayKey(at(2026, 1, 1, 0))).toBe("2026-01-01");
+  });
+
+  it("lays out a month as six weeks from the chosen first weekday", () => {
+    // 1 November 2026 is a Sunday.
+    const mon = monthGrid(2026, 10, 1);
+    expect(mon).toHaveLength(42);
+    expect(mon[0]).toMatchObject({ key: "2026-10-26", inMonth: false });
+    expect(mon[6]).toMatchObject({ key: "2026-11-01", inMonth: true });
+    const sun = monthGrid(2026, 10, 0);
+    expect(sun[0]).toMatchObject({ key: "2026-11-01", inMonth: true });
+    expect(sun.filter((c) => c.inMonth)).toHaveLength(30);
+    expect(monthGrid(2026, 10, 6)[0]!.key).toBe("2026-10-31");
+  });
+
+  it("gives month edges at every local midnight, one day apart, DST included", () => {
+    // March holds a DST change in most zones that have one.
+    const grid = monthGrid(2026, 2, 1);
+    const edges = monthEdges(grid);
+    expect(edges).toHaveLength(43);
+    for (let i = 0; i < 42; i++) {
+      const span = edges[i + 1]! - edges[i]!;
+      expect(span).toBeGreaterThanOrEqual(23 * 3_600_000);
+      expect(span).toBeLessThanOrEqual(25 * 3_600_000);
+      expect(dayKey(edges[i]!)).toBe(grid[i]!.key);
+    }
+  });
+
+  it("counts whole calendar days between two times", () => {
+    expect(daysBetween(at(2026, 11, 9, 23), at(2026, 11, 15, 1))).toBe(6);
+    expect(daysBetween(at(2026, 11, 15, 1), at(2026, 11, 15, 23))).toBe(0);
+  });
+
+  it("says where a carried note came from", () => {
+    const now = at(2026, 11, 15, 9);
+    const today = at(2026, 11, 15);
+    expect(originLabel(at(2026, 11, 15, 2), today, now, "en-GB")).toBeNull();
+    expect(originLabel(at(2026, 11, 14, 22), today, now, "en-GB")).toBe("Yesterday");
+    expect(originLabel(at(2026, 11, 9, 9), today, now, "en-GB")).toBe("Mon 9 Nov · 6 days ago");
+    // Viewing a past day: just the date, since "days ago" would mislead.
+    expect(originLabel(at(2026, 11, 9, 9), at(2026, 11, 12), now, "en-GB")).toBe("Mon 9 Nov");
+    expect(originLabel(at(2025, 12, 30, 9), today, now, "en-GB")).toBe(
+      "Tue 30 Dec 2025 · 320 days ago",
+    );
+  });
+
+  it("groups trashed notes by the day they were deleted, keeping order", () => {
+    const now = at(2026, 11, 15, 20);
+    const items = [
+      { id: "c", deleted_at: at(2026, 11, 15, 9) },
+      { id: "b", deleted_at: at(2026, 11, 14, 22) },
+      { id: "a", deleted_at: at(2026, 11, 9, 8) },
+    ];
+    const groups = groupByDeletedDay(items, now, "en-US");
+    expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+      ["Today", ["c"]],
+      ["Yesterday", ["b"]],
+      ["Monday, November 9", ["a"]],
+    ]);
+    expect(groupByDeletedDay([], now)).toEqual([]);
+  });
+
+  it("says when a trashed note will be erased, across a month end", () => {
+    expect(erasedOn(at(2026, 11, 15, 9), 30 * 86_400_000, "en-GB")).toBe("Erased on 15 Dec");
+    expect(erasedOn(at(2026, 12, 20, 9), 30 * 86_400_000, "en-GB")).toBe("Erased on 19 Jan 2027");
+  });
+
+  it("starts the week on Monday when the locale says nothing", () => {
+    expect(weekStart("xx")).toBe(1);
+    expect([0, 1, 6]).toContain(weekStart("en-US"));
+  });
 });
 
 describe("query", () => {
   const now = at(2026, 11, 13);
 
   it("scopes each view when not searching", () => {
-    expect(buildQuery("inbox", NO_FILTERS, now)).toEqual({ statuses: ["inbox"] });
+    expect(buildQuery("inbox", NO_FILTERS, now)).toEqual({ statuses: ["inbox"], later: false });
+    expect(buildQuery("later", NO_FILTERS, now)).toEqual({ statuses: ["inbox"], later: true });
     expect(buildQuery("archive", NO_FILTERS, now)).toEqual({ statuses: ["completed", "archived"] });
     const { from, to } = dayRange(now);
-    expect(buildQuery("today", NO_FILTERS, now)).toEqual({ created_from: from, created_to: to });
+    expect(buildQuery("today", NO_FILTERS, now)).toEqual({
+      created_from: from,
+      created_to: to,
+      later: false,
+    });
   });
 
   it("searches every note, including the archive, whatever the view", () => {
-    const q = buildQuery("inbox", { ...NO_FILTERS, text: "  index " }, now);
+    const q = buildQuery("later", { ...NO_FILTERS, text: "  index " }, now);
     expect(q).toMatchObject({ text: "index", statuses: [] });
+    // A search ignores the Later split: parked notes are found too.
+    expect(q.later).toBeUndefined();
   });
 
   it("applies the status and date filters to a search", () => {

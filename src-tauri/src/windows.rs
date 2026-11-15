@@ -4,7 +4,7 @@
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use posthaste_core::CapturePosition;
+use posthaste_core::{CapturePosition, WindowSize};
 use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
@@ -218,7 +218,13 @@ pub fn show_capture(app: &AppHandle) {
     let source = previous.as_ref().and_then(|p| p.name.clone());
     *lock(&state.previous_app) = previous;
 
-    let placed = place_capture(app, &window, state.settings().capture_position);
+    let settings = state.settings();
+    let placed = place_capture(
+        app,
+        &window,
+        settings.capture_position,
+        settings.window_size,
+    );
     *lock(&state.capture_shown_at) = Some(Instant::now());
 
     if let Err(e) = window.show() {
@@ -301,13 +307,14 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
         *lock(&state.today_previous_app) = previous;
     }
 
+    let settings = state.settings();
     let placed = place_panel(
         app,
         &window,
-        state.settings().capture_position,
+        settings.capture_position,
         // A glance has one size: fixed width, clamped to the display.
-        |_| TODAY_WIDTH,
-        TODAY_HEIGHT,
+        |_| scaled(TODAY_WIDTH, settings.window_size),
+        scaled(TODAY_HEIGHT, settings.window_size),
     );
     *lock(&state.today_shown_at) = Some(Instant::now());
 
@@ -380,12 +387,13 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
 
     let first = !state.details_placed.swap(true, Ordering::Relaxed);
     let placed = if first {
+        let size = state.settings().window_size;
         let placed = place_panel(
             app,
             &window,
             CapturePosition::Center,
-            |_| DETAILS_WIDTH,
-            DETAILS_HEIGHT,
+            |_| scaled(DETAILS_WIDTH, size),
+            scaled(DETAILS_HEIGHT, size),
         );
         // place_panel pins the size; this window is resizable.
         let _ = window.set_max_size(None::<tauri::Size>);
@@ -499,14 +507,29 @@ fn place_capture(
     app: &AppHandle,
     window: &WebviewWindow,
     position: CapturePosition,
+    size: WindowSize,
 ) -> Option<tauri::Position> {
     // Capture takes a slice of the display, within its width bounds.
     place_panel(
         app,
         window,
         position,
-        |logical_area| (logical_area * 0.42).clamp(CAPTURE_MIN_WIDTH, CAPTURE_MAX_WIDTH),
-        CAPTURE_HEIGHT,
+        |logical_area| capture_width(logical_area, size),
+        scaled(CAPTURE_HEIGHT, size),
+    )
+}
+
+/// A base size grown or shrunk by the window size setting.
+fn scaled(base: f64, size: WindowSize) -> f64 {
+    (base * size.factor()).round()
+}
+
+/// Capture's width on a display `logical_area` wide: a slice of it, within
+/// bounds that follow the window size setting.
+fn capture_width(logical_area: f64, size: WindowSize) -> f64 {
+    (logical_area * 0.42).clamp(
+        scaled(CAPTURE_MIN_WIDTH, size),
+        scaled(CAPTURE_MAX_WIDTH, size),
     )
 }
 
@@ -539,7 +562,8 @@ fn compute_layout(
     let width = width_for(area.w);
     let width = width.min(area.w - 16.0).max(280.0);
     let w = width.round();
-    let h = logical_height.round();
+    // A tall window on a short display stays on it.
+    let h = logical_height.min(area.h - 16.0).max(200.0).round();
 
     let x = area.x + (area.w - w) / 2.0;
     let y = match position {
@@ -642,8 +666,8 @@ fn place_panel(
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_layout, Area};
-    use posthaste_core::CapturePosition;
+    use super::{capture_width as capture_width_for, compute_layout, scaled, Area};
+    use posthaste_core::{CapturePosition, WindowSize};
 
     /// The laptop display: 1512x982 points at 2x, menu bar 25, dock 25.
     fn retina() -> Area {
@@ -693,6 +717,41 @@ mod tests {
 
         let (x, _, w, h) = compute_layout(&external(), CapturePosition::Center, width, 540.0);
         assert_eq!((x, w, h), (2252.0, 440.0, 540.0)); // 1512 + (1920-440)/2
+    }
+
+    #[test]
+    fn scaled_sizes_follow_the_preset() {
+        assert_eq!(scaled(540.0, WindowSize::Medium), 540.0);
+        assert_eq!(scaled(540.0, WindowSize::Small), 486.0);
+        assert_eq!(scaled(540.0, WindowSize::Large), 648.0);
+    }
+
+    #[test]
+    fn capture_width_bounds_scale_with_the_preset() {
+        // Standard keeps the original bounds exactly.
+        assert_eq!(capture_width_for(1512.0, WindowSize::Medium), 1512.0 * 0.42);
+        assert_eq!(capture_width_for(1000.0, WindowSize::Medium), 520.0);
+        assert_eq!(capture_width_for(3000.0, WindowSize::Medium), 700.0);
+        assert_eq!(capture_width_for(3000.0, WindowSize::Large), 840.0);
+        assert_eq!(capture_width_for(1000.0, WindowSize::Small), 468.0);
+    }
+
+    #[test]
+    fn compute_layout_clamps_height_to_a_short_display() {
+        let short = Area {
+            x: 0.0,
+            y: 0.0,
+            w: 1280.0,
+            h: 600.0,
+            scale: 1.0,
+            units_physical: false,
+        };
+        let (_, y, _, h) = compute_layout(&short, CapturePosition::Center, |_| 528.0, 648.0);
+        assert_eq!(h, 584.0);
+        assert_eq!(y, 8.0);
+        // Upper placement stays on the display too.
+        let (_, y, _, h) = compute_layout(&short, CapturePosition::Upper, |_| 528.0, 648.0);
+        assert!(y + h <= 600.0);
     }
 
     #[test]

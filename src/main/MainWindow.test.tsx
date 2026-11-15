@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppInfo } from "../lib/types";
@@ -37,7 +37,7 @@ describe("inbox rendering", () => {
       note("Investigate PostgreSQL indexing strategy.", { category: "work", source: "Code" }),
       note("Call the dentist", { created_at: Date.now() - DAY }),
     ]);
-    api.notesCounts.mockResolvedValue({ inbox: 2, today: 1, archive: 0 });
+    api.notesCounts.mockResolvedValue({ inbox: 2, today: 1, later: 0, archive: 0 });
     await open();
 
     const today = await screen.findByRole("region", { name: "Today" });
@@ -133,7 +133,7 @@ describe("note actions", () => {
     const user = await open();
     await user.click(await screen.findByRole("button", { name: /^Delete/ }));
     expect(api.noteDelete).toHaveBeenCalledWith(n.id);
-    expect(await screen.findByText("Note deleted")).toBeInTheDocument();
+    expect(await screen.findByText("Moved to Trash")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(api.noteUndelete).toHaveBeenCalledWith(n.id);
@@ -201,7 +201,7 @@ describe("note actions", () => {
     const user = await open();
     await user.click(await screen.findByRole("button", { name: /^Delete/ }));
     expect(await screen.findByText("Database error: locked")).toBeInTheDocument();
-    expect(screen.queryByText("Note deleted")).toBeNull();
+    expect(screen.queryByText("Moved to Trash")).toBeNull();
   });
 });
 
@@ -261,9 +261,73 @@ describe("keyboard", () => {
   it("switches sections with number keys and opens capture with N", async () => {
     const user = await open();
     await user.keyboard("3");
+    expect(await screen.findByRole("heading", { name: "Later" })).toBeInTheDocument();
+    await user.keyboard("4");
     expect(await screen.findByRole("heading", { name: "Archive" })).toBeInTheDocument();
     await user.keyboard("n");
     expect(api.captureOpen).toHaveBeenCalled();
+  });
+});
+
+describe("later", () => {
+  it("lists the sections as Inbox, Today, Later, Archive, Trash", async () => {
+    await open();
+    const nav = screen.getByRole("navigation", { name: "Sections" });
+    const labels = within(nav)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(labels).toEqual(["Inbox", "Today", "Later", "Archive", "Trash"]);
+  });
+
+  it("the inbox leaves Later notes out and Later lists only them", async () => {
+    const user = await open();
+    await waitFor(() => expect(lastQuery()).toMatchObject({ statuses: ["inbox"], later: false }));
+    await user.click(screen.getByRole("button", { name: /Later/ }));
+    await waitFor(() => expect(lastQuery()).toMatchObject({ statuses: ["inbox"], later: true }));
+    expect(await screen.findByText("Nothing parked")).toBeInTheDocument();
+  });
+
+  it("shows how many notes wait in Later", async () => {
+    api.notesCounts.mockResolvedValue({ inbox: 1, today: 0, later: 3, archive: 0 });
+    await open();
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("button", { name: /Later/ })).getByText("3"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("L sends the selected inbox note to Later, with Undo", async () => {
+    const n = note("park me");
+    api.notesList.mockResolvedValue([n]);
+    api.noteSetLater.mockResolvedValue({ ...n, later_at: Date.now() });
+    const user = await open();
+    await user.click(await screen.findByText("park me"));
+    await user.keyboard("l");
+    await waitFor(() => expect(api.noteSetLater).toHaveBeenCalledWith(n.id, true));
+    expect(await screen.findByText("Moved to Later")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(api.noteSetLater).toHaveBeenLastCalledWith(n.id, false);
+  });
+
+  it("L on a note in Later brings it back, and the card says Later", async () => {
+    const n = note("parked", { later_at: Date.now() });
+    api.notesList.mockResolvedValue([n]);
+    api.noteSetLater.mockResolvedValue({ ...n, later_at: null });
+    const user = await open();
+    await user.keyboard("3");
+    const card = (await screen.findByText("parked")).closest("li")!;
+    expect(within(card).getByText("Later")).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Move to Inbox (L)" }));
+    await waitFor(() => expect(api.noteSetLater).toHaveBeenCalledWith(n.id, false));
+    expect(await screen.findByText("Moved back to Inbox")).toBeInTheDocument();
+  });
+
+  it("lists L in the shortcut help", async () => {
+    const user = await open();
+    await user.keyboard("?");
+    expect(await screen.findByText("Later, or back to Inbox")).toBeInTheDocument();
+    expect(screen.getByText("Inbox, Today, Later, Archive, Trash")).toBeInTheDocument();
   });
 });
 
@@ -281,8 +345,90 @@ describe("search", () => {
     await user.click(await screen.findByRole("radio", { name: "Completed" }));
     await waitFor(() => expect(lastQuery().statuses).toEqual(["completed"]));
 
-    await user.type(screen.getByLabelText("Captured on date"), "2026-11-01");
-    await waitFor(() => expect(lastQuery().created_from).toBe(new Date(2026, 10, 1).getTime()));
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    // Opening the calendar asks for the dots of the visible month.
+    await waitFor(() => expect(api.notesDayMarks).toHaveBeenCalled());
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    const first = document.querySelector<HTMLElement>(".calendar__day:not([data-outside])")!;
+    const key = first.dataset.day!;
+    await user.click(first);
+    const [y, m, d] = key.split("-").map(Number);
+    await waitFor(() => expect(lastQuery().created_from).toBe(new Date(y!, m! - 1, d!).getTime()));
+    expect(screen.queryByRole("dialog", { name: "Choose a day" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Captured on/ })).not.toHaveTextContent(
+      /^Captured on$/,
+    );
+  });
+
+  it("clears the date from the calendar", async () => {
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Filter by status or date" }));
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    const cal = screen.getByRole("dialog", { name: "Choose a day" });
+    await user.click(within(cal).getByRole("button", { name: "Today" }));
+    await waitFor(() => expect(lastQuery().created_from).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(lastQuery().created_from).toBeUndefined());
+  });
+
+  it("shows dots for the days that have notes", async () => {
+    api.notesDayMarks.mockImplementation((edges: number[]) =>
+      Promise.resolve(
+        edges.slice(1).map((_, i) => (i === 10 ? { total: 2, open: 1 } : { total: 0, open: 0 })),
+      ),
+    );
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Filter by status or date" }));
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    await waitFor(() => expect(document.querySelectorAll('[data-mark="open"]')).toHaveLength(1));
+    api.notesDayMarks.mockClear();
+    act(() => emit("notes-changed"));
+    await waitFor(() => expect(api.notesDayMarks).toHaveBeenCalled());
+  });
+
+  it("keys inside the calendar never act on the note behind it", async () => {
+    const n = note("behind the popover");
+    api.notesList.mockResolvedValue([n]);
+    const user = await open();
+    await user.keyboard("j");
+    await user.click(screen.getByRole("button", { name: "Filter by status or date" }));
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    const cal = await screen.findByRole("dialog", { name: "Choose a day" });
+    for (const k of ["x", "a", "l", "e", "Delete", "Backspace", "4"]) {
+      fireEvent.keyDown(cal.querySelector('[role="gridcell"][tabindex="0"]')!, { key: k });
+    }
+    expect(api.noteSetStatus).not.toHaveBeenCalled();
+    expect(api.noteSetLater).not.toHaveBeenCalled();
+    expect(api.noteDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Choose a day" })).toBeInTheDocument();
+  });
+
+  it("Esc on a calendar button closes it and keeps the search", async () => {
+    const user = await open();
+    await user.type(screen.getByRole("textbox", { name: "Search all notes" }), "keep me");
+    await user.click(screen.getByRole("button", { name: /Captured on/ }));
+    const cal = await screen.findByRole("dialog", { name: "Choose a day" });
+    fireEvent.keyDown(within(cal).getByRole("button", { name: "Next month" }), { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Choose a day" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Search all notes" })).toHaveValue("keep me");
+  });
+
+  it("opens on the day sent from Today even from another section", async () => {
+    const user = await open();
+    await user.keyboard("4");
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Archive"),
+    );
+    act(() => emit("inbox-show-date", "2026-11-09"));
+    await waitFor(() => expect(lastQuery().created_from).toBe(new Date(2026, 10, 9).getTime()));
+  });
+
+  it("opens on a day sent from the Today window", async () => {
+    await open();
+    act(() => emit("inbox-show-date", "2026-11-09"));
+    await waitFor(() => expect(lastQuery().created_from).toBe(new Date(2026, 10, 9).getTime()));
+    expect(screen.getByRole("button", { name: /Captured on/ })).toHaveTextContent(/9/);
   });
 
   it("explains an empty result and says the archive was searched too", async () => {
@@ -355,6 +501,19 @@ describe("settings", () => {
     await openSettings();
     expect(await screen.findByText(/Attached files are not included/)).toBeInTheDocument();
     expect(screen.getByText(/including settings and attached files/)).toBeInTheDocument();
+  });
+
+  it("chooses how big the floating windows open", async () => {
+    const user = await openSettings();
+    const group = screen.getByRole("radiogroup", { name: "Window size" });
+    expect(within(group).getByRole("radio", { name: "Standard" })).toBeChecked();
+    expect(screen.getByText(/Text keeps its size/)).toBeInTheDocument();
+    await user.click(within(group).getByRole("radio", { name: "Roomy" }));
+    await waitFor(() =>
+      expect(api.settingsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ window_size: "large" }),
+      ),
+    );
   });
 
   it("records a new shortcut from a key press", async () => {
@@ -541,5 +700,53 @@ describe("update banner", () => {
     await open();
     await waitFor(() => expect(api.checkForUpdate).toHaveBeenCalled());
     expect(screen.queryByText(/is available/)).not.toBeInTheDocument();
+  });
+});
+
+describe("trash", () => {
+  it("lists Trash in the sidebar with its count and opens it with 5", async () => {
+    api.notesCounts.mockResolvedValue({ inbox: 0, today: 0, later: 0, archive: 0, trash: 3 });
+    const user = await open();
+    const item = await screen.findByRole("button", { name: /Trash/ });
+    expect(item).toHaveTextContent("3");
+    await user.keyboard("5");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Trash");
+    await waitFor(() => expect(api.trashList).toHaveBeenCalled());
+  });
+
+  it("opens Trash from a navigate event", async () => {
+    await open();
+    act(() => emit("navigate", "trash"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Trash");
+  });
+
+  it("says Moved to Trash after a delete, with Undo", async () => {
+    const n = note("bye");
+    api.notesList.mockResolvedValue([n]);
+    api.noteDelete.mockResolvedValue(undefined);
+    const user = await open();
+    await user.keyboard("j");
+    await user.keyboard("{Delete}");
+    expect(await screen.findByText("Moved to Trash")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+  });
+
+  it("does not act on inbox notes while Trash is shown", async () => {
+    const n = note("inbox note");
+    api.notesList.mockResolvedValue([n]);
+    const user = await open();
+    await user.keyboard("j");
+    await user.keyboard("5");
+    await user.keyboard("x");
+    expect(api.noteSetStatus).not.toHaveBeenCalled();
+  });
+
+  it("lists 5 and the Trash keys in the help sheet", async () => {
+    const user = await open();
+    await user.keyboard("?");
+    expect(screen.getByText("Inbox, Today, Later, Archive, Trash")).toBeInTheDocument();
+    expect(screen.getByText("Restore (in Trash)")).toBeInTheDocument();
+    expect(screen.getByText("Delete forever (in Trash)")).toBeInTheDocument();
+    expect(screen.queryByText("Delete for good (in Trash)")).toBeNull();
   });
 });

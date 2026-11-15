@@ -280,6 +280,21 @@ export function SettingsView({
             onChange={(capture_position) => void set({ capture_position })}
           />
         </Row>
+        <Row
+          label="Window size"
+          help="How big the capture, Today and details windows open, from the next time they do. Text keeps its size."
+        >
+          <Segmented
+            label="Window size"
+            value={settings.window_size}
+            options={[
+              { value: "small", label: "Compact" },
+              { value: "medium", label: "Standard" },
+              { value: "large", label: "Roomy" },
+            ]}
+            onChange={(window_size) => void set({ window_size })}
+          />
+        </Row>
         <Row label="Enter key" help="The other action is always on Shift+Enter or Ctrl/⌘+Enter.">
           <Segmented
             label="Enter key"

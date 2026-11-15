@@ -153,6 +153,24 @@
   width: auto;
   height: 30px;
 }
+.datefilter {
+  position: relative;
+}
+.datefilter__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+}
+.datefilter__button[data-empty] {
+  color: var(--text-faint);
+}
+.datefilter__pop {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  left: 0;
+  z-index: 10;
+}
 .filters__count {
   color: var(--text-faint);
   font-size: var(--t-sm);
@@ -624,4 +642,27 @@
 
 .note__meta .badges {
   margin-left: 0;
+}
+
+/* ---- Trash ---- */
+.trash__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 0 var(--s-3);
+}
+.trash__note {
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+}
+/* No checkbox column: a trashed note cannot be completed. */
+.note--trash {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.note--trash .note__content {
+  color: var(--text-muted);
+}
+.trash__returns {
+  color: var(--text);
 }

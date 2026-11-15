@@ -10,6 +10,8 @@ export interface NoteActions {
   select: (id: string) => void;
   toggleComplete: (note: Note) => void;
   archive: (note: Note) => void;
+  /** Parks the note in Later, or brings it back to the inbox. */
+  toggleLater: (note: Note) => void;
   restore: (note: Note) => void;
   remove: (note: Note) => void;
   copy: (note: Note) => void;
@@ -99,6 +101,7 @@ export const NoteCard = memo(function NoteCard({ note, selected, editing, action
               </time>
               {note.category && <span className="note__category">{note.category}</span>}
               {note.source && <span>from {note.source}</span>}
+              {note.later_at !== null && <span>Later</span>}
               {note.status === "archived" && <span>Archived</span>}
               {done && <span>Completed</span>}
               <NoteBadges note={note} />
@@ -112,6 +115,13 @@ export const NoteCard = memo(function NoteCard({ note, selected, editing, action
               onClick={() => actions.openDetails(note)}
             />
             <IconButton icon="copy" label="Copy (C)" onClick={() => actions.copy(note)} />
+            {!inArchive && (
+              <IconButton
+                icon={note.later_at === null ? "later" : "inbox"}
+                label={note.later_at === null ? "Later (L)" : "Move to Inbox (L)"}
+                onClick={() => actions.toggleLater(note)}
+              />
+            )}
             {inArchive ? (
               <IconButton
                 icon="restore"

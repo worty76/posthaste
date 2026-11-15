@@ -45,6 +45,9 @@ struct ExportNote {
     completed_at: Option<String>,
     #[serde(default)]
     archived_at: Option<String>,
+    /// When the note was parked in Later; absent when it is not.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    later_at: Option<String>,
     /// The note's description. Attached files are not exported.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     details: String,
@@ -70,7 +73,7 @@ impl Db {
              FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq"
         ))?;
         let notes = stmt
-            .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(11)?)))?
+            .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(12)?)))?
             .map(|n| {
                 n.map(|(n, details)| ExportNote {
                     id: Some(n.id),
@@ -82,6 +85,7 @@ impl Db {
                     updated_at: Some(to_rfc3339(n.updated_at)),
                     completed_at: n.completed_at.map(to_rfc3339),
                     archived_at: n.archived_at.map(to_rfc3339),
+                    later_at: n.later_at.map(to_rfc3339),
                     details,
                 })
             })
@@ -140,8 +144,8 @@ impl Db {
             let mut insert = tx.prepare(
                 "INSERT OR IGNORE INTO notes
                    (id, content, status, category, source, created_at, updated_at,
-                    completed_at, archived_at, details)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    completed_at, archived_at, details, later_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )?;
             for n in file.notes {
                 let content = match clean_content(&n.content) {
@@ -181,6 +185,8 @@ impl Db {
                     completed,
                     archived,
                     clean_details(&n.details, true).unwrap_or_default(),
+                    // Only an open note can be parked.
+                    (status == Status::Inbox).then(|| ts(&n.later_at)).flatten(),
                 ])?;
                 if inserted == 1 {
                     report.imported += 1;

@@ -55,6 +55,14 @@ describe("note details window", () => {
     expect(api.noteDetailGet).toHaveBeenCalledWith("n7");
   });
 
+  it("the status chip says Later for a parked note", async () => {
+    api.noteDetailGet.mockResolvedValue(
+      detail({ note: note("Prepare Q4 review", { id: "n1", later_at: 1 }) }),
+    );
+    await openOn();
+    expect(document.querySelector(".details__status")).toHaveTextContent("Later");
+  });
+
   it("autosaves the description after a pause", async () => {
     await openOn();
     vi.useFakeTimers();
@@ -257,5 +265,61 @@ describe("note details window", () => {
     fireEvent.keyDown(panel(), { key: "Escape", isComposing: true });
     await act(async () => {});
     expect(api.detailsDismiss).not.toHaveBeenCalled();
+  });
+});
+
+describe("where the note came from", () => {
+  const DAY = 86_400_000;
+  const meta = () => document.querySelector(".details__meta")!;
+
+  it("names the source app and how long an open note has been carried", async () => {
+    const created = Date.now() - 6 * DAY;
+    api.noteDetailGet.mockResolvedValue(
+      detail({
+        note: note("Prepare Q4 review", {
+          id: "n1",
+          created_at: created,
+          updated_at: created,
+          source: "Safari",
+        }),
+      }),
+    );
+    await openOn();
+    expect(meta()).toHaveTextContent("from Safari");
+    expect(meta()).toHaveTextContent("carried over 6 days");
+  });
+
+  it("leaves out the source when unknown and the carry when done or new", async () => {
+    const created = Date.now() - 6 * DAY;
+    api.noteDetailGet.mockResolvedValue(
+      detail({
+        note: note("Prepare Q4 review", {
+          id: "n1",
+          created_at: created,
+          updated_at: created,
+          source: null,
+          status: "completed",
+          completed_at: Date.now(),
+        }),
+      }),
+    );
+    await openOn();
+    expect(meta()).not.toHaveTextContent("from");
+    expect(meta()).not.toHaveTextContent("carried");
+  });
+
+  it("says one day in the singular and nothing for a note from today", async () => {
+    api.noteDetailGet.mockResolvedValue(
+      detail({
+        note: note("Prepare Q4 review", {
+          id: "n1",
+          created_at: Date.now() - DAY,
+          updated_at: Date.now() - DAY,
+        }),
+      }),
+    );
+    await openOn();
+    expect(meta()).toHaveTextContent("carried over 1 day");
+    expect(meta()).not.toHaveTextContent("1 days");
   });
 });

@@ -18,7 +18,7 @@ const MAX_CATEGORY_CHARS: usize = 40;
 /// computed so lists say whether a note has more inside without loading it.
 pub(crate) const NOTE_COLUMNS: &str =
     "id, content, status, category, source, created_at, updated_at, completed_at, archived_at, \
-     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id)";
+     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id), later_at";
 
 pub fn now_ms() -> i64 {
     SystemTime::now()
@@ -141,20 +141,48 @@ impl Db {
 
     pub fn set_status_at(&mut self, id: &str, status: Status, now: i64) -> Result<Note> {
         let sql = match status {
+            // Any status change takes a note out of Later.
             Status::Inbox => {
                 "UPDATE notes SET status = 'inbox', completed_at = NULL, archived_at = NULL,
-                 updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
+                 later_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
             }
             Status::Completed => {
                 "UPDATE notes SET status = 'completed', completed_at = ?1, archived_at = NULL,
-                 updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
+                 later_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
             }
             Status::Archived => {
                 "UPDATE notes SET status = 'archived', archived_at = ?1,
-                 updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
+                 later_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
             }
         };
         if self.conn.execute(sql, params![now, id])? == 0 {
+            return Err(CoreError::NotFound);
+        }
+        self.get_note(id)
+    }
+
+    /// Parks a note in Later (`later = true`) or brings it back. Parking
+    /// reopens a finished or archived note, since only open notes wait in
+    /// Later. Nothing ever brings a note back by itself.
+    pub fn set_later(&mut self, id: &str, later: bool) -> Result<Note> {
+        self.set_later_at(id, later, now_ms())
+    }
+
+    pub fn set_later_at(&mut self, id: &str, later: bool, now: i64) -> Result<Note> {
+        let changed = if later {
+            self.conn.execute(
+                "UPDATE notes SET status = 'inbox', completed_at = NULL, archived_at = NULL,
+                 later_at = ?1, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                params![now, id],
+            )?
+        } else {
+            self.conn.execute(
+                "UPDATE notes SET later_at = NULL, updated_at = ?1
+                 WHERE id = ?2 AND deleted_at IS NULL",
+                params![now, id],
+            )?
+        };
+        if changed == 0 {
             return Err(CoreError::NotFound);
         }
         self.get_note(id)
@@ -177,15 +205,67 @@ impl Db {
         Ok(())
     }
 
-    pub fn restore_trashed(&mut self, id: &str) -> Result<Note> {
+    /// Restores a trashed note that is still within the keep time. Only
+    /// `deleted_at` changes: status, Later and files come back as they were.
+    pub fn restore_trashed_at(&mut self, id: &str, now: i64) -> Result<Note> {
         let changed = self.conn.execute(
-            "UPDATE notes SET deleted_at = NULL WHERE id = ?1 AND deleted_at IS NOT NULL",
-            [id],
+            "UPDATE notes SET deleted_at = NULL
+             WHERE id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2",
+            params![id, now - TRASH_RETENTION_MS],
         )?;
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
         self.get_note(id)
+    }
+
+    /// The trash, newest deletion first. Notes past the keep time are left
+    /// out even before the launch purge erases them.
+    pub fn list_trashed(&self) -> Result<Vec<TrashedNote>> {
+        self.list_trashed_at(now_ms())
+    }
+
+    pub fn list_trashed_at(&self, now: i64) -> Result<Vec<TrashedNote>> {
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT {NOTE_COLUMNS}, deleted_at FROM notes
+             WHERE deleted_at IS NOT NULL AND deleted_at >= ?1
+             ORDER BY deleted_at DESC, seq DESC"
+        ))?;
+        let rows = stmt.query_map([now - TRASH_RETENTION_MS], |r| {
+            Ok(TrashedNote {
+                note: note_from_row(r)?,
+                deleted_at: r.get(12)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// Erases one trashed note for good, with its files and search entry.
+    pub fn purge_note(&mut self, id: &str) -> Result<()> {
+        let changed = self.conn.execute(
+            "DELETE FROM notes WHERE id = ?1 AND deleted_at IS NOT NULL",
+            [id],
+        )?;
+        if changed == 0 {
+            return Err(CoreError::NotFound);
+        }
+        Ok(())
+    }
+
+    /// Erases for good the trashed notes the user was shown: deleted no later
+    /// than `up_to` (the newest deletion in the list) and still restorable.
+    /// A note deleted since, with its Undo still on screen, is spared; expired
+    /// ones are left to the launch purge. Returns how many.
+    pub fn empty_trash_at(&mut self, up_to: i64, now: i64) -> Result<usize> {
+        Ok(self.conn.execute(
+            "DELETE FROM notes
+             WHERE deleted_at IS NOT NULL AND deleted_at <= ?1 AND deleted_at >= ?2",
+            params![up_to, now - TRASH_RETENTION_MS],
+        )?)
+    }
+
+    pub fn restore_trashed(&mut self, id: &str) -> Result<Note> {
+        self.restore_trashed_at(id, now_ms())
     }
 
     /// Permanently removes notes trashed before `cutoff`. Returns how many.
@@ -222,6 +302,11 @@ impl Db {
             sql.push_str(&format!(" AND status IN ({marks})"));
             args.extend(q.statuses.iter().map(|s| Value::Text(s.as_str().into())));
         }
+        match q.later {
+            Some(true) => sql.push_str(" AND later_at IS NOT NULL"),
+            Some(false) => sql.push_str(" AND later_at IS NULL"),
+            None => {}
+        }
         if let Some(from) = q.created_from {
             sql.push_str(" AND created_at >= ?");
             args.push(Value::Integer(from));
@@ -243,18 +328,27 @@ impl Db {
 
     /// Sidebar counts. `today_from..today_to` is the caller's local day in UTC ms.
     pub fn counts(&self, today_from: i64, today_to: i64) -> Result<Counts> {
+        self.counts_at(today_from, today_to, now_ms())
+    }
+
+    pub fn counts_at(&self, today_from: i64, today_to: i64, now: i64) -> Result<Counts> {
         Ok(self.conn.query_row(
             "SELECT
-               COALESCE(SUM(status = 'inbox'), 0),
-               COALESCE(SUM(created_at >= ?1 AND created_at < ?2), 0),
-               COALESCE(SUM(status IN ('completed', 'archived')), 0)
-             FROM notes WHERE deleted_at IS NULL",
-            params![today_from, today_to],
+               COALESCE(SUM(live AND status = 'inbox' AND later_at IS NULL), 0),
+               COALESCE(SUM(live AND created_at >= ?1 AND created_at < ?2
+                            AND later_at IS NULL), 0),
+               COALESCE(SUM(live AND status = 'inbox' AND later_at IS NOT NULL), 0),
+               COALESCE(SUM(live AND status IN ('completed', 'archived')), 0),
+               COALESCE(SUM(NOT live AND deleted_at >= ?3), 0)
+             FROM (SELECT *, deleted_at IS NULL AS live FROM notes)",
+            params![today_from, today_to, now - TRASH_RETENTION_MS],
             |r| {
                 Ok(Counts {
                     inbox: r.get(0)?,
                     today: r.get(1)?,
-                    archive: r.get(2)?,
+                    later: r.get(2)?,
+                    archive: r.get(3)?,
+                    trash: r.get(4)?,
                 })
             },
         )?)
@@ -279,7 +373,7 @@ impl Db {
     pub fn glance(&self, day_from: i64, day_to: i64) -> Result<Glance> {
         let mut carried = self.conn.prepare_cached(&format!(
             "SELECT {NOTE_COLUMNS} FROM notes
-             WHERE deleted_at IS NULL AND status != 'archived'
+             WHERE deleted_at IS NULL AND status != 'archived' AND later_at IS NULL
                AND status = 'inbox' AND created_at < ?1
              ORDER BY created_at DESC, seq DESC LIMIT ?2"
         ))?;
@@ -289,7 +383,7 @@ impl Db {
 
         let mut today = self.conn.prepare_cached(&format!(
             "SELECT {NOTE_COLUMNS} FROM notes
-             WHERE deleted_at IS NULL AND status != 'archived'
+             WHERE deleted_at IS NULL AND status != 'archived' AND later_at IS NULL
                AND (
                  (created_at >= ?1 AND created_at < ?2)
                  OR (status = 'completed' AND completed_at >= ?1 AND completed_at < ?2)
@@ -304,7 +398,7 @@ impl Db {
         let (done, total) = self.conn.query_row(
             "SELECT COALESCE(SUM(status = 'completed'), 0), COUNT(*)
              FROM notes
-             WHERE deleted_at IS NULL AND status != 'archived'
+             WHERE deleted_at IS NULL AND status != 'archived' AND later_at IS NULL
                AND (
                  (status = 'inbox' AND created_at < ?1)
                  OR (created_at >= ?1 AND created_at < ?2)
@@ -320,6 +414,96 @@ impl Db {
             done,
             total,
         })
+    }
+
+    /// The glance for any day. When `now` falls inside the day, the live
+    /// rules of [`Db::glance`] apply. For a day that has ended, the plate is
+    /// rebuilt from timestamps as it stood then: a note finished, archived or
+    /// parked after the day still shows; one finished, archived or parked
+    /// before it does not. Only the latest of each timestamp is stored, so a
+    /// note reopened since loses its earlier history. Nothing is written.
+    pub fn glance_at(&self, day_from: i64, day_to: i64, now: i64) -> Result<Glance> {
+        if now < day_to {
+            return self.glance(day_from, day_to);
+        }
+        // Still on the plate at the start of the day.
+        const KEPT: &str = "deleted_at IS NULL
+               AND NOT (archived_at IS NOT NULL AND archived_at < ?1)
+               AND NOT (later_at IS NOT NULL AND later_at < ?1)";
+        let mut carried = self.conn.prepare_cached(&format!(
+            "SELECT {NOTE_COLUMNS} FROM notes
+             WHERE {KEPT} AND created_at < ?1
+               AND NOT (completed_at IS NOT NULL AND completed_at < ?2)
+             ORDER BY created_at DESC, seq DESC LIMIT ?3"
+        ))?;
+        // Finished during the day: listed with the day, as on the live day.
+        let carried = carried
+            .query_map(params![day_from, day_to, GLANCE_GROUP_LIMIT], note_from_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        let mut today = self.conn.prepare_cached(&format!(
+            "SELECT {NOTE_COLUMNS} FROM notes
+             WHERE {KEPT}
+               AND (
+                 (created_at >= ?1 AND created_at < ?2)
+                 OR (completed_at >= ?1 AND completed_at < ?2)
+               )
+             ORDER BY (completed_at IS NULL OR completed_at >= ?2) DESC,
+                      created_at DESC, seq DESC
+             LIMIT ?3"
+        ))?;
+        let today = today
+            .query_map(params![day_from, day_to, GLANCE_GROUP_LIMIT], note_from_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        let (done, total) = self.conn.query_row(
+            &format!(
+                "SELECT COALESCE(SUM(completed_at IS NOT NULL AND completed_at < ?2), 0),
+                        COUNT(*)
+                 FROM notes
+                 WHERE {KEPT}
+                   AND (
+                     (created_at < ?1 AND NOT (completed_at IS NOT NULL AND completed_at < ?1))
+                     OR (created_at >= ?1 AND created_at < ?2)
+                     OR (completed_at >= ?1 AND completed_at < ?2)
+                   )"
+            ),
+            params![day_from, day_to],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+        )?;
+
+        Ok(Glance {
+            carried,
+            today,
+            done,
+            total,
+        })
+    }
+
+    /// Notes captured per day. `edges` are ascending local day starts
+    /// followed by the end of the last day, so n+1 edges give n marks.
+    /// Trashed notes are not counted; archived ones are, as done.
+    pub fn day_marks(&self, edges: &[i64]) -> Result<Vec<DayMark>> {
+        if edges.len() < 2 {
+            return Ok(Vec::new());
+        }
+        let mut marks = vec![DayMark { total: 0, open: 0 }; edges.len() - 1];
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT created_at, status = 'inbox' AND later_at IS NULL FROM notes
+             WHERE deleted_at IS NULL AND created_at >= ?1 AND created_at < ?2",
+        )?;
+        let rows = stmt.query_map(params![edges[0], edges[edges.len() - 1]], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, bool>(1)?))
+        })?;
+        for row in rows {
+            let (created, open) = row?;
+            let i = edges.partition_point(|&e| e <= created) - 1;
+            if let Some(m) = marks.get_mut(i) {
+                m.total += 1;
+                m.open += i64::from(open);
+            }
+        }
+        Ok(marks)
     }
 
     // ---- drafts ----------------------------------------------------------
@@ -481,6 +665,7 @@ fn insert_note(conn: &Connection, new: NewNote, now: i64) -> Result<Note> {
         archived_at: None,
         has_details: false,
         attachment_count: 0,
+        later_at: None,
     };
     conn.execute(
         "INSERT INTO notes (id, content, status, category, source, created_at, updated_at)
@@ -504,6 +689,7 @@ pub(crate) fn note_from_row(r: &Row<'_>) -> rusqlite::Result<Note> {
         archived_at: r.get(8)?,
         has_details: r.get(9)?,
         attachment_count: r.get(10)?,
+        later_at: r.get(11)?,
     })
 }
 

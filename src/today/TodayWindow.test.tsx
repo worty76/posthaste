@@ -92,6 +92,46 @@ describe("today window", () => {
     await waitFor(() => expect(api.noteSetStatus).toHaveBeenCalledWith(done.id, "inbox"));
   });
 
+  it("L sends the selected note to Later and selects the next row", async () => {
+    const a = note("first");
+    const b = note("second");
+    api.glanceGet.mockResolvedValueOnce(glance({ carried: [a, b], total: 2 }));
+    api.noteSetLater.mockResolvedValue({ ...a, later_at: NOON });
+    await open();
+    api.glanceGet.mockResolvedValue(glance({ carried: [b], total: 1 }));
+    key("l");
+    await waitFor(() => expect(api.noteSetLater).toHaveBeenCalledWith(a.id, true));
+    await waitFor(() => expect(screen.queryByText("first")).not.toBeInTheDocument());
+    expect(selectedRow()).toHaveTextContent("second");
+  });
+
+  it("L on the last row selects the row before it", async () => {
+    const a = note("first");
+    const b = note("second");
+    api.glanceGet.mockResolvedValueOnce(glance({ carried: [a, b], total: 2 }));
+    api.noteSetLater.mockResolvedValue({ ...b, later_at: NOON });
+    await open();
+    key("ArrowDown");
+    api.glanceGet.mockResolvedValue(glance({ carried: [a], total: 1 }));
+    key("l");
+    await waitFor(() => expect(api.noteSetLater).toHaveBeenCalledWith(b.id, true));
+    await waitFor(() => expect(screen.queryByText("second")).not.toBeInTheDocument());
+    expect(selectedRow()).toHaveTextContent("first");
+  });
+
+  it("ignores L with a modifier or while composing", async () => {
+    api.glanceGet.mockResolvedValue(glance({ carried: [note("first")], total: 1 }));
+    await open();
+    key("l", { ctrlKey: true });
+    key("l", { isComposing: true });
+    expect(api.noteSetLater).not.toHaveBeenCalled();
+  });
+
+  it("lists L in the footer", async () => {
+    await open();
+    expect(document.querySelector(".today__hints")).toHaveTextContent("later");
+  });
+
   it("moves the selection with arrows and J/K", async () => {
     api.glanceGet.mockResolvedValue(
       glance({
@@ -249,5 +289,213 @@ describe("today window", () => {
     act(() => emit("today-returned"));
     await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
     expect(selectedRow()).toHaveTextContent("made today");
+  });
+});
+
+describe("browsing days", () => {
+  const lastRange = () => api.glanceGet.mock.calls.at(-1) as [number, number];
+  const header = () => screen.getByRole("heading", { level: 1 });
+
+  it("← shows the previous day, → comes back, and → stops at today", async () => {
+    await open();
+    key("ArrowLeft");
+    const yesterday = dayRange(NOON - DAY);
+    await waitFor(() => expect(lastRange()).toEqual([yesterday.from, yesterday.to]));
+    expect(header()).toHaveTextContent(
+      new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(NOON - DAY),
+    );
+    key("ArrowLeft");
+    key("ArrowRight");
+    await waitFor(() => expect(lastRange()).toEqual([yesterday.from, yesterday.to]));
+    key("ArrowRight");
+    const today = dayRange(NOON);
+    await waitFor(() => expect(lastRange()).toEqual([today.from, today.to]));
+    const calls = api.glanceGet.mock.calls.length;
+    key("ArrowRight");
+    await act(async () => {});
+    expect(api.glanceGet).toHaveBeenCalledTimes(calls);
+  });
+
+  it("T and the Back to today button return to today", async () => {
+    const user = await open();
+    key("ArrowLeft");
+    key("ArrowLeft");
+    key("t");
+    const today = dayRange(NOON);
+    await waitFor(() => expect(lastRange()).toEqual([today.from, today.to]));
+    key("ArrowLeft");
+    await user.click(await screen.findByRole("button", { name: "Back to today" }));
+    await waitFor(() => expect(lastRange()).toEqual([today.from, today.to]));
+    expect(screen.queryByRole("button", { name: "Back to today" })).toBeNull();
+  });
+
+  it("the arrow buttons step days too", async () => {
+    const user = await open();
+    expect(screen.getByRole("button", { name: "Next day" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Previous day" }));
+    const yesterday = dayRange(NOON - DAY);
+    await waitFor(() => expect(lastRange()).toEqual([yesterday.from, yesterday.to]));
+    expect(screen.getByRole("button", { name: "Next day" })).toBeEnabled();
+  });
+
+  it("C opens the calendar and picking a day shows it", async () => {
+    await open();
+    key("c");
+    const cal = await screen.findByRole("dialog", { name: "Choose a day" });
+    await waitFor(() => expect(api.notesDayMarks).toHaveBeenCalled());
+    // Future days cannot be picked.
+    const tomorrow = cal.querySelector<HTMLElement>(`[data-day="2026-11-16"]`);
+    if (tomorrow) expect(tomorrow).toBeDisabled();
+    fireEvent.click(cal.querySelector<HTMLElement>(`[data-day="2026-11-09"]`)!);
+    const picked = dayRange(new Date(2026, 10, 9).getTime());
+    await waitFor(() => expect(lastRange()).toEqual([picked.from, picked.to]));
+    expect(screen.queryByRole("dialog", { name: "Choose a day" })).toBeNull();
+  });
+
+  it("Esc with the calendar open closes only the calendar", async () => {
+    await open();
+    key("c");
+    const cal = await screen.findByRole("dialog", { name: "Choose a day" });
+    fireEvent.keyDown(cal.querySelector('[role="grid"]')!, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Choose a day" })).toBeNull();
+    expect(api.todayDismiss).not.toHaveBeenCalled();
+    key("Escape");
+    expect(api.todayDismiss).toHaveBeenCalled();
+  });
+
+  it("other keys do nothing while the calendar is open", async () => {
+    const n = note("open note");
+    api.glanceGet.mockResolvedValue(glance({ carried: [n], total: 1 }));
+    await open();
+    key("c");
+    await screen.findByRole("dialog", { name: "Choose a day" });
+    key("x");
+    key("l");
+    expect(api.noteSetStatus).not.toHaveBeenCalled();
+    expect(api.noteSetLater).not.toHaveBeenCalled();
+  });
+
+  it("a past day is read-only: X and L do nothing, Enter still opens details", async () => {
+    const n = note("from before", { created_at: NOON - 5 * DAY });
+    api.glanceGet.mockResolvedValue(glance({ carried: [n], total: 1 }));
+    await open();
+    key("ArrowLeft");
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
+    key("x");
+    key("l");
+    expect(api.noteSetStatus).not.toHaveBeenCalled();
+    expect(api.noteSetLater).not.toHaveBeenCalled();
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+    key("Enter");
+    expect(api.detailsOpen).toHaveBeenCalledWith(n.id, "today");
+    expect(screen.getByText("As it was on this day")).toBeInTheDocument();
+  });
+
+  it("on a past day a note finished later shows as not done", async () => {
+    const yesterdayEnd = dayRange(NOON - DAY).to;
+    const later = note("finished today", {
+      status: "completed",
+      completed_at: yesterdayEnd + 1000,
+      created_at: NOON - 3 * DAY,
+    });
+    const then = note("finished then", {
+      status: "completed",
+      completed_at: yesterdayEnd - 1000,
+      created_at: NOON - DAY,
+    });
+    api.glanceGet.mockResolvedValue(glance({ carried: [later], today: [then], done: 1, total: 2 }));
+    await open();
+    key("ArrowLeft");
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes[0]).toHaveAttribute("aria-checked", "false");
+    expect(boxes[1]).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("1 of 2 done")).toBeInTheDocument();
+  });
+
+  it("shown again goes back to today; a notes change keeps the day", async () => {
+    await open();
+    key("ArrowLeft");
+    const yesterday = dayRange(NOON - DAY);
+    await waitFor(() => expect(lastRange()).toEqual([yesterday.from, yesterday.to]));
+    act(() => emit("notes-changed"));
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(3));
+    expect(lastRange()).toEqual([yesterday.from, yesterday.to]);
+    act(() => emit("today-shown"));
+    const today = dayRange(NOON);
+    await waitFor(() => expect(lastRange()).toEqual([today.from, today.to]));
+  });
+
+  it("ignores day keys while composing or with a modifier", async () => {
+    await open();
+    key("ArrowLeft", { isComposing: true });
+    key("ArrowLeft", { metaKey: true });
+    key("t", { ctrlKey: true });
+    key("c", { altKey: true });
+    await act(async () => {});
+    expect(api.glanceGet).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Choose a day" })).toBeNull();
+  });
+});
+
+describe("where a carried note came from", () => {
+  it("tags carried rows with their day and leaves today's rows bare", async () => {
+    api.glanceGet.mockResolvedValue(
+      glance({
+        carried: [
+          note("from monday", { created_at: new Date(2026, 10, 9, 9).getTime() }),
+          note("from yesterday", { created_at: NOON - DAY }),
+        ],
+        today: [note("made today", { created_at: NOON - 1000 })],
+        total: 3,
+      }),
+    );
+    await open();
+    const [mon, yest, today] = rows();
+    expect(mon!.querySelector(".today__origin")).toHaveTextContent(/6 days ago/);
+    expect(yest!.querySelector(".today__origin")).toHaveTextContent("Yesterday");
+    expect(today!.querySelector(".today__origin")).toBeNull();
+  });
+
+  it("clicking the tag opens the inbox on that day, not the details", async () => {
+    const created = new Date(2026, 10, 9, 9).getTime();
+    api.glanceGet.mockResolvedValue(
+      glance({ carried: [note("old", { created_at: created })], total: 1 }),
+    );
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: /Show notes captured/ }));
+    expect(api.inboxOpenDate).toHaveBeenCalledWith("2026-11-09");
+    expect(api.detailsOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe("keys after focus is lost", () => {
+  it("Esc and day keys still work when focus falls to the page", async () => {
+    await open();
+    fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+    const yesterday = dayRange(NOON - DAY);
+    await waitFor(() =>
+      expect(api.glanceGet.mock.calls.at(-1)).toEqual([yesterday.from, yesterday.to]),
+    );
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(api.todayDismiss).toHaveBeenCalled();
+  });
+
+  it("an empty past day does not talk about today", async () => {
+    await open();
+    key("ArrowLeft");
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Nothing on this day")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing for today")).toBeNull();
+  });
+
+  it("a capped past day does not point to the inbox", async () => {
+    api.glanceGet.mockResolvedValue(glance({ carried: [note("one")], total: 9 }));
+    await open();
+    expect(screen.getByText(/more in the inbox/)).toBeInTheDocument();
+    key("ArrowLeft");
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/more in the inbox/)).toBeNull();
+    expect(screen.getByText("and 8 more")).toBeInTheDocument();
   });
 });
