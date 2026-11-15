@@ -18,6 +18,8 @@ export const PRODUCT = {
   version: "0.2.2",
   repoUrl: "https://github.com/worty76/Posthaste",
   releasesUrl: "https://github.com/worty76/Posthaste/releases/latest",
+  /** The community server. A plain link in the header; the page loads nothing from Discord. */
+  discordUrl: "https://discord.gg/t3Pm7c7JE2",
   /** The canonical home; canonical and share URLs use it. */
   siteUrl: "https://posthaste.ink" as string | null,
   /**

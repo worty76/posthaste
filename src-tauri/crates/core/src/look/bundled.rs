@@ -1,9 +1,11 @@
 //! The six looks that ship with the app, in gallery order. They are data:
-//! parsed here, validated by the tests, never edited at runtime.
+//! parsed here, validated by the tests, never edited at runtime. Ink, the
+//! factory default, comes first.
 
 use crate::look::LookDoc;
 
 const SOURCES: [(&str, &str); 6] = [
+    ("ink", include_str!("../../looks/ink.json")),
     (
         "strawberry-milk",
         include_str!("../../looks/strawberry-milk.json"),
@@ -18,7 +20,6 @@ const SOURCES: [(&str, &str); 6] = [
         include_str!("../../looks/midnight-grape.json"),
     ),
     ("blueberry", include_str!("../../looks/blueberry.json")),
-    ("ink", include_str!("../../looks/ink.json")),
 ];
 
 /// `(id, doc)` pairs with ids `builtin:<slug>`, bundled looks first in

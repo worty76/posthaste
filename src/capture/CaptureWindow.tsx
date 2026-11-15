@@ -135,7 +135,9 @@ export function CaptureWindow({ os }: { os: Os }) {
   };
 
   const polish = async () => {
-    if (polishing || content.trim() === "") {
+    // A second press while a polish is in flight is not a mistake to flag.
+    if (polishing) return;
+    if (content.trim() === "") {
       setStatus({ kind: "empty", text: "Nothing to polish yet" });
       setShake(true);
       return;
@@ -202,15 +204,16 @@ export function CaptureWindow({ os }: { os: Os }) {
     ? [
         { keys: ["↵"], label: "save" },
         { keys: ["⇧", "↵"], label: "new line", extra: true },
-        { keys: ["esc"], label: "close" },
+        { keys: ["esc"], label: "close", spare: true },
       ]
     : [
         { keys: [mod, "↵"], label: "save" },
         { keys: ["↵"], label: "new line", extra: true },
-        { keys: ["esc"], label: "close" },
+        { keys: ["esc"], label: "close", spare: true },
       ];
 
   const accelerator = shortcuts?.capture.registered ? shortcuts.capture.accelerator : "";
+  const aiOn = !!settings?.ai_provider && settings.ai_provider !== "none";
 
   return (
     <div className="capture" onKeyDown={onKeyDown}>
@@ -236,11 +239,14 @@ export function CaptureWindow({ os }: { os: Os }) {
           placeholder="What's on your mind?"
           value={content}
           onChange={(e) => edit(e.target.value, category)}
+          // Typing during a polish would be overwritten by the result.
+          readOnly={polishing}
+          aria-busy={polishing}
           autoFocus
           spellCheck
         />
 
-        <footer className="capture__footer">
+        <footer className="capture__footer" data-status={status.kind !== "idle"}>
           <input
             className="capture__category"
             aria-label="Category (optional)"
@@ -263,22 +269,11 @@ export function CaptureWindow({ os }: { os: Os }) {
             ))}
           </datalist>
 
-          {settings?.ai_provider && settings.ai_provider !== "none" && (
-            <button
-              type="button"
-              className="capture__polish"
-              onClick={() => void polish()}
-              disabled={polishing}
-              aria-label="Polish note with AI"
-            >
-              ✨ Polish
-            </button>
-          )}
-
           <span
             className="capture__status"
             data-kind={status.kind}
             role={status.kind === "error" ? "alert" : "status"}
+            title={status.text || undefined}
           >
             {status.text}
             {status.kind === "restored" && (
@@ -288,11 +283,26 @@ export function CaptureWindow({ os }: { os: Os }) {
             )}
           </span>
 
+          {aiOn && (
+            // Reads like the hints beside it: the key first, then the verb.
+            <button
+              type="button"
+              className="capture__hint capture__polish"
+              onClick={() => void polish()}
+              disabled={polishing}
+              aria-label="Polish note with AI"
+              aria-keyshortcuts={os === "macos" ? "Meta+I" : "Control+I"}
+            >
+              <Kbd keys={[mod, "I"]} />
+              polish
+            </button>
+          )}
+
           <span className="capture__hints" aria-hidden="true">
             {hints.map((h) => (
               <span
                 key={h.label}
-                className={`capture__hint${h.extra ? " capture__hint--extra" : ""}`}
+                className={`capture__hint${h.extra ? " capture__hint--extra" : ""}${h.spare ? " capture__hint--spare" : ""}`}
               >
                 <Kbd keys={h.keys} />
                 {h.label}

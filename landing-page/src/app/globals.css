@@ -237,8 +237,9 @@ kbd {
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   padding-block: 18px;
 }
 .wordmark {
@@ -257,6 +258,7 @@ kbd {
 .head__spacer {
   flex: 1;
 }
+.head__link,
 .head__icon,
 .site-head__stars {
   display: inline-flex;
@@ -272,6 +274,7 @@ kbd {
   font-weight: 600;
   text-decoration: none;
 }
+.head__link:hover,
 .head__icon:hover,
 .site-head__stars:hover {
   background: var(--hover);
@@ -972,6 +975,86 @@ kbd {
   font-weight: 750;
 }
 
+/* ---- Comparison: one plain table, Posthaste's column first ---- */
+
+.compare {
+  padding-block: var(--section);
+  border-top: 1px solid var(--border);
+}
+.compare__lede {
+  margin-top: 18px;
+  max-width: 54ch;
+  color: var(--muted);
+  font-size: var(--t-lg);
+}
+.compare__scroll {
+  margin-top: 40px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.compare__table {
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+  line-height: 1.4;
+}
+.compare__table th,
+.compare__table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.compare__table thead th {
+  border-top: 0;
+  font-weight: 750;
+}
+.compare__table tbody th {
+  width: 15%;
+  font-weight: 650;
+  color: var(--muted);
+}
+.compare__table td {
+  width: 17%;
+}
+/* The label column stays put while the rest scrolls sideways. */
+.compare__table tbody th,
+.compare__table thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+}
+/* Posthaste's own column: the surface color, a heavier edge on its sides. */
+.compare__table .compare__us {
+  background: var(--surface);
+  font-weight: 650;
+  border-inline: 2px solid var(--accent-ink);
+}
+.compare__table thead .compare__us {
+  border-top: 2px solid var(--accent-ink);
+}
+.compare__table tbody tr:last-child .compare__us {
+  border-bottom: 2px solid var(--accent-ink);
+}
+.compare__note {
+  margin-top: 14px;
+}
+.compare__picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(32px, 6vw, 72px);
+  margin-top: 48px;
+}
+.compare__both {
+  margin-top: 28px;
+}
+.compare__both kbd {
+  font-size: inherit;
+}
+
 /* ---- Get it: a band in the accent wash ---- */
 
 .get {
@@ -1069,7 +1152,8 @@ kbd {
   .hero__top,
   .today,
   .looks__tools,
-  .local__cols {
+  .local__cols,
+  .compare__picks {
     grid-template-columns: minmax(0, 1fr);
   }
   .tiles {
@@ -1078,7 +1162,9 @@ kbd {
 }
 
 @media (max-width: 560px) {
-  .head .head__icon {
+  /* On phones the row is for the wordmark, Discord and Download. */
+  .head .head__icon,
+  .head .site-head__stars {
     display: none;
   }
   .capture__head,
@@ -1112,6 +1198,30 @@ kbd {
     align-items: flex-end;
     font-size: var(--t-sm);
     text-align: right;
+  }
+}
+
+/* The smallest phones: wordmark, Discord and Download share one row. */
+@media (max-width: 420px) {
+  .head .wordmark {
+    gap: 7px;
+    font-size: var(--t-md);
+  }
+  .head {
+    gap: 4px;
+  }
+  .head .head__link {
+    min-width: 0;
+    padding: 0 4px;
+    font-size: var(--t-xs);
+  }
+  /* No room for the icon here: the word does the job. */
+  .head .head__link svg {
+    display: none;
+  }
+  .head .btn--small {
+    padding: 0 8px;
+    font-size: var(--t-xs);
   }
 }
 

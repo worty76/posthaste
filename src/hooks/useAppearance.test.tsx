@@ -70,6 +70,25 @@ describe("useAppearance", () => {
     expect(root.dataset.theme).toBe("dark");
   });
 
+  it("leaves the Ink first paint alone until the active look is known", async () => {
+    // index.html ships these so the first frame already wears Ink.
+    root.dataset.theme = "dark";
+    root.dataset.font = "mono";
+    root.dataset.shape = "sharp";
+    media.dark = false;
+    let resolve: (look: ResolvedLook | null) => void = () => undefined;
+    api.lookActive.mockReturnValue(new Promise((r) => (resolve = r)));
+    await renderProbe({ look_id: "builtin:ink" });
+    await act(async () => {});
+    expect(root.dataset.theme).toBe("dark");
+    expect(root.dataset.font).toBe("mono");
+    expect(root.dataset.shape).toBe("sharp");
+    // Once known, a look-less System setting follows the OS as before.
+    await act(async () => resolve(null));
+    expect(root.dataset.theme).toBe("light");
+    expect(root.dataset.font).toBeUndefined();
+  });
+
   it("keeps the look's base when the OS appearance flips", async () => {
     api.lookActive.mockResolvedValue(inkLook("dark"));
     await renderProbe({ look_id: "builtin:ink" });

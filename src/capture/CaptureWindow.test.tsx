@@ -263,6 +263,33 @@ describe("ai polish", () => {
     expect(input()).toHaveValue("rough text");
   });
 
+  it("shows the polish shortcut on the button", async () => {
+    api.settingsGet.mockResolvedValue(
+      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
+    );
+    await open();
+    const button = await screen.findByRole("button", { name: "Polish note with AI" });
+    expect(button).toHaveTextContent(/Ctrl\s*I\s*polish/);
+  });
+
+  it("locks the note while polishing and ignores a second polish", async () => {
+    api.settingsGet.mockResolvedValue(
+      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
+    );
+    let finish: (text: string) => void = () => undefined;
+    api.aiPolish.mockReturnValue(new Promise<string>((r) => (finish = r)));
+    const user = await open();
+    await user.type(input(), "rough text");
+    await user.keyboard("{Control>}i{/Control}");
+    expect(input()).toHaveAttribute("readonly");
+    await user.keyboard("{Control>}i{/Control}");
+    expect(screen.queryByText("Nothing to polish yet")).toBeNull();
+    expect(api.aiPolish).toHaveBeenCalledTimes(1);
+    await act(async () => finish("Rough text."));
+    expect(input()).not.toHaveAttribute("readonly");
+    expect(input()).toHaveValue("Rough text.");
+  });
+
   it("hides the polish button when AI is off", async () => {
     await open();
     expect(screen.queryByRole("button", { name: "Polish note with AI" })).toBeNull();

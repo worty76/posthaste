@@ -42,6 +42,16 @@ keyboard-first and will gain shortcuts. Specific keys live in one place,
 the "Every move is a key" sheet (`ShortcutSheet`), with facts from the
 README.
 
+Comparison (`Compare`, data in `src/lib/compare.ts`): states how other apps
+are set up (account, where notes live, free or paid, AI model, sync and phone
+app), never a price, a speed or a ranking. Sources disagree on prices and
+plans change, and the honesty rules forbid timings we did not measure.
+`tests/compare.test.ts` rejects currency, per-month figures, superlatives and
+empty cells. Posthaste's own AI is described as optional (your key, the one
+note you polish), never as "AI-first". Keep a row where Posthaste gives
+something up, keep the "pick the others when" list, and when you change a
+cell, check it on the product's own page and bump `COMPARE_CHECKED_ON`.
+
 Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the
 demo is stored or sent.

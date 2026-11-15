@@ -438,11 +438,11 @@ pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<Str
 #[tauri::command]
 pub fn look_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
     state.with_db(|db| db.delete_look(&id))?;
-    // Deleting the active look returns the app to Default immediately, the
-    // same way data_clear resets settings.
+    // Deleting the active look returns the app to Ink, the factory default,
+    // immediately, the same way data_clear resets settings.
     if state.settings().look_id.as_deref() == Some(id.as_str()) {
         let mut settings = state.settings();
-        settings.look_id = None;
+        settings.look_id = Some(posthaste_core::look::DEFAULT_LOOK_ID.into());
         settings_update(app.clone(), state, settings)?;
     }
     looks_changed(&app);

@@ -11,7 +11,7 @@ use crate::error::{CoreError, Result};
 use crate::look::bundled::bundled;
 use crate::look::code::decode_code;
 use crate::look::derive::{resolve, ResolvedLook};
-use crate::look::{Base, LookDoc, LookPreview, MAX_USER_LOOKS};
+use crate::look::{Base, LookDoc, LookPreview, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
 
 /// A look as the gallery shows it: identity plus the four preview colours.
 #[derive(Serialize, Clone, PartialEq, Eq, Debug)]
@@ -87,13 +87,18 @@ impl Db {
         resolve(id, &doc)
     }
 
-    /// The look the user selected, or `None` for Default and for anything
-    /// unresolvable (deleted, corrupt, removed from a later version).
+    /// The look the user selected, or `None` for Plain. A selection that no
+    /// longer resolves (deleted, corrupt, removed from a later version)
+    /// falls back to Ink, the factory default, so the app never loses its
+    /// look by accident.
     pub fn active_look(&self) -> Result<Option<ResolvedLook>> {
         let Some(id) = self.load_settings()?.look_id else {
             return Ok(None);
         };
-        Ok(self.resolve_look(&id).ok())
+        Ok(self
+            .resolve_look(&id)
+            .or_else(|_| self.resolve_look(DEFAULT_LOOK_ID))
+            .ok())
     }
 
     /// Saves a new user look, or updates one by id. The document is

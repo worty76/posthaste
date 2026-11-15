@@ -667,12 +667,12 @@ mod bundled_tests {
         assert_eq!(
             ids,
             [
+                "builtin:ink",
                 "builtin:strawberry-milk",
                 "builtin:matcha",
                 "builtin:lavender-haze",
                 "builtin:midnight-grape",
                 "builtin:blueberry",
-                "builtin:ink",
             ]
         );
     }
@@ -733,8 +733,9 @@ mod store_tests {
         let looks = db.list_looks().unwrap();
         assert_eq!(looks.len(), 6);
         assert!(looks.iter().all(|l| l.builtin));
-        assert_eq!(looks[0].id, "builtin:strawberry-milk");
-        assert_eq!(looks[5].id, "builtin:ink");
+        // Ink, the factory default, leads the gallery.
+        assert_eq!(looks[0].id, crate::look::DEFAULT_LOOK_ID);
+        assert_eq!(looks[1].id, "builtin:strawberry-milk");
     }
 
     #[test]
@@ -844,14 +845,26 @@ mod store_tests {
     }
 
     #[test]
-    fn the_active_look_follows_settings_and_falls_back_to_none() {
+    fn the_active_look_follows_settings_and_falls_back_to_ink() {
         let mut db = Db::open_in_memory().unwrap();
         // Ink is the factory default look.
         let active = db.active_look().unwrap().expect("factory default resolves");
         assert_eq!(active.id, crate::look::DEFAULT_LOOK_ID);
 
+        // A look that cannot be found lands on Ink, not on Plain.
         db.save_settings(&Settings {
             look_id: Some("user:missing".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(
+            db.active_look().unwrap().map(|l| l.id),
+            Some(crate::look::DEFAULT_LOOK_ID.into())
+        );
+
+        // Plain (no look) is a choice the user made, and is kept.
+        db.save_settings(&Settings {
+            look_id: None,
             ..Default::default()
         })
         .unwrap();
@@ -863,9 +876,12 @@ mod store_tests {
             ..Default::default()
         })
         .unwrap();
-        assert!(db.active_look().unwrap().is_some());
+        assert_eq!(db.active_look().unwrap().map(|l| l.id), Some(s.id.clone()));
         db.delete_look(&s.id).unwrap();
-        assert_eq!(db.active_look().unwrap(), None);
+        assert_eq!(
+            db.active_look().unwrap().map(|l| l.id),
+            Some(crate::look::DEFAULT_LOOK_ID.into())
+        );
     }
 
     #[test]
@@ -888,7 +904,10 @@ mod store_tests {
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(db.active_look().unwrap(), None);
+        assert_eq!(
+            db.active_look().unwrap().map(|l| l.id),
+            Some(crate::look::DEFAULT_LOOK_ID.into())
+        );
     }
 
     #[test]
@@ -930,7 +949,7 @@ mod store_tests {
             db.load_settings().unwrap().look_id,
             Some(crate::look::DEFAULT_LOOK_ID.into())
         );
-        // …while an explicit "no look" (the user picked Default) is kept.
+        // …while an explicit "no look" (the user picked Plain) is kept.
         db.conn()
             .execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', '{\"theme\":\"dark\",\"look_id\":null}')",

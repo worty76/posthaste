@@ -184,7 +184,7 @@ pub struct Settings {
     pub hide_on_blur: bool,
     pub enter_behavior: EnterBehavior,
     pub draft_retention: DraftRetention,
-    /// The selected look. `None` is the Default look (system/light/dark);
+    /// The selected look. `None` is the Plain look (system/light/dark);
     /// out of the box every install wears Ink.
     pub look_id: Option<String>,
     /// AI polish: the provider, the user's own API key, and the model

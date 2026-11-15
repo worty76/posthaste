@@ -16,7 +16,7 @@ interface AppearanceSectionProps {
 }
 
 /** The starting document for "Make your own": the selected look, or the
-    bundled look matching the current base for Default. */
+    bundled look matching the current base for Plain. */
 const DEFAULT_START_DARK = "builtin:midnight-grape";
 const DEFAULT_START_LIGHT = "builtin:strawberry-milk";
 
@@ -59,7 +59,7 @@ export function AppearanceSection({
 
   /** Arrow keys walk the gallery like Segmented does. */
   const move = (delta: number) => {
-    const ids: (string | null)[] = [null, ...looks.map((l) => l.id)];
+    const ids: (string | null)[] = [...looks.map((l) => l.id), null];
     const i = ids.findIndex((id) => id === settings.look_id);
     const next = ids[(i + delta + ids.length) % ids.length] ?? null;
     select(next);
@@ -131,7 +131,7 @@ export function AppearanceSection({
         <div className="row__text">
           <div className="row__label">Appearance</div>
           <div className="row__help">
-            Used by the Default look. Other looks are light or dark on their own.
+            Used by the Plain look. Every other look is light or dark on its own.
           </div>
         </div>
         <div className="row__control">
@@ -162,17 +162,6 @@ export function AppearanceSection({
             }
           }}
         >
-          <button
-            type="button"
-            role="radio"
-            className="look"
-            aria-checked={settings.look_id === null}
-            tabIndex={settings.look_id === null ? 0 : -1}
-            onClick={() => select(null)}
-          >
-            <Swatch colors={null} />
-            <span>Default</span>
-          </button>
           {looks.map((look) => (
             <button
               key={look.id}
@@ -187,6 +176,19 @@ export function AppearanceSection({
               <span>{look.name}</span>
             </button>
           ))}
+          {/* No look: plain light or dark, following the Appearance setting.
+              Ink, first in the list, is what every install starts with. */}
+          <button
+            type="button"
+            role="radio"
+            className="look"
+            aria-checked={settings.look_id === null}
+            tabIndex={settings.look_id === null ? 0 : -1}
+            onClick={() => select(null)}
+          >
+            <Swatch colors={null} />
+            <span>Plain</span>
+          </button>
         </div>
         <div className="looks__actions">
           {selected && <Button onClick={() => void share(selected)}>Copy share code</Button>}

@@ -16,3 +16,22 @@ export function StarIcon({ size = 14 }: { size?: number }) {
     </svg>
   );
 }
+
+/** A plain speech bubble: "people to talk to". Drawn for this site, and
+    deliberately not any chat service's own mark. */
+export function ChatIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.5 3h11v7.5H8.6L5.4 13v-2.5H2.5V3z" />
+    </svg>
+  );
+}

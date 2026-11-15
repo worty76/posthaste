@@ -1,7 +1,8 @@
 import { CaptureHero } from "@/components/CaptureHero";
+import { Compare } from "@/components/Compare";
 import { ContrastToy } from "@/components/ContrastToy";
 import { Downloads } from "@/components/Downloads";
-import { GitHubMark } from "@/components/icons";
+import { ChatIcon, GitHubMark } from "@/components/icons";
 import { KeyboardBackdrop } from "@/components/KeyboardBackdrop";
 import { LookTiles } from "@/components/LookTiles";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
@@ -87,6 +88,10 @@ export default async function Page() {
           Posthaste
         </a>
         <span className="head__spacer" />
+        <a className="head__link" href={PRODUCT.discordUrl} rel="noopener noreferrer">
+          <ChatIcon />
+          Discord
+        </a>
         <StarChip baked={stars} />
         <a className="head__icon" href={PRODUCT.repoUrl} aria-label="Posthaste on GitHub">
           <GitHubMark />
@@ -207,6 +212,8 @@ export default async function Page() {
             </div>
           </div>
         </section>
+
+        <Compare />
 
         <section className="page get" id="get" aria-labelledby="get-title">
           <h2 className="h2" id="get-title">

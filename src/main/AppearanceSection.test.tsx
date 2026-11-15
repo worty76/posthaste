@@ -46,37 +46,41 @@ beforeEach(() => {
 });
 
 describe("the look gallery", () => {
-  it("offers Default and every look, marking the selected one", async () => {
+  it("offers every look and Plain last, marking the selected one", async () => {
     renderSection({ look_id: "builtin:strawberry-milk" });
     const group = await screen.findByRole("radiogroup", { name: "Look" });
-    expect(within(group).getByRole("radio", { name: "Default" })).toBeInTheDocument();
+    expect(within(group).getByRole("radio", { name: "Plain" })).toBeInTheDocument();
     expect(within(group).getByRole("radio", { name: "Strawberry Milk" })).toBeInTheDocument();
     expect(within(group).getByRole("radio", { name: "My Look" })).toBeInTheDocument();
+    const names = within(group)
+      .getAllByRole("radio")
+      .map((r) => r.textContent);
+    expect(names).toEqual(["Strawberry Milk", "My Look", "Plain"]);
     expect(within(group).getByRole("radio", { name: "Strawberry Milk" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
-    expect(within(group).getByRole("radio", { name: "Default" })).toHaveAttribute(
+    expect(within(group).getByRole("radio", { name: "Plain" })).toHaveAttribute(
       "aria-checked",
       "false",
     );
   });
 
-  it("marks Default as selected when no look is set", async () => {
+  it("marks Plain as selected when no look is set", async () => {
     renderSection({ look_id: null });
     const group = await screen.findByRole("radiogroup", { name: "Look" });
-    expect(within(group).getByRole("radio", { name: "Default" })).toHaveAttribute(
+    expect(within(group).getByRole("radio", { name: "Plain" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
   });
 
-  it("selects a look and Default", async () => {
+  it("selects a look and Plain", async () => {
     const { update, user } = renderSection({ look_id: null });
     await user.click(await screen.findByRole("radio", { name: "Strawberry Milk" }));
     expect(update).toHaveBeenCalledWith({ look_id: "builtin:strawberry-milk" });
 
-    await user.click(screen.getByRole("radio", { name: "Default" }));
+    await user.click(screen.getByRole("radio", { name: "Plain" }));
     expect(update).toHaveBeenCalledWith({ look_id: null });
   });
 
@@ -86,6 +90,7 @@ describe("the look gallery", () => {
     await user.keyboard("{ArrowRight}");
     await waitFor(() => expect(update).toHaveBeenLastCalledWith({ look_id: "user:abc" }));
     await user.keyboard("{ArrowLeft}");
+    // Plain sits after the looks, so stepping back from the first wraps to it.
     await waitFor(() => expect(update).toHaveBeenLastCalledWith({ look_id: null }));
   });
 });
