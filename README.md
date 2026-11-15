@@ -5,8 +5,13 @@
 <h1 align="center">Posthaste</h1>
 
 <p align="center">
-  Capture a thought in two seconds. Get back to work.<br>
-  <strong>Fast. Local. Free.</strong>
+  <strong>A badass note app with a modern, polished UI.</strong><br>
+  Fast, free, customizable, keyboard-first for macOS, Windows and Linux, with six
+  built-in looks (or make your own) and optional AI polish with your own key.
+</p>
+
+<p align="center">
+  Capture a thought in two seconds. Get back to work.
 </p>
 
 <p align="center">

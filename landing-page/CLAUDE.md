@@ -48,7 +48,9 @@ app), never a price, a speed or a ranking. Sources disagree on prices and
 plans change, and the honesty rules forbid timings we did not measure.
 `tests/compare.test.ts` rejects currency, per-month figures, superlatives and
 empty cells. Posthaste's own AI is described as optional (your key, the one
-note you polish), never as "AI-first". Keep a row where Posthaste gives
+note you polish). AI is a headline feature, so the title and intro may name it, but
+always as something the visitor switches on (off by default), never as required and
+never a feature the app does not ship yet. Keep a row where Posthaste gives
 something up, keep the "pick the others when" list, and when you change a
 cell, check it on the product's own page and bump `COMPARE_CHECKED_ON`.
 
