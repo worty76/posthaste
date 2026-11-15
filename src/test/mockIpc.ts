@@ -47,6 +47,8 @@ export function note(content: string, patch: Partial<Note> = {}): Note {
     updated_at: Date.now(),
     completed_at: null,
     archived_at: null,
+    has_details: false,
+    attachment_count: 0,
     ...patch,
   };
 }
@@ -74,6 +76,18 @@ export const api = {
   noteSetStatus: vi.fn(),
   noteDelete: vi.fn(),
   noteUndelete: vi.fn(),
+  detailsOpen: vi.fn(),
+  detailsDismiss: vi.fn(),
+  detailsCurrent: vi.fn(),
+  noteDetailGet: vi.fn(),
+  noteDetailsSet: vi.fn(),
+  attachmentAddFiles: vi.fn(),
+  attachmentAddPaths: vi.fn(),
+  attachmentAddBytes: vi.fn(),
+  attachmentPreview: vi.fn(),
+  attachmentOpen: vi.fn(),
+  attachmentSaveCopy: vi.fn(),
+  attachmentRemove: vi.fn(),
   settingsGet: vi.fn(),
   settingsUpdate: vi.fn(),
   dataInfo: vi.fn(),
@@ -115,6 +129,15 @@ export function resetIpc() {
   api.lookList.mockResolvedValue([]);
   api.lookActive.mockResolvedValue(null);
   api.checkForUpdate.mockResolvedValue(null);
+  api.detailsCurrent.mockResolvedValue(null);
+  dropHandlers.clear();
+}
+
+const dropHandlers = new Set<(paths: string[]) => void>();
+
+/** Simulates files dropped on the window. */
+export function dropFiles(paths: string[]) {
+  dropHandlers.forEach((h) => h(paths));
 }
 
 export const ipcMock = {
@@ -124,8 +147,15 @@ export const ipcMock = {
     handlers.get(name)!.add(handler);
     return () => handlers.get(name)?.delete(handler);
   },
-  toAppError: (e: unknown) =>
-    e && typeof e === "object" && "message" in e
-      ? { code: "test", message: String((e as { message: unknown }).message) }
-      : { code: "unknown", message: "Something went wrong." },
+  onFileDrop: (handler: (paths: string[]) => void) => {
+    dropHandlers.add(handler);
+    return () => dropHandlers.delete(handler);
+  },
+  toAppError: (e: unknown) => {
+    if (e && typeof e === "object" && "message" in e) {
+      const o = e as { code?: unknown; message: unknown };
+      return { code: typeof o.code === "string" ? o.code : "test", message: String(o.message) };
+    }
+    return { code: "unknown", message: "Something went wrong." };
+  },
 };

@@ -98,6 +98,7 @@ html.is-today body {
   flex: none;
 }
 .today__text {
+  flex: 1;
   min-width: 0;
   font-size: var(--t-md);
   line-height: var(--lh);
@@ -139,4 +140,18 @@ html.is-today body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.today__row .badges {
+  margin-top: 3px;
+}
+.today__open {
+  flex: none;
+  margin: -4px -4px -4px 0;
+  opacity: 0;
+}
+.today__row:hover .today__open,
+.today__row[data-selected="true"] .today__open,
+.today__open:focus-visible {
+  opacity: 1;
 }

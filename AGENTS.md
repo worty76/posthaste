@@ -22,9 +22,11 @@ the code, and add a grep to `scripts/check-rules.sh` if a grep can enforce it.
 A global shortcut opens a small window, you type, Enter saves, the window
 disappears, and focus returns to what you were doing. Later the note is in the
 inbox. A second glance shortcut opens a small Today window: what is on today's
-plate and how much of it is done, gone with Esc. There are three windows —
-capture, glance, inbox — and every change is judged against that loop: it must
-not get slower, need more keystrokes, or become less reliable.
+plate and how much of it is done, gone with Esc. Enter on a note there opens
+Note details: a description and attached files for that one note. There are
+four windows — capture, glance, details, inbox — and every change is judged
+against that loop: it must not get slower, need more keystrokes, or become
+less reliable.
 
 ## Scope: do what was asked, nothing else
 

@@ -191,4 +191,63 @@ describe("today window", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The database is not available.");
     expect(screen.queryByText("Carried over")).toBeNull();
   });
+
+  it("Enter opens Note details for the selected note", async () => {
+    api.glanceGet.mockResolvedValue(
+      glance({
+        carried: [note("carried", { id: "c1" })],
+        today: [note("made today", { id: "t1" })],
+        total: 2,
+      }),
+    );
+    await open();
+    key("ArrowDown");
+    key("Enter");
+    expect(api.detailsOpen).toHaveBeenCalledWith("t1", "today");
+  });
+
+  it("Enter with a modifier held does nothing", async () => {
+    api.glanceGet.mockResolvedValue(glance({ today: [note("made today")], total: 1 }));
+    await open();
+    key("Enter", { metaKey: true });
+    key("Enter", { ctrlKey: true });
+    expect(api.detailsOpen).not.toHaveBeenCalled();
+  });
+
+  it("the open button opens details too", async () => {
+    api.glanceGet.mockResolvedValue(
+      glance({ today: [note("made today", { id: "t9" })], total: 1 }),
+    );
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Open details (Enter)" }));
+    expect(api.detailsOpen).toHaveBeenCalledWith("t9", "today");
+  });
+
+  it("marks rows that have a description or files", async () => {
+    api.glanceGet.mockResolvedValue(
+      glance({
+        today: [
+          note("plain"),
+          note("with more", { has_details: true, attachment_count: 2 }),
+          note("one file", { attachment_count: 1 }),
+        ],
+        total: 3,
+      }),
+    );
+    await open();
+    expect(screen.getByLabelText("has details, 2 files")).toHaveTextContent("2");
+    expect(screen.getByLabelText("1 file")).toBeInTheDocument();
+    expect(rows()[0]!.querySelector(".badges")).toBeNull();
+  });
+
+  it("coming back from details keeps the selection", async () => {
+    api.glanceGet.mockResolvedValue(
+      glance({ carried: [note("carried")], today: [note("made today")], total: 2 }),
+    );
+    await open();
+    key("ArrowDown");
+    act(() => emit("today-returned"));
+    await waitFor(() => expect(api.glanceGet).toHaveBeenCalledTimes(2));
+    expect(selectedRow()).toHaveTextContent("made today");
+  });
 });

@@ -36,12 +36,15 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 
 - **Instant capture** — the windows are created at startup and hidden, so the
   shortcut shows them in milliseconds
-- **Local-first** — one database file, exportable and backup-able from Settings
+- **Local-first** — one database file (attachments included), exportable and
+  backup-able from Settings
 - **Looks** — six built-in colour themes, or make your own with a live editor
   that refuses anything hard to read; share any look with a one-line code
 - **AI polish** — optional. Off by default; when you turn it on, your note goes
   straight to the provider you picked with your own API key
 - **In-app updates** — signed installers, one click, nothing auto-runs
+- **Note details** — press Enter on a to-do in Today (or O in the inbox) for a
+  description and attached files, images and docs; it saves as you type
 - **Keyboard-driven** — every action has a shortcut; see them all with `?`
 
 ## Shortcuts
@@ -54,8 +57,10 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 
 In the capture window: Enter saves, Shift+Enter adds a line, Esc keeps a draft.
 In the inbox: ↑/↓ move, E edit, X complete, A archive, C copy, / search,
-1/2/3 switch sections, N new note. In the Today window: ↑/↓ move, X marks a
-note done or not done, Esc closes. All three shortcuts are changeable in
+1/2/3 switch sections, N new note, O note details. In the Today window: ↑/↓
+move, X marks a note done or not done, Enter opens note details, Esc closes.
+In note details: Esc saves and closes, Ctrl/⌘+Enter marks done, Ctrl/⌘+O adds
+files, paste adds an image, Delete on a file removes it. All three shortcuts are changeable in
 Settings. Command line: `posthaste --capture`, `--today`, `--inbox`,
 `--settings`, `--minimized`.
 

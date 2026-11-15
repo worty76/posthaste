@@ -40,6 +40,40 @@ pub struct Note {
     pub updated_at: i64,
     pub completed_at: Option<i64>,
     pub archived_at: Option<i64>,
+    /// True when the note has a description. Lists carry only this flag;
+    /// the text itself comes from [`crate::Db::note_detail`].
+    #[serde(default)]
+    pub has_details: bool,
+    /// How many files are attached. Lists never carry the files themselves.
+    #[serde(default)]
+    pub attachment_count: u32,
+}
+
+/// Largest file that can be attached to a note.
+pub const MAX_ATTACHMENT_BYTES: usize = 15 * 1024 * 1024;
+/// Most files one note can hold.
+pub const MAX_ATTACHMENTS_PER_NOTE: usize = 20;
+/// Longest description a note can have, in characters.
+pub const MAX_DETAILS_CHARS: usize = 100_000;
+
+/// A file attached to a note. The bytes live in the same database and are
+/// read only on request, never with the note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Attachment {
+    pub id: String,
+    pub note_id: String,
+    pub name: String,
+    pub mime: String,
+    pub size: u64,
+    pub created_at: i64,
+}
+
+/// Everything the Note details window shows for one note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NoteDetail {
+    pub note: Note,
+    pub details: String,
+    pub attachments: Vec<Attachment>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

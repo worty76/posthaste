@@ -45,6 +45,20 @@ pub enum CoreError {
     #[error("You already have 50 looks. Delete one to add another.")]
     TooManyLooks,
 
+    // Attachment messages never name the file: errors are logged, and file
+    // names are user data. The UI shows the name next to the message.
+    #[error("This file is {size_mb} MB. Posthaste attaches files up to 15 MB.")]
+    AttachmentTooLarge { size_mb: String },
+
+    #[error("This note already has 20 files. Remove one to add another.")]
+    TooManyAttachments,
+
+    #[error("This file is empty, so there is nothing to attach.")]
+    AttachmentEmpty,
+
+    #[error("The description is too long. Notes hold up to 100,000 characters of details.")]
+    DetailsTooLong,
+
     #[error("Database error: {0}")]
     Sqlite(#[source] rusqlite::Error),
 
@@ -69,6 +83,10 @@ impl CoreError {
             CoreError::InvalidLook(_) => "look_invalid",
             CoreError::BuiltinLook => "look_builtin",
             CoreError::TooManyLooks => "look_limit",
+            CoreError::AttachmentTooLarge { .. } => "attachment_too_large",
+            CoreError::TooManyAttachments => "too_many_attachments",
+            CoreError::AttachmentEmpty => "attachment_empty",
+            CoreError::DetailsTooLong => "details_too_long",
             CoreError::Sqlite(_) => "db",
             CoreError::Io(_) => "io",
             CoreError::Json(_) => "json",

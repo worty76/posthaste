@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CaptureWindow } from "./capture/CaptureWindow";
+import { DetailsWindow } from "./details/DetailsWindow";
 import { api, toAppError } from "./lib/ipc";
 import { MainWindow } from "./main/MainWindow";
 import { TodayWindow } from "./today/TodayWindow";
@@ -11,6 +12,7 @@ import "./styles/base.css";
 import "./styles/ui.css";
 import "./styles/capture.css";
 import "./styles/today.css";
+import "./styles/details.css";
 import "./styles/main.css";
 
 function Fatal({ message }: { message: string }) {
@@ -27,12 +29,14 @@ function Fatal({ message }: { message: string }) {
   );
 }
 
-// All three windows load this bundle; the window's label decides which UI it is.
+// All four windows load this bundle; the window's label decides which UI it is.
 const label = getCurrentWindow().label;
 const isCapture = label === "capture";
 const isToday = label === "today";
+const isDetails = label === "details";
 if (isCapture) document.documentElement.classList.add("is-capture");
 if (isToday) document.documentElement.classList.add("is-today");
+if (isDetails) document.documentElement.classList.add("is-details");
 
 const root = createRoot(document.getElementById("root")!);
 
@@ -49,6 +53,8 @@ api.appInfo().then(
           <CaptureWindow os={info.os} />
         ) : isToday ? (
           <TodayWindow os={info.os} />
+        ) : isDetails ? (
+          <DetailsWindow os={info.os} />
         ) : info.startup_error ? (
           <Fatal message={info.startup_error.message} />
         ) : (
@@ -63,6 +69,8 @@ api.appInfo().then(
         <CaptureWindow os={fallbackOs()} />
       ) : isToday ? (
         <TodayWindow os={fallbackOs()} />
+      ) : isDetails ? (
+        <DetailsWindow os={fallbackOs()} />
       ) : (
         <Fatal message={toAppError(e).message} />
       ),

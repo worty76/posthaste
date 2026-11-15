@@ -119,6 +119,18 @@ pub fn run() {
             commands::note_set_status,
             commands::note_delete,
             commands::note_undelete,
+            commands::details_open,
+            commands::details_dismiss,
+            commands::details_current,
+            commands::note_detail_get,
+            commands::note_details_set,
+            commands::attachment_add_files,
+            commands::attachment_add_paths,
+            commands::attachment_add_bytes,
+            commands::attachment_preview,
+            commands::attachment_open,
+            commands::attachment_save_copy,
+            commands::attachment_remove,
             commands::settings_get,
             commands::settings_update,
             commands::data_info,
@@ -147,6 +159,11 @@ pub fn run() {
             let settings = state.settings();
 
             windows::create(&handle)?;
+
+            // Copies written when an attachment was opened last session.
+            if let Ok(dir) = commands::opened_dir(&handle) {
+                let _ = std::fs::remove_dir_all(dir);
+            }
 
             match tray::create(&handle) {
                 Ok(()) => state.tray_available.store(true, Ordering::Relaxed),

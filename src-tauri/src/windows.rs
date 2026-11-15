@@ -1,5 +1,5 @@
-//! The three windows: the floating capture panel, the Today glance and the
-//! main inbox.
+//! The four windows: the floating capture panel, the Today glance, the Note
+//! details window and the main inbox.
 
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -16,6 +16,7 @@ use crate::state::{lock, AppState};
 pub const MAIN: &str = "main";
 pub const CAPTURE: &str = "capture";
 pub const TODAY: &str = "today";
+pub const DETAILS: &str = "details";
 
 /// Logical size of the capture window, including the transparent margin its
 /// shadow is drawn in.
@@ -26,9 +27,44 @@ const CAPTURE_MAX_WIDTH: f64 = 700.0;
 /// shadow is drawn in.
 const TODAY_WIDTH: f64 = 440.0;
 const TODAY_HEIGHT: f64 = 540.0;
+/// Logical size of the details window the first time it opens, and the
+/// smallest it can be made.
+const DETAILS_WIDTH: f64 = 680.0;
+const DETAILS_HEIGHT: f64 = 620.0;
+const DETAILS_MIN_WIDTH: f64 = 480.0;
+const DETAILS_MIN_HEIGHT: f64 = 420.0;
+/// How long to wait before asking for focus again after hiding another of
+/// our windows.
+const REFOCUS_DELAY: Duration = Duration::from_millis(120);
 /// Focus changes this soon after showing are the window manager settling,
 /// not the user leaving.
 const BLUR_GRACE: Duration = Duration::from_millis(300);
+
+/// Where the details window was opened from; Esc goes back there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DetailsFrom {
+    Today,
+    Inbox,
+}
+
+/// The note the details window shows. Sent with `details-open`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DetailsTarget {
+    pub id: String,
+    pub from: DetailsFrom,
+}
+
+impl DetailsTarget {
+    pub fn new(id: String, from: &str) -> Self {
+        let from = if from == "today" {
+            DetailsFrom::Today
+        } else {
+            DetailsFrom::Inbox
+        };
+        DetailsTarget { id, from }
+    }
+}
 
 #[derive(Clone, Serialize)]
 struct CaptureShown {
@@ -133,6 +169,29 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         }
         _ => {}
     });
+
+    // Not always on top and not hidden on blur: picking a file or switching
+    // to another app to copy something must not close it.
+    let details = WebviewWindowBuilder::new(app, DETAILS, WebviewUrl::App("index.html".into()))
+        .title("Posthaste Note")
+        .inner_size(DETAILS_WIDTH, DETAILS_HEIGHT)
+        .min_inner_size(DETAILS_MIN_WIDTH, DETAILS_MIN_HEIGHT)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .maximizable(false)
+        .minimizable(false)
+        .skip_taskbar(true)
+        .visible(false)
+        .build()?;
+    let handle = app.clone();
+    details.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            // The page saves first, then asks to be dismissed.
+            let _ = handle.emit_to(DETAILS, "details-close-requested", ());
+        }
+    });
     Ok(())
 }
 
@@ -219,15 +278,28 @@ pub fn toggle_today(app: &AppHandle) {
 }
 
 pub fn show_today(app: &AppHandle) {
+    show_today_with(app, true);
+}
+
+/// Shows Today again after the details window closes: the app to hand focus
+/// back to is still the one recorded when Today first opened, and the list
+/// keeps its selection.
+fn return_to_today(app: &AppHandle) {
+    show_today_with(app, false);
+}
+
+fn show_today_with(app: &AppHandle, fresh: bool) {
     let Some(window) = app.get_webview_window(TODAY) else {
         log::error!("today window is missing");
         return;
     };
     let state = app.state::<AppState>();
 
-    // Must happen before our window takes focus.
-    let previous = posthaste_platform::foreground_app();
-    *lock(&state.today_previous_app) = previous;
+    if fresh {
+        // Must happen before our window takes focus.
+        let previous = posthaste_platform::foreground_app();
+        *lock(&state.today_previous_app) = previous;
+    }
 
     let placed = place_panel(
         app,
@@ -251,7 +323,14 @@ pub fn show_today(app: &AppHandle) {
     if let Err(e) = window.set_focus() {
         log::warn!("today window could not take focus: {e}");
     }
-    let _ = window.emit("today-shown", ());
+    let _ = window.emit(
+        if fresh {
+            "today-shown"
+        } else {
+            "today-returned"
+        },
+        (),
+    );
 }
 
 /// Hides the Today window. With `restore_focus`, hands focus back to the
@@ -280,6 +359,101 @@ pub fn hide_today(app: &AppHandle, restore_focus: bool) {
     });
     if let Err(e) = result {
         log::error!("could not schedule hiding the today window: {e}");
+    }
+}
+
+/// Opens the details window on a note. From Today, the glance steps aside
+/// (keeping the app to return focus to) and comes back on Esc.
+pub fn show_details(app: &AppHandle, target: DetailsTarget) {
+    let Some(window) = app.get_webview_window(DETAILS) else {
+        log::error!("details window is missing");
+        return;
+    };
+    let state = app.state::<AppState>();
+    let from_today = target.from == DetailsFrom::Today;
+    if from_today {
+        // Clearing the shown-at time first stops Today's blur handler from
+        // hiding it and dropping the recorded app when details takes focus.
+        *lock(&state.today_shown_at) = None;
+    }
+    *lock(&state.details_target) = Some(target.clone());
+
+    let first = !state.details_placed.swap(true, Ordering::Relaxed);
+    let placed = if first {
+        let placed = place_panel(
+            app,
+            &window,
+            CapturePosition::Center,
+            |_| DETAILS_WIDTH,
+            DETAILS_HEIGHT,
+        );
+        // place_panel pins the size; this window is resizable.
+        let _ = window.set_max_size(None::<tauri::Size>);
+        let _ = window.set_min_size(Some(tauri::Size::from(LogicalSize::new(
+            DETAILS_MIN_WIDTH,
+            DETAILS_MIN_HEIGHT,
+        ))));
+        placed
+    } else {
+        None
+    };
+
+    let _ = window.unminimize();
+    if let Err(e) = window.show() {
+        log::error!("details window could not be shown: {e}");
+        return;
+    }
+    if let Some(pos) = placed {
+        let _ = window.set_position(pos);
+    }
+    if let Err(e) = window.set_focus() {
+        log::warn!("details window could not take focus: {e}");
+    }
+    let _ = window.emit("details-open", target);
+    if from_today {
+        // Today steps aside once details is up. Some window managers answer
+        // a hidden window by focusing whatever was behind it, after our own
+        // focus request, so details asks for focus once more afterwards.
+        if let Some(today) = app.get_webview_window(TODAY) {
+            let _ = today.hide();
+        }
+        refocus_later(window);
+    }
+}
+
+/// Asks for focus again shortly after a window-manager focus hand-off.
+fn refocus_later(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        std::thread::sleep(REFOCUS_DELAY);
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.set_focus();
+        }
+    });
+}
+
+/// Hides the details window and goes back to where it was opened from.
+pub fn hide_details(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let from = lock(&state.details_target).take().map(|t| t.from);
+    // Show where we go back to first, then hide: the other order lets the
+    // window manager focus an unrelated window in between.
+    match from {
+        Some(DetailsFrom::Today) => return_to_today(app),
+        Some(DetailsFrom::Inbox) => show_main(app, None),
+        None => {}
+    }
+    if let Some(window) = app.get_webview_window(DETAILS) {
+        if let Err(e) = window.hide() {
+            log::error!("details window could not be hidden: {e}");
+        }
+    }
+    let back = match from {
+        Some(DetailsFrom::Today) => app.get_webview_window(TODAY),
+        Some(DetailsFrom::Inbox) => app.get_webview_window(MAIN),
+        None => None,
+    };
+    if let Some(back) = back {
+        refocus_later(back);
     }
 }
 

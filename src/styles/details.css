@@ -1,0 +1,287 @@
+/* The Note details window: transparent OS window, one resizable panel. */
+
+html.is-details,
+html.is-details body {
+  background: transparent;
+}
+
+.details {
+  height: 100%;
+  /* Room for the shadow; the OS window itself is invisible. */
+  padding: 16px 20px 24px;
+}
+
+.details__panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  animation: capture-in 130ms var(--ease);
+}
+.details__panel[data-dropping="true"] {
+  box-shadow:
+    var(--shadow-float),
+    inset 0 0 0 2px var(--accent-ink);
+}
+
+.details__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-3) 0 var(--s-4);
+}
+.details__title {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s-1) var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.details__title:hover:not(:disabled) {
+  background: var(--hover);
+}
+.details__title:focus-visible {
+  background: var(--hover);
+}
+
+.details__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 24px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+  font-weight: 500;
+}
+.details__status:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.details__status[data-done="true"] {
+  border-color: color-mix(in srgb, var(--ok) 50%, transparent);
+  color: var(--ok);
+}
+
+.details__meta {
+  padding: var(--s-1) var(--s-4) var(--s-3);
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.details__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.details__text {
+  flex: 1 0 160px;
+  width: 100%;
+  min-height: 160px;
+  padding: var(--s-4);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-md);
+  line-height: var(--lh-read);
+  resize: none;
+  outline: none;
+}
+.details__text::placeholder {
+  color: var(--text-faint);
+}
+.details__text:focus-visible {
+  box-shadow: inset 2px 0 0 var(--accent-ink);
+}
+
+.details__files {
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: 1px solid var(--border);
+}
+.details__files-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.details__count {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.details__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s-3);
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+}
+
+/* Attachment tiles are the one boxed element: a file is an object, not a row. */
+.tile {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.tile__main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0 0 var(--s-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.tile__main:hover {
+  background: var(--hover);
+}
+.tile__thumb,
+.tile__glyph {
+  display: block;
+  width: 100%;
+  height: 88px;
+  margin-bottom: var(--s-2);
+  background: var(--bg-sunken);
+}
+.tile__thumb {
+  object-fit: cover;
+}
+.tile__glyph {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--s-1);
+  color: var(--text-muted);
+}
+.tile__type {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.tile__name,
+.tile__size {
+  padding: 0 var(--s-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tile__name {
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+.tile__size {
+  font-size: var(--t-xs);
+  color: var(--text-faint);
+}
+.tile__actions {
+  position: absolute;
+  top: var(--s-1);
+  right: var(--s-1);
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-pop);
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+}
+.tile:hover .tile__actions,
+.tile:focus-within .tile__actions {
+  opacity: 1;
+}
+
+.details__drop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.details__drop[data-empty="true"] {
+  padding: var(--s-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+}
+.details__drop-hint {
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+}
+
+.details__errors {
+  margin: 0 var(--s-4) var(--s-3);
+  padding: 0;
+  list-style: none;
+  color: var(--danger);
+  font-size: var(--t-sm);
+}
+
+.details__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+}
+.details__saved {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.details__hints {
+  display: flex;
+  flex: none;
+  gap: var(--s-4);
+}
+.details__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* Marks on a note row (Today, inbox) that has more inside: a description,
+   files. Here because they point at this window. */
+.badges {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+}
+.badges__files {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

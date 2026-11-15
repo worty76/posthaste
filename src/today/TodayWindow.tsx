@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { IconButton } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { NoteBadges } from "../details/NoteBadges";
 import { Icon } from "../components/Icon";
 import { Kbd } from "../components/Kbd";
 import { useAppearance } from "../hooks/useAppearance";
@@ -53,6 +55,26 @@ export function TodayWindow({ os }: { os: Os }) {
       }),
     [load],
   );
+  // Back from Note details: same day, same selection, eyes on the list.
+  useEffect(
+    () =>
+      on("today-returned", () => {
+        void load(false);
+        listRef.current?.focus();
+      }),
+    [load],
+  );
+  // The OS can give the window focus after the page asked for it (coming
+  // back from Note details): put focus back on the list so keys work.
+  useEffect(() => {
+    const focus = () => {
+      if (!document.activeElement || document.activeElement === document.body) {
+        listRef.current?.focus();
+      }
+    };
+    window.addEventListener("focus", focus);
+    return () => window.removeEventListener("focus", focus);
+  }, []);
   // Notes changed elsewhere (capture, inbox): refresh, keep the selection.
   useEffect(() => on("notes-changed", () => void load(false)), [load]);
 
@@ -66,6 +88,11 @@ export function TodayWindow({ os }: { os: Os }) {
       () => undefined,
       (e) => setError(toAppError(e).message),
     );
+  };
+
+  const openDetails = (note: Note) => {
+    setSelectedId(note.id);
+    void api.detailsOpen(note.id, "today").catch((e) => setError(toAppError(e).message));
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -86,6 +113,12 @@ export function TodayWindow({ os }: { os: Os }) {
     if (e.key.toLowerCase() === "x" && selected) {
       e.preventDefault();
       toggle(selected);
+    }
+    if (e.key === "Enter" && selected) {
+      // Buttons handle their own Enter.
+      if ((e.target as HTMLElement | null)?.closest?.("button")) return;
+      e.preventDefault();
+      openDetails(selected);
     }
   };
 
@@ -157,6 +190,7 @@ export function TodayWindow({ os }: { os: Os }) {
                         note={n}
                         selected={n.id === selectedId}
                         onToggle={toggle}
+                        onOpen={openDetails}
                       />
                     ))}
                   </ul>
@@ -175,6 +209,9 @@ export function TodayWindow({ os }: { os: Os }) {
             <Kbd keys={["X"]} /> done
           </span>
           <span className="today__hint">
+            <Kbd keys={["↵"]} /> details
+          </span>
+          <span className="today__hint">
             <Kbd keys={["esc"]} /> close
           </span>
         </footer>
@@ -187,10 +224,12 @@ function GlanceRow({
   note,
   selected,
   onToggle,
+  onOpen,
 }: {
   note: Note;
   selected: boolean;
   onToggle: (note: Note) => void;
+  onOpen: (note: Note) => void;
 }) {
   const done = note.status === "completed";
   return (
@@ -211,6 +250,13 @@ function GlanceRow({
         <Icon name="check" size={12} />
       </button>
       <p className="today__text selectable">{note.content}</p>
+      <NoteBadges note={note} />
+      <IconButton
+        icon="open"
+        className="today__open"
+        label="Open details (Enter)"
+        onClick={() => onOpen(note)}
+      />
     </li>
   );
 }

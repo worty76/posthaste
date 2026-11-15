@@ -781,8 +781,8 @@ fn a_database_from_a_newer_version_is_refused_untouched() {
         Db::open(&path),
         Err(CoreError::NewerSchema {
             found: 999,
-            supported: 3
-        })
+            supported
+        }) if supported == MIGRATIONS.last().unwrap().version
     ));
     let conn = Connection::open(&path).unwrap();
     assert_eq!(migrations::schema_version(&conn).unwrap(), 999);
@@ -959,4 +959,260 @@ fn today_shortcut_round_trips_through_save_and_load() {
     };
     db.save_settings(&s).unwrap();
     assert_eq!(db.load_settings().unwrap().today_shortcut, "F18");
+}
+
+// ---- note details ------------------------------------------------------------
+
+#[test]
+fn details_round_trip_and_flag_the_note() {
+    let mut db = db();
+    let n = db.create_note(note("Prepare Q4 review")).unwrap();
+    assert!(!n.has_details);
+    let updated = db
+        .set_details_at(&n.id, "agenda\r\n- numbers\n", 5_000)
+        .unwrap();
+    assert!(updated.has_details);
+    assert_eq!(updated.updated_at, 5_000);
+    let d = db.note_detail(&n.id).unwrap();
+    assert_eq!(d.details, "agenda\n- numbers\n");
+    assert_eq!(d.note, updated);
+    assert!(d.attachments.is_empty());
+
+    let cleared = db.set_details(&n.id, "   \n").unwrap();
+    assert!(!cleared.has_details);
+    assert_eq!(db.note_detail(&n.id).unwrap().details, "");
+}
+
+#[test]
+fn details_of_a_missing_or_trashed_note_report_not_found() {
+    let mut db = db();
+    assert!(matches!(db.note_detail("nope"), Err(CoreError::NotFound)));
+    assert!(matches!(
+        db.set_details("nope", "x"),
+        Err(CoreError::NotFound)
+    ));
+    let n = db.create_note(note("gone soon")).unwrap();
+    db.trash_note(&n.id).unwrap();
+    assert!(matches!(db.note_detail(&n.id), Err(CoreError::NotFound)));
+    assert!(matches!(
+        db.set_details(&n.id, "x"),
+        Err(CoreError::NotFound)
+    ));
+}
+
+#[test]
+fn details_over_the_limit_are_refused_and_keep_the_old_text() {
+    let mut db = db();
+    let n = db.create_note(note("long")).unwrap();
+    db.set_details(&n.id, "kept").unwrap();
+    let huge = "a".repeat(MAX_DETAILS_CHARS + 1);
+    let err = db.set_details(&n.id, &huge).unwrap_err();
+    assert_eq!(err.code(), "details_too_long");
+    assert_eq!(db.note_detail(&n.id).unwrap().details, "kept");
+}
+
+#[test]
+fn details_are_searchable_and_follow_edits() {
+    let mut db = db();
+    let n = db.create_note(note("Fix login bug")).unwrap();
+    db.set_details(&n.id, "stacktrace mentions tokio runtime")
+        .unwrap();
+    assert_eq!(contents(&search(&db, "tokio")), ["Fix login bug"]);
+    db.update_note(&n.id, "Fix login crash", None).unwrap();
+    assert_eq!(contents(&search(&db, "tokio")), ["Fix login crash"]);
+    db.set_details(&n.id, "solved").unwrap();
+    assert!(search(&db, "tokio").is_empty());
+    assert_eq!(search(&db, "solved").len(), 1);
+}
+
+#[test]
+fn attachments_are_stored_listed_counted_and_served() {
+    let mut db = db();
+    let n = db.create_note(note("with files")).unwrap();
+    let png = db
+        .add_attachment_at(
+            &n.id,
+            "/Users/me/Desktop/chart.PNG",
+            "",
+            b"\x89PNGdata",
+            7_000,
+        )
+        .unwrap();
+    assert_eq!(png.name, "chart.PNG");
+    assert_eq!(png.mime, "image/png");
+    assert_eq!(png.size, 8);
+    let pasted = db
+        .add_attachment(&n.id, "Pasted image", "image/png", b"img")
+        .unwrap();
+    assert_eq!(pasted.mime, "image/png");
+    let odd = db.add_attachment(&n.id, "notes", "", b"x").unwrap();
+    assert_eq!(odd.mime, "application/octet-stream");
+
+    let listed = db.get_note(&n.id).unwrap();
+    assert_eq!(listed.attachment_count, 3);
+    assert_eq!(listed.updated_at >= 7_000, true);
+    let in_list = search(&db, "files");
+    assert_eq!(in_list[0].attachment_count, 3);
+
+    let d = db.note_detail(&n.id).unwrap();
+    assert_eq!(d.attachments.len(), 3);
+    assert_eq!(d.attachments[0], png);
+    let (meta, bytes) = db.attachment_bytes(&png.id).unwrap();
+    assert_eq!(meta, png);
+    assert_eq!(bytes, b"\x89PNGdata");
+
+    db.remove_attachment(&png.id).unwrap();
+    assert_eq!(db.get_note(&n.id).unwrap().attachment_count, 2);
+    assert!(matches!(
+        db.attachment_bytes(&png.id),
+        Err(CoreError::NotFound)
+    ));
+    assert!(matches!(
+        db.remove_attachment(&png.id),
+        Err(CoreError::NotFound)
+    ));
+}
+
+#[test]
+fn attachment_limits_refuse_without_storing_anything() {
+    let mut db = db();
+    let n = db.create_note(note("limits")).unwrap();
+    let err = db
+        .add_attachment(&n.id, "big.mov", "", &vec![0u8; MAX_ATTACHMENT_BYTES + 1])
+        .unwrap_err();
+    assert_eq!(err.code(), "attachment_too_large");
+    assert!(err.to_string().starts_with("This file is 15.0 MB"));
+    assert!(
+        !err.to_string().contains("big.mov"),
+        "errors never carry file names"
+    );
+    let err = db.add_attachment(&n.id, "empty.txt", "", b"").unwrap_err();
+    assert_eq!(err.code(), "attachment_empty");
+    assert_eq!(db.get_note(&n.id).unwrap().attachment_count, 0);
+
+    db.add_attachment(&n.id, "max.bin", "", &vec![1u8; MAX_ATTACHMENT_BYTES])
+        .unwrap();
+    for i in 1..MAX_ATTACHMENTS_PER_NOTE {
+        db.add_attachment(&n.id, &format!("f{i}.txt"), "", b"x")
+            .unwrap();
+    }
+    let err = db
+        .add_attachment(&n.id, "one-more.txt", "", b"x")
+        .unwrap_err();
+    assert_eq!(err.code(), "too_many_attachments");
+    assert_eq!(
+        db.get_note(&n.id).unwrap().attachment_count as usize,
+        MAX_ATTACHMENTS_PER_NOTE
+    );
+    assert!(matches!(
+        db.add_attachment("missing", "a.txt", "", b"x"),
+        Err(CoreError::NotFound)
+    ));
+}
+
+#[test]
+fn long_file_names_are_cut_but_keep_their_extension() {
+    let mut db = db();
+    let n = db.create_note(note("names")).unwrap();
+    let long = format!("{}.pdf", "report-".repeat(40));
+    let a = db.add_attachment(&n.id, &long, "", b"%PDF").unwrap();
+    assert!(a.name.chars().count() <= 120);
+    assert!(a.name.ends_with(".pdf"));
+    assert_eq!(a.mime, "application/pdf");
+    let b = db.add_attachment(&n.id, "  \u{7}\n ", "", b"x").unwrap();
+    assert_eq!(b.name, "file");
+}
+
+#[test]
+fn trashed_notes_hide_their_files_and_purge_removes_them() {
+    let mut db = db();
+    let n = db.create_note(note("purge me")).unwrap();
+    let a = db.add_attachment(&n.id, "a.txt", "", b"x").unwrap();
+    db.trash_note_at(&n.id, 1_000).unwrap();
+    assert!(matches!(
+        db.attachment_bytes(&a.id),
+        Err(CoreError::NotFound)
+    ));
+    db.restore_trashed(&n.id).unwrap();
+    assert!(db.attachment_bytes(&a.id).is_ok());
+
+    db.trash_note_at(&n.id, 1_000).unwrap();
+    assert_eq!(db.purge_trashed(2_000).unwrap(), 1);
+    let left: i64 = db
+        .conn()
+        .query_row("SELECT COUNT(*) FROM attachments", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(left, 0);
+}
+
+#[test]
+fn clear_all_removes_attachments() {
+    let mut db = db();
+    let n = db.create_note(note("x")).unwrap();
+    db.add_attachment(&n.id, "a.txt", "", b"x").unwrap();
+    db.clear_all().unwrap();
+    let left: i64 = db
+        .conn()
+        .query_row("SELECT COUNT(*) FROM attachments", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(left, 0);
+}
+
+#[test]
+fn export_carries_descriptions_but_not_files() {
+    let mut a = db();
+    let n = a.create_note(note("exported")).unwrap();
+    a.set_details(&n.id, "the long version").unwrap();
+    a.add_attachment(&n.id, "secret.txt", "", b"file body")
+        .unwrap();
+    let plain = a.create_note(note("plain")).unwrap();
+    let json = a.export_json().unwrap();
+    assert!(json.contains("the long version"));
+    assert!(!json.contains("secret.txt"));
+    assert!(!json.contains("file body"));
+
+    let mut b = db();
+    b.import_json(&json).unwrap();
+    let d = b.note_detail(&n.id).unwrap();
+    assert_eq!(d.details, "the long version");
+    assert!(d.attachments.is_empty());
+    assert!(!b.get_note(&plain.id).unwrap().has_details);
+    assert_eq!(search(&b, "long version").len(), 1);
+}
+
+#[test]
+fn backup_contains_attachments() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut db = Db::open(&dir.path().join("p.db")).unwrap();
+    let n = db.create_note(note("backed up")).unwrap();
+    let a = db.add_attachment(&n.id, "a.bin", "", b"bytes").unwrap();
+    let dest = dir.path().join("copy.db");
+    db.backup_to(&dest).unwrap();
+    let copy = Db::open(&dest).unwrap();
+    assert_eq!(copy.attachment_bytes(&a.id).unwrap().1, b"bytes");
+}
+
+#[test]
+fn upgrading_from_v3_keeps_notes_searchable_and_adds_details() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("posthaste.db");
+    {
+        let mut conn = Connection::open(&path).unwrap();
+        migrations::migrate_with(&mut conn, Some(&path), &MIGRATIONS[..3]).unwrap();
+        conn.execute(
+            "INSERT INTO notes (id, content, category, created_at, updated_at)
+             VALUES ('legacy-3', 'written before details existed', 'work', 1, 1)",
+            [],
+        )
+        .unwrap();
+    }
+    let mut db = Db::open(&path).unwrap();
+    let n = db.get_note("legacy-3").unwrap();
+    assert!(!n.has_details);
+    assert_eq!(n.attachment_count, 0);
+    assert_eq!(search(&db, "before details").len(), 1);
+    assert_eq!(search(&db, "work").len(), 1);
+    db.set_details("legacy-3", "added later").unwrap();
+    assert_eq!(search(&db, "added later").len(), 1);
+    db.add_attachment("legacy-3", "a.txt", "", b"x").unwrap();
 }

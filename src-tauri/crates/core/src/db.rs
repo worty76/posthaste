@@ -14,8 +14,11 @@ const SETTINGS_KEY: &str = "settings";
 const DEFAULT_LIMIT: u32 = 200;
 const MAX_LIMIT: u32 = 1000;
 const MAX_CATEGORY_CHARS: usize = 40;
-const NOTE_COLUMNS: &str =
-    "id, content, status, category, source, created_at, updated_at, completed_at, archived_at";
+/// Every query that reads notes selects these, from `notes`. The last two are
+/// computed so lists say whether a note has more inside without loading it.
+pub(crate) const NOTE_COLUMNS: &str =
+    "id, content, status, category, source, created_at, updated_at, completed_at, archived_at, \
+     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id)";
 
 pub fn now_ms() -> i64 {
     SystemTime::now()
@@ -476,6 +479,8 @@ fn insert_note(conn: &Connection, new: NewNote, now: i64) -> Result<Note> {
         updated_at: now,
         completed_at: None,
         archived_at: None,
+        has_details: false,
+        attachment_count: 0,
     };
     conn.execute(
         "INSERT INTO notes (id, content, status, category, source, created_at, updated_at)
@@ -497,6 +502,8 @@ pub(crate) fn note_from_row(r: &Row<'_>) -> rusqlite::Result<Note> {
         updated_at: r.get(6)?,
         completed_at: r.get(7)?,
         archived_at: r.get(8)?,
+        has_details: r.get(9)?,
+        attachment_count: r.get(10)?,
     })
 }
 

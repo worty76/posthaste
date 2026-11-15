@@ -13,7 +13,50 @@ export interface Note {
   updated_at: number;
   completed_at: number | null;
   archived_at: number | null;
+  /** True when the note has a description (the text is in `NoteDetail`). */
+  has_details: boolean;
+  /** How many files are attached. */
+  attachment_count: number;
 }
+
+/** A file attached to a note. The bytes stay in the database until asked for. */
+export interface Attachment {
+  id: string;
+  note_id: string;
+  name: string;
+  mime: string;
+  size: number;
+  created_at: number;
+}
+
+/** Everything the Note details window shows. */
+export interface NoteDetail {
+  note: Note;
+  details: string;
+  attachments: Attachment[];
+}
+
+export interface AttachFailure {
+  name: string;
+  code: string;
+  message: string;
+}
+
+/** A batch of files: the ones stored and the ones refused, by name. */
+export interface AttachReport {
+  added: Attachment[];
+  failed: AttachFailure[];
+}
+
+/** Which note the details window shows and where Esc returns to. */
+export interface DetailsTarget {
+  id: string;
+  from: "today" | "inbox";
+}
+
+/** Limits enforced by the Rust side; mirrored for messages shown before a call. */
+export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+export const MAX_ATTACHMENTS_PER_NOTE = 20;
 
 export interface NoteQuery {
   text?: string;

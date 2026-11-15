@@ -21,6 +21,7 @@ macOS (Apple Silicon).
 | Single instance, `--capture` | verified | not run | in daily use | not run |
 | Tray menu | code runs; no tray host in the test display | not run | not verified | not run |
 | Today window | not run (the e2e script covers it; run it on Linux) | not run | opens with `--today` and renders; keys not exercised | not run |
+| Note details window | e2e (Xvfb + openbox): Enter in Today opens it focused, typing autosaves, Esc saves, hides it and returns to Today, focus ends in the previous app; the window and attachment tiles checked by screenshot | not run | not run | not run |
 | Launch at login | not exercised | not exercised | not verified | not run |
 | Multiple monitors, HiDPI | **not tested** | not tested | not tested | not tested |
 
@@ -97,7 +98,7 @@ scripts/e2e-linux.sh      end-to-end test against real windows under Xvfb
 
 Decisions worth knowing:
 
-- **All three windows are created once at startup and hidden.** A shortcut
+- **All four windows are created once at startup and hidden.** A shortcut
   only shows an existing window, which is why it appears quickly.
 - **A note is "saved" only after SQLite commits** (`journal_mode=WAL`,
   `synchronous=FULL`). The capture window clears and hides after that, never

@@ -8,7 +8,8 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db};
+use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db, NOTE_COLUMNS};
+use crate::details::clean_details;
 use crate::error::{CoreError, Result};
 use crate::model::{ImportReport, Status};
 
@@ -44,6 +45,9 @@ struct ExportNote {
     completed_at: Option<String>,
     #[serde(default)]
     archived_at: Option<String>,
+    /// The note's description. Attached files are not exported.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    details: String,
 }
 
 fn to_rfc3339(ms: i64) -> String {
@@ -61,15 +65,14 @@ fn from_rfc3339(s: &str) -> Option<i64> {
 
 impl Db {
     pub fn export_json(&self) -> Result<String> {
-        let mut stmt = self.conn().prepare(
-            "SELECT id, content, status, category, source, created_at, updated_at,
-                    completed_at, archived_at
-             FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq",
-        )?;
+        let mut stmt = self.conn().prepare(&format!(
+            "SELECT {NOTE_COLUMNS}, details
+             FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq"
+        ))?;
         let notes = stmt
-            .query_map([], note_from_row)?
+            .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(11)?)))?
             .map(|n| {
-                n.map(|n| ExportNote {
+                n.map(|(n, details)| ExportNote {
                     id: Some(n.id),
                     content: n.content,
                     status: Some(n.status.as_str().to_string()),
@@ -79,6 +82,7 @@ impl Db {
                     updated_at: Some(to_rfc3339(n.updated_at)),
                     completed_at: n.completed_at.map(to_rfc3339),
                     archived_at: n.archived_at.map(to_rfc3339),
+                    details,
                 })
             })
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -136,8 +140,8 @@ impl Db {
             let mut insert = tx.prepare(
                 "INSERT OR IGNORE INTO notes
                    (id, content, status, category, source, created_at, updated_at,
-                    completed_at, archived_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    completed_at, archived_at, details)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )?;
             for n in file.notes {
                 let content = match clean_content(&n.content) {
@@ -176,6 +180,7 @@ impl Db {
                     ts(&n.updated_at).unwrap_or(created),
                     completed,
                     archived,
+                    clean_details(&n.details, true).unwrap_or_default(),
                 ])?;
                 if inserted == 1 {
                     report.imported += 1;

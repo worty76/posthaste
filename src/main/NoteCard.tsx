@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Button, IconButton } from "../components/Button";
 import { TextArea, TextField } from "../components/Controls";
 import { Icon } from "../components/Icon";
+import { NoteBadges } from "../details/NoteBadges";
 import { timeLabel } from "../lib/dates";
 import type { Note } from "../lib/types";
 
@@ -13,6 +14,7 @@ export interface NoteActions {
   remove: (note: Note) => void;
   copy: (note: Note) => void;
   startEdit: (id: string) => void;
+  openDetails: (note: Note) => void;
   cancelEdit: () => void;
   saveEdit: (note: Note, content: string, category: string | null) => Promise<boolean>;
 }
@@ -99,10 +101,16 @@ export const NoteCard = memo(function NoteCard({ note, selected, editing, action
               {note.source && <span>from {note.source}</span>}
               {note.status === "archived" && <span>Archived</span>}
               {done && <span>Completed</span>}
+              <NoteBadges note={note} />
             </div>
           </div>
           <div className="note__actions" onClick={(e) => e.stopPropagation()}>
             <IconButton icon="edit" label="Edit (E)" onClick={() => actions.startEdit(note.id)} />
+            <IconButton
+              icon="open"
+              label="Open details (O)"
+              onClick={() => actions.openDetails(note)}
+            />
             <IconButton icon="copy" label="Copy (C)" onClick={() => actions.copy(note)} />
             {inArchive ? (
               <IconButton

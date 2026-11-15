@@ -179,6 +179,10 @@ export function MainWindow({ info }: { info: AppInfo }) {
         setSelectedId(id);
         setEditingId(id);
       },
+      openDetails: (note) => {
+        setSelectedId(note.id);
+        void api.detailsOpen(note.id, "inbox").catch(fail);
+      },
       cancelEdit: () => setEditingId(null),
       saveEdit: async (note, content, category) => {
         try {
@@ -294,6 +298,10 @@ export function MainWindow({ info }: { info: AppInfo }) {
           break;
         case "c":
           actions.copy(current);
+          break;
+        case "o":
+          e.preventDefault();
+          actions.openDetails(current);
           break;
         case "Delete":
         case "Backspace":
@@ -559,6 +567,7 @@ function ShortcutHelp({ open, onClose, mod }: { open: boolean; onClose: () => vo
   const rows: [string, string[]][] = [
     ["Move through notes", ["↑", "↓"]],
     ["Edit", ["E"]],
+    ["Open details", ["O"]],
     ["Complete", ["X"]],
     ["Archive", ["A"]],
     ["Move back to Inbox", ["R"]],

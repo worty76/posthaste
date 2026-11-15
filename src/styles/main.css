@@ -621,3 +621,7 @@
 .shortcuts > div {
   display: contents;
 }
+
+.note__meta .badges {
+  margin-left: 0;
+}

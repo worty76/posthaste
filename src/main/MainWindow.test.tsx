@@ -221,6 +221,23 @@ describe("keyboard", () => {
     expect(api.noteSetStatus).toHaveBeenCalledWith(a.id, "archived");
   });
 
+  it("opens Note details with O or the row button, and Enter still edits", async () => {
+    const a = note("with details", { has_details: true, attachment_count: 3 });
+    api.notesList.mockResolvedValue([a]);
+    const user = await open();
+    await screen.findByText("with details");
+    expect(screen.getByLabelText("has details, 3 files")).toBeInTheDocument();
+
+    await user.keyboard("jo");
+    expect(api.detailsOpen).toHaveBeenCalledWith(a.id, "inbox");
+
+    await user.click(screen.getByRole("button", { name: "Open details (O)" }));
+    expect(api.detailsOpen).toHaveBeenCalledTimes(2);
+
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
   it("focuses search with / and clears it with Escape", async () => {
     const user = await open();
     await user.keyboard("/");
@@ -332,6 +349,12 @@ describe("settings", () => {
     await openSettings();
     expect(await screen.findByText("/data/posthaste.db")).toBeInTheDocument();
     expect(screen.getAllByText("Registered and active.")).toHaveLength(3);
+  });
+
+  it("says attached files are in the backup, not the export", async () => {
+    await openSettings();
+    expect(await screen.findByText(/Attached files are not included/)).toBeInTheDocument();
+    expect(screen.getByText(/including settings and attached files/)).toBeInTheDocument();
   });
 
   it("records a new shortcut from a key press", async () => {

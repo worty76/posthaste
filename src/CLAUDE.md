@@ -67,6 +67,17 @@ test/        test setup and the IPC mock
 - Nothing is added to the capture window without asking. It is a command
   field, not a form.
 
+## Details window specifics
+
+- The description and title autosave through `DraftSync`, one per note.
+  Closing (Esc, the close button, the OS close) and switching notes await
+  `flush()` first, so the last keystrokes are never lost.
+- A refetch after `notes-changed` replaces a field only when it holds nothing
+  unsaved. Text being typed is never overwritten by an older copy.
+- Attachments arrive by the Add files dialog, drag and drop (paths go to Rust,
+  which reads the files) or paste (image bytes as a raw IPC body). Previews
+  are `data:` URLs: the CSP does not allow `blob:`.
+
 ## Accessibility
 
 - Interactive elements are real `<button>`, `<input>`, `<dialog>`. No click

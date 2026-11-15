@@ -2,6 +2,7 @@
 //! can be tested against a plain SQLite file.
 
 mod db;
+mod details;
 mod error;
 pub mod look;
 pub mod migrations;

@@ -114,6 +114,28 @@ sleep 0.5; shot 06-today
 xdotool key Escape
 check "Escape hides the today window" "wait_for '[ -z \"\$(today_visible)\" ]' 30"
 check "focus returned to the editor after the glance" "wait_for '[ \"\$(active)\" = \"$EDITOR_WIN\" ]' 30"
+echo "Note details"
+details_visible(){ xdotool search --onlyvisible --name '^Posthaste Note$' 2>/dev/null | head -1; }
+details_saved(){ [ "$(sql "SELECT count(*) FROM notes WHERE details = 'agenda for the review'")" = 1 ]; }
+xdotool windowactivate --sync "$EDITOR_WIN"; sleep 0.3
+xdotool key ctrl+alt+g; wait_for '[ -n "$(today_visible)" ]' 50; sleep 0.5
+xdotool key Return
+check "Enter in Today opens the details window" "wait_for '[ -n \"\$(details_visible)\" ]' 50"
+check "Today steps aside while details are open" "wait_for '[ -z \"\$(today_visible)\" ]' 30"
+DETAILS="$(details_visible)"
+check "details window has focus" "wait_for '[ \"\$(active)\" = \"$DETAILS\" ]' 30"
+sleep 0.4
+xdotool type --delay 15 "agenda for the review"; sleep 0.3
+shot 07-details
+xdotool key Escape
+check "Escape hides the details window" "wait_for '[ -z \"\$(details_visible)\" ]' 30"
+check "Today comes back after details" "wait_for '[ -n \"\$(today_visible)\" ]' 30"
+check "the description was saved before closing" "wait_for details_saved 30"
+sleep 0.4
+xdotool key Escape
+check "Escape in Today then hides it" "wait_for '[ -z \"\$(today_visible)\" ]' 30"
+check "focus returned to the editor after details and Today" "wait_for '[ \"\$(active)\" = \"$EDITOR_WIN\" ]' 30"
+
 xdotool key ctrl+alt+g; wait_for '[ -n "$(today_visible)" ]' 50; sleep 0.4
 xdotool key ctrl+alt+g
 check "the shortcut toggles the glance closed again" "wait_for '[ -z \"\$(today_visible)\" ]' 30"

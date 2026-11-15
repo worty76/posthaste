@@ -7,6 +7,7 @@ use posthaste_platform::PreviousApp;
 
 use crate::error::{AppError, AppResult};
 use crate::shortcuts::ShortcutReport;
+use crate::windows::DetailsTarget;
 
 pub struct AppState {
     /// `None` when the database could not be opened; see `startup_error`.
@@ -23,6 +24,11 @@ pub struct AppState {
     pub today_previous_app: Mutex<Option<PreviousApp>>,
     pub today_shown_at: Mutex<Option<Instant>>,
     pub tray_available: AtomicBool,
+    /// The note the details window shows and where Esc returns to.
+    pub details_target: Mutex<Option<DetailsTarget>>,
+    /// The details window is placed once; after that it keeps the size and
+    /// spot the user gave it.
+    pub details_placed: AtomicBool,
 }
 
 impl AppState {
@@ -45,6 +51,8 @@ impl AppState {
             today_previous_app: Mutex::new(None),
             today_shown_at: Mutex::new(None),
             tray_available: AtomicBool::new(false),
+            details_target: Mutex::new(None),
+            details_placed: AtomicBool::new(false),
         }
     }
 

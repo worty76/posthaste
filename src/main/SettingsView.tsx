@@ -394,7 +394,10 @@ export function SettingsView({
             </Button>
           </div>
         </div>
-        <Row label="Export notes" help="A readable JSON file with every note.">
+        <Row
+          label="Export notes"
+          help="A readable JSON file with every note and its details. Attached files are not included; the backup below has them."
+        >
           <Button
             busy={busy === "export"}
             onClick={() =>
@@ -425,7 +428,10 @@ export function SettingsView({
             Import…
           </Button>
         </Row>
-        <Row label="Back up database" help="A complete copy, including settings.">
+        <Row
+          label="Back up database"
+          help="A complete copy, including settings and attached files."
+        >
           <Button
             busy={busy === "backup"}
             onClick={() =>

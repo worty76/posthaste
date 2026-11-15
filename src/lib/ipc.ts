@@ -3,11 +3,16 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import type {
   AppError,
   AppInfo,
+  AttachReport,
+  Attachment,
+  DetailsTarget,
+  NoteDetail,
   Counts,
   DataInfo,
   Draft,
@@ -48,6 +53,31 @@ export const api = {
   noteSetStatus: (id: string, status: Status) => invoke<Note>("note_set_status", { id, status }),
   noteDelete: (id: string) => invoke<void>("note_delete", { id }),
   noteUndelete: (id: string) => invoke<Note>("note_undelete", { id }),
+
+  detailsOpen: (id: string, from: DetailsTarget["from"]) =>
+    invoke<void>("details_open", { id, from }),
+  detailsDismiss: () => invoke<void>("details_dismiss"),
+  detailsCurrent: () => invoke<DetailsTarget | null>("details_current"),
+  noteDetailGet: (id: string) => invoke<NoteDetail>("note_detail_get", { id }),
+  noteDetailsSet: (id: string, details: string) =>
+    invoke<Note>("note_details_set", { id, details }),
+  attachmentAddFiles: (noteId: string) =>
+    invoke<AttachReport | null>("attachment_add_files", { noteId }),
+  attachmentAddPaths: (noteId: string, paths: string[]) =>
+    invoke<AttachReport>("attachment_add_paths", { noteId, paths }),
+  /** Sends the bytes as a raw body; the name travels percent-encoded in a header. */
+  attachmentAddBytes: (noteId: string, name: string, mime: string, bytes: Uint8Array) =>
+    invoke<Attachment>("attachment_add_bytes", bytes, {
+      headers: {
+        "x-note-id": encodeURIComponent(noteId),
+        "x-name": encodeURIComponent(name),
+        "x-mime": encodeURIComponent(mime),
+      },
+    }),
+  attachmentPreview: (id: string) => invoke<ArrayBuffer>("attachment_preview", { id }),
+  attachmentOpen: (id: string) => invoke<void>("attachment_open", { id }),
+  attachmentSaveCopy: (id: string) => invoke<string | null>("attachment_save_copy", { id }),
+  attachmentRemove: (id: string) => invoke<void>("attachment_remove", { id }),
 
   settingsGet: () => invoke<SettingsState>("settings_get"),
   settingsUpdate: (settings: Settings) => invoke<SettingsState>("settings_update", { settings }),
@@ -115,6 +145,9 @@ export interface Events {
   "capture-shown": { source: string | null };
   "capture-hidden": null;
   "today-shown": null;
+  "today-returned": null;
+  "details-open": DetailsTarget;
+  "details-close-requested": null;
   navigate: string;
 }
 
@@ -123,6 +156,27 @@ export function on<K extends keyof Events>(name: K, handler: (payload: Events[K]
   let active = true;
   const pending = listen<Events[K]>(name, (e) => {
     if (active) handler(e.payload);
+  });
+  return () => {
+    active = false;
+    void pending.then((unlisten) => unlisten());
+  };
+}
+
+/** Paths of files dropped on this window. Returns a function that unsubscribes. */
+export function onFileDrop(handler: (paths: string[]) => void, onHover?: (over: boolean) => void) {
+  let active = true;
+  const pending = getCurrentWebview().onDragDropEvent((e) => {
+    if (!active) return;
+    const p = e.payload;
+    if (p.type === "drop") {
+      onHover?.(false);
+      if (p.paths.length > 0) handler(p.paths);
+    } else if (p.type === "leave") {
+      onHover?.(false);
+    } else {
+      onHover?.(true);
+    }
   });
   return () => {
     active = false;

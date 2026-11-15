@@ -12,7 +12,7 @@ are in `crates/platform`).
 |---|---|
 | `lib.rs` | Startup order, plugin registration, command list, launch flags |
 | `commands.rs` | Every `#[tauri::command]`. Thin adapters only |
-| `windows.rs` | Creating, showing, hiding, placing all three windows |
+| `windows.rs` | Creating, showing, hiding, placing all four windows |
 | `shortcuts.rs` | Global shortcut registration and its status report |
 | `tray.rs` | Tray icon and menu |
 | `state.rs` | `AppState`, database access, lock helper |
@@ -46,9 +46,13 @@ are in `crates/platform`).
 
 ## Windows and focus
 
-- All three windows (capture, today, main) are created once at startup,
+- All four windows (capture, today, details, main) are created once at startup,
   hidden, and reused. Do not create or destroy windows per use; that is what
   keeps the shortcuts fast.
+- The details window is not always on top and does not hide on blur: a file
+  dialog or a trip to another app must not close it. Opened from Today, it
+  hides Today without taking Today's recorded app, and Esc brings Today back
+  (`today-returned`, selection kept).
 - Showing capture is ordered: record the foreground app, place the window,
   show, focus, emit `capture-shown`. Recording must happen before our window
   takes focus.

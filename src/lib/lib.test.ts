@@ -1,3 +1,11 @@
+import {
+  attachmentKind,
+  batchRefusal,
+  formatBytes,
+  pastedImageName,
+  toDataUrl,
+  typeLabel,
+} from "./attachments";
 import { describe, expect, it, vi } from "vitest";
 import { dayLabel, dayRange, dayRangeFromInput, groupByDay } from "./dates";
 import { DraftSync } from "./draftSync";
@@ -178,5 +186,43 @@ describe("DraftSync", () => {
     sync.schedule("b", null);
     await sync.flush();
     expect(write).toHaveBeenLastCalledWith("b", null);
+  });
+});
+
+describe("attachments", () => {
+  it("formats sizes the way a person reads them", () => {
+    expect(formatBytes(860)).toBe("860 B");
+    expect(formatBytes(88_064)).toBe("86 KB");
+    expect(formatBytes(2_516_582)).toBe("2.4 MB");
+    expect(formatBytes(15 * 1024 * 1024)).toBe("15 MB");
+  });
+
+  it("sorts files into kinds and short type labels", () => {
+    expect(attachmentKind({ mime: "image/png" })).toBe("image");
+    expect(attachmentKind({ mime: "application/pdf" })).toBe("pdf");
+    expect(attachmentKind({ mime: "text/plain" })).toBe("text");
+    expect(attachmentKind({ mime: "application/zip" })).toBe("other");
+    expect(typeLabel({ name: "server.log", mime: "text/plain" })).toBe("LOG");
+    expect(typeLabel({ name: "notes", mime: "application/octet-stream" })).toBe("FILE");
+    expect(typeLabel({ name: ".env", mime: "application/octet-stream" })).toBe("FILE");
+  });
+
+  it("refuses a batch only when the note is already full", () => {
+    expect(batchRefusal(1, 19)).toBeNull();
+    expect(batchRefusal(3, 20)).toMatch(/already has 20 files/);
+    expect(batchRefusal(0, 20)).toBeNull();
+  });
+
+  it("encodes bytes as a data URL, also past the chunk size", () => {
+    expect(toDataUrl(new Uint8Array([1, 2, 3]), "image/png")).toBe("data:image/png;base64,AQID");
+    const big = new Uint8Array(0x8000 * 2 + 5).fill(65);
+    const url = toDataUrl(big, "image/png");
+    expect(atob(url.split(",")[1]!)).toHaveLength(big.length);
+  });
+
+  it("names pasted images by date and type", () => {
+    const t = new Date(2026, 10, 15, 15, 4).getTime();
+    expect(pastedImageName(t, "image/png")).toBe("Pasted image 2026-11-15 15.04.png");
+    expect(pastedImageName(t, "image/jpeg")).toBe("Pasted image 2026-11-15 15.04.jpg");
   });
 });
