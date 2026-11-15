@@ -15,7 +15,7 @@ macOS (Apple Silicon).
 | Builds | verified | same binary | verified (Apple Silicon) | **not built** |
 | Global shortcut | verified | limited, see below | not verified | not run |
 | Capture window focus + typing | verified | not run | in daily use | not run |
-| Centre on active display | verified (one display) | compositor decides | in daily use | not run |
+| Window follows the pointer's display | verified (two mixed-DPI displays) | compositor decides | verified (two mixed-DPI displays) | not run |
 | Focus returns to previous app | verified | left to compositor | in daily use | not run |
 | Draft survives `kill -9` | verified | same code | same code | same code |
 | Single instance, `--capture` | verified | not run | in daily use | not run |

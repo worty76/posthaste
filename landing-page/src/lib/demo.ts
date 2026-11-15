@@ -1,0 +1,113 @@
+// State for the hands-on demo: the capture field in the hero and the Today
+// window further down share it. Pure, so it is tested without a browser.
+// Nothing here is stored or sent anywhere; it lives in the tab's memory.
+
+export interface DemoNote {
+  id: number;
+  text: string;
+  /** Milliseconds from the first keystroke to Enter; null for seeded notes. */
+  savedInMs: number | null;
+  done: boolean;
+  /** Seeded "from yesterday" notes, shown under Carried over. */
+  carried: boolean;
+}
+
+export interface DemoState {
+  draft: string;
+  /** When the first character of the current draft was typed. */
+  startedAt: number | null;
+  notes: DemoNote[];
+  /** The timing of the most recent save, for the stamp beside the field. */
+  lastSavedMs: number | null;
+  nextId: number;
+}
+
+export type DemoAction =
+  | { type: "input"; text: string; now: number }
+  | { type: "save"; now: number }
+  | { type: "clear" }
+  | { type: "toggle"; id: number };
+
+/** Notes the visitor did not write: obviously made up, never quotes. */
+const SEEDED: Omit<DemoNote, "id">[] = [
+  { text: "Reply to the landlord about the heater", savedInMs: null, done: false, carried: true },
+  { text: "Idea: sticker sheet for the zine", savedInMs: null, done: false, carried: true },
+  { text: "Return the library books", savedInMs: null, done: true, carried: false },
+];
+
+export const MAX_NOTE_CHARS = 140;
+/** The stack under the field keeps the most recent few. */
+export const STACK_SIZE = 4;
+
+export function initialDemo(): DemoState {
+  return {
+    draft: "",
+    startedAt: null,
+    notes: SEEDED.map((n, i) => ({ ...n, id: i + 1 })),
+    lastSavedMs: null,
+    nextId: SEEDED.length + 1,
+  };
+}
+
+export function demoReducer(state: DemoState, action: DemoAction): DemoState {
+  switch (action.type) {
+    case "input": {
+      const text = action.text.slice(0, MAX_NOTE_CHARS);
+      const empty = text.trim() === "";
+      return {
+        ...state,
+        draft: text,
+        // The clock starts on the first real character and resets when the
+        // field is emptied, so pauses before typing never count.
+        startedAt: empty ? null : (state.startedAt ?? action.now),
+      };
+    }
+    case "save": {
+      const text = state.draft.trim();
+      if (text === "") return state;
+      const savedInMs = Math.max(0, action.now - (state.startedAt ?? action.now));
+      return {
+        ...state,
+        draft: "",
+        startedAt: null,
+        lastSavedMs: savedInMs,
+        nextId: state.nextId + 1,
+        notes: [{ id: state.nextId, text, savedInMs, done: false, carried: false }, ...state.notes],
+      };
+    }
+    case "clear":
+      return { ...state, draft: "", startedAt: null };
+    case "toggle":
+      return {
+        ...state,
+        notes: state.notes.map((n) => (n.id === action.id ? { ...n, done: !n.done } : n)),
+      };
+  }
+}
+
+/** "1.8 s". One decimal, never "0.0 s" for a real save. */
+export function formatSeconds(ms: number): string {
+  const s = Math.max(0.1, Math.round(ms / 100) / 10);
+  return `${s.toFixed(1)} s`;
+}
+
+/** Notes the visitor saved, newest first, for the stack under the field. */
+export function savedStack(state: DemoState): DemoNote[] {
+  return state.notes.filter((n) => n.savedInMs !== null).slice(0, STACK_SIZE);
+}
+
+export interface TodayView {
+  carried: DemoNote[];
+  today: DemoNote[];
+  done: number;
+  total: number;
+}
+
+/** The Today window's rule: open carried notes first, then today's, open before done. */
+export function todayView(state: DemoState): TodayView {
+  const carried = state.notes.filter((n) => n.carried && !n.done);
+  const todayNotes = state.notes.filter((n) => !n.carried || n.done);
+  const today = [...todayNotes.filter((n) => !n.done), ...todayNotes.filter((n) => n.done)];
+  const all = [...carried, ...today];
+  return { carried, today, done: all.filter((n) => n.done).length, total: all.length };
+}

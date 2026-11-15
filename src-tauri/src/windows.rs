@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use posthaste_core::CapturePosition;
 use serde::Serialize;
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
+    WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
 use crate::state::{lock, AppState};
@@ -325,7 +325,7 @@ fn place_capture(
     app: &AppHandle,
     window: &WebviewWindow,
     position: CapturePosition,
-) -> Option<PhysicalPosition<i32>> {
+) -> Option<tauri::Position> {
     // Capture takes a slice of the display, within its width bounds.
     place_panel(
         app,
@@ -336,59 +336,204 @@ fn place_capture(
     )
 }
 
+/// One display's work area in the OS's global screen space, in the units
+/// that display's windowing API accepts for `LogicalPosition`/`LogicalSize`
+/// (AppKit points on macOS, physical pixels on Windows) — exactly what
+/// `posthaste_platform::cursor_display_work_area` reports.
+struct Area {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    scale: f64,
+    /// Whether x/y/w/h are physical pixels (Windows) rather than logical
+    /// points (macOS).
+    units_physical: bool,
+}
+
+/// Where a panel goes on an area: centred, sized from `width_for` (given
+/// the area's logical width), clamped to the area and kept above a small
+/// floor. Pure, so the geometry is testable without a real window. The
+/// returned rectangle is in the area's own units: x/y for the panel's
+/// top-left corner, w/h for its size.
+fn compute_layout(
+    area: &Area,
+    position: CapturePosition,
+    width_for: impl Fn(f64) -> f64,
+    logical_height: f64,
+) -> (f64, f64, f64, f64) {
+    let width = width_for(area.w);
+    let width = width.min(area.w - 16.0).max(280.0);
+    let w = width.round();
+    let h = logical_height.round();
+
+    let x = area.x + (area.w - w) / 2.0;
+    let y = match position {
+        CapturePosition::Center => area.y + (area.h - h) / 2.0,
+        CapturePosition::Upper => area.y + (area.h * 0.22).min(area.h - h),
+    };
+    (x.round(), y.round().max(area.y), w, h)
+}
+
+fn place_in_area(
+    area: &Area,
+    window: &WebviewWindow,
+    position: CapturePosition,
+    width_for: impl Fn(f64) -> f64,
+    logical_height: f64,
+) -> tauri::Position {
+    let (x, y, w, h) = compute_layout(area, position, width_for, logical_height);
+    // Logical units pass straight through the window APIs — no scale
+    // conversion with the window's previous display, which is what put the
+    // panel on the wrong screen across mixed-DPI displays. Windows reports
+    // physical pixels, so those go in as physical instead.
+    let (position, size): (tauri::Position, tauri::Size) = if area.units_physical {
+        (
+            PhysicalPosition::new(x as i32, y as i32).into(),
+            PhysicalSize::new((w * area.scale) as u32, (h * area.scale) as u32).into(),
+        )
+    } else {
+        (
+            LogicalPosition::new(x, y).into(),
+            LogicalSize::new(w, h).into(),
+        )
+    };
+    // Position first so the size is applied at the destination display's scale.
+    let _ = window.set_position(position);
+    // The window is fixed-size by pinning min and max to the same value
+    // rather than by `resizable(false)`, which on GTK would also stop us
+    // resizing it for a different display.
+    let _ = window.set_min_size(Some(size));
+    let _ = window.set_max_size(Some(size));
+    let _ = window.set_size(size);
+    position
+}
+
 /// Sizes and places a floating panel on the display the pointer is on and
-/// returns where it should go. `width_for` decides the panel's logical width
-/// from the display's logical width; either way the result is clamped to the
-/// display and kept above a small floor. `None` means the platform gave us
-/// nothing to work with (typical on Wayland, where the compositor places
-/// windows itself).
+/// returns where it should go. `None` means no display could be determined
+/// (typical on Wayland, where the compositor places windows itself).
 fn place_panel(
     app: &AppHandle,
     window: &WebviewWindow,
     position: CapturePosition,
     width_for: impl Fn(f64) -> f64,
     logical_height: f64,
-) -> Option<PhysicalPosition<i32>> {
-    // The display under the pointer is the best cross-platform signal for
-    // "the display the user is working on".
+) -> Option<tauri::Position> {
+    // Preferred: the display under the pointer, measured natively. Tauri's
+    // own cursor_position mixes physical and logical units on macOS, which
+    // put the window on the wrong screen on mixed-DPI setups.
+    if let Some(area) = posthaste_platform::cursor_display_work_area() {
+        return Some(place_in_area(
+            &Area {
+                x: area.x,
+                y: area.y,
+                w: area.width,
+                h: area.height,
+                scale: area.scale,
+                units_physical: area.units_physical,
+            },
+            window,
+            position,
+            width_for,
+            logical_height,
+        ));
+    }
+
+    // Fallback: Tauri's monitor chain, normalised to logical units. Correct
+    // on X11, where cursor and monitor rectangles already share one space.
     let monitor = app
         .cursor_position()
         .ok()
         .and_then(|p| app.monitor_from_point(p.x, p.y).ok().flatten())
         .or_else(|| window.current_monitor().ok().flatten())
-        .or_else(|| app.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else {
-        let _ = window.center();
-        return None;
-    };
-
+        .or_else(|| app.primary_monitor().ok().flatten())?;
     let scale = monitor.scale_factor();
     let area = monitor.work_area();
-    let (area_w, area_h) = (area.size.width as f64, area.size.height as f64);
-    let logical_area_w = area_w / scale;
-
-    let width = width_for(logical_area_w);
-    let width = width.min(logical_area_w - 16.0).max(280.0);
-    let (w, h) = ((width * scale).round(), (logical_height * scale).round());
-
-    let x = area.position.x as f64 + (area_w - w) / 2.0;
-    let y = match position {
-        CapturePosition::Center => area.position.y as f64 + (area_h - h) / 2.0,
-        CapturePosition::Upper => area.position.y as f64 + (area_h * 0.22).min(area_h - h),
+    let area = Area {
+        x: area.position.x as f64 / scale,
+        y: area.position.y as f64 / scale,
+        w: area.size.width as f64 / scale,
+        h: area.size.height as f64 / scale,
+        scale,
+        units_physical: false,
     };
-    let pos = PhysicalPosition::new(
-        x.round() as i32,
-        y.max(area.position.y as f64).round() as i32,
-    );
+    Some(place_in_area(
+        &area,
+        window,
+        position,
+        width_for,
+        logical_height,
+    ))
+}
 
-    // Position first so the size is applied at the destination display's scale.
-    let _ = window.set_position(pos);
-    // The window is fixed-size by pinning min and max to the same value
-    // rather than by `resizable(false)`, which on GTK would also stop us
-    // resizing it for a different display.
-    let size = PhysicalSize::new(w as u32, h as u32);
-    let _ = window.set_min_size(Some(size));
-    let _ = window.set_max_size(Some(size));
-    let _ = window.set_size(size);
-    Some(pos)
+#[cfg(test)]
+mod tests {
+    use super::{compute_layout, Area};
+    use posthaste_core::CapturePosition;
+
+    /// The laptop display: 1512x982 points at 2x, menu bar 25, dock 25.
+    fn retina() -> Area {
+        Area {
+            x: 0.0,
+            y: 25.0,
+            w: 1512.0,
+            h: 932.0,
+            scale: 2.0,
+            units_physical: false,
+        }
+    }
+
+    /// A 1x display parked to the right.
+    fn external() -> Area {
+        Area {
+            x: 1512.0,
+            y: 0.0,
+            w: 1920.0,
+            h: 1048.0,
+            scale: 1.0,
+            units_physical: true,
+        }
+    }
+
+    fn capture_width(logical: f64) -> f64 {
+        (logical * 0.42).clamp(520.0, 700.0)
+    }
+
+    #[test]
+    fn capture_centers_on_the_work_area() {
+        let (x, y, w, h) = compute_layout(&retina(), CapturePosition::Center, capture_width, 268.0);
+        assert_eq!((x, y, w, h), (439.0, 357.0, 635.0, 268.0)); // (1512-635)/2, 25+(932-268)/2
+    }
+
+    #[test]
+    fn capture_sits_in_the_upper_third_when_asked() {
+        let (_, y, _, _) = compute_layout(&retina(), CapturePosition::Upper, capture_width, 268.0);
+        assert_eq!(y, 230.0); // 25 + 932 * 0.22, never below the panel
+    }
+
+    #[test]
+    fn today_keeps_its_fixed_width_on_either_display() {
+        let width = |_| 440.0;
+        let (x, y, w, h) = compute_layout(&retina(), CapturePosition::Center, width, 540.0);
+        assert_eq!((x, y, w, h), (536.0, 221.0, 440.0, 540.0)); // (1512-440)/2, 25+(932-540)/2
+
+        let (x, _, w, h) = compute_layout(&external(), CapturePosition::Center, width, 540.0);
+        assert_eq!((x, w, h), (2252.0, 440.0, 540.0)); // 1512 + (1920-440)/2
+    }
+
+    #[test]
+    fn narrow_displays_clamp_the_panel_to_the_screen() {
+        let tiny = Area {
+            x: 0.0,
+            y: 0.0,
+            w: 800.0,
+            h: 600.0,
+            scale: 1.0,
+            units_physical: true,
+        };
+        let (x, _, w, _) = compute_layout(&tiny, CapturePosition::Center, capture_width, 268.0);
+        // 0.42 * 800 = 336 < 520 floor; then clamped below 800-16 so it fits.
+        assert_eq!(w, 520.0);
+        assert_eq!(x, 140.0);
+    }
 }

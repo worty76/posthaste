@@ -1,36 +1,28 @@
 "use client";
 
-// The real share-code idea, shown with a real code: this is the code for
-// Ink, the look the page wears. It encodes with the same format the app
-// imports via "Add from code…" — no account, no upload.
+// A real share code for the look the page is wearing, in the format the
+// app imports through "Add from code…". No account, no upload.
 
 import { useState } from "react";
+import { useSite } from "./SiteState";
 import { lookById } from "@/lib/looks";
 import { encodeLookCode } from "@/lib/share-code";
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function ShareCodeRow() {
-  const look = lookById("ink");
-  const [copied, setCopied] = useState(false);
+  const { lookId } = useSite();
+  const look = lookById(lookId);
+  const [copied, setCopied] = useState<string | null>(null);
   const code = encodeLookCode(look);
 
   return (
-    <div className="share-row">
-      <p className="share-row__label" id="share-code-label">
-        Share a look as a code
-      </p>
-      <div className="share-row__row">
+    <div className="share">
+      <label className="share__label" htmlFor="share-code">
+        {look.name}, as a code
+      </label>
+      <div className="share__row">
         <input
-          className="share-row__code"
-          aria-labelledby="share-code-label"
+          id="share-code"
+          className="share__code"
           value={code}
           readOnly
           onFocus={(e) => e.currentTarget.select()}
@@ -39,19 +31,19 @@ export function ShareCodeRow() {
           type="button"
           className="btn"
           onClick={() => {
-            void copyText(code).then((ok) => {
-              setCopied(ok);
-              if (ok) window.setTimeout(() => setCopied(false), 2000);
-            });
+            navigator.clipboard.writeText(code).then(
+              () => setCopied(code),
+              () => setCopied(null),
+            );
           }}
         >
-          {copied ? "Copied" : "Copy code"}
+          {copied === code ? "Copied" : "Copy code"}
         </button>
       </div>
-      <p className="share-row__note" aria-live="polite">
-        {copied
-          ? "Copied. A friend pastes it into Add from code… — it never leaves the chat."
-          : "This one is Ink, the look this page wears. Friends paste it into Add from code… — no account, no upload."}
+      <p className="share__note" aria-live="polite">
+        {copied === code
+          ? "Paste it into a chat. Your friend opens Settings, Appearance, Add from code."
+          : "Send it to a friend. They paste it into Add from code and get the same look."}
       </p>
     </div>
   );

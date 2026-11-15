@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{DisplayArea, Session};
 
 pub type Handle = ();
 
@@ -12,4 +12,8 @@ pub fn foreground() -> Option<(Handle, Option<String>)> {
 
 pub fn activate(_: &Handle) -> bool {
     false
+}
+
+pub fn cursor_display_work_area() -> Option<DisplayArea> {
+    None
 }

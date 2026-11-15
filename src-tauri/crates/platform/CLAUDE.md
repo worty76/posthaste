@@ -2,9 +2,10 @@
 
 # crates/platform: per-OS code
 
-Answers two questions the capture flow needs: which application was in front,
-and how to give focus back to it. One file per OS behind one small API in
-`lib.rs`.
+Answers three questions the capture flow needs: which application was in
+front, how to give focus back to it, and which display the mouse pointer is
+on (so floating windows open where the user is working). One file per OS
+behind one small API in `lib.rs`.
 
 ## Rules
 
@@ -13,7 +14,8 @@ and how to give focus back to it. One file per OS behind one small API in
   implemented in every OS file, including a do-nothing version in
   `unsupported.rs`.
 - Each OS file exports the same items: `Handle`, `session()`, `foreground()`,
-  `activate()`. Keep the signatures identical across files.
+  `activate()`, `cursor_display_work_area()`. Keep the signatures identical
+  across files.
 - Functions return `Option` or `bool` and never panic. When the OS says no, or
   the session cannot answer (Wayland), return `None`/`false`. The caller
   already handles that.

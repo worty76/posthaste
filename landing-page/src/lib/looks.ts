@@ -1,5 +1,5 @@
-// The single source of look data for the site — the same six documents the
-// app bundles (docs/website-master-prompt.md section 1). Every colour on the
+// The single source of look data for the site: the same six documents the
+// app bundles in src-tauri/crates/core/looks/. Every colour on the
 // site comes from here or from derivation over it (lib/derive.ts); no
 // duplicated colour values anywhere else.
 
@@ -78,5 +78,5 @@ export function lookById(id: string): Look {
 
 /** Which look a first-time visitor starts on, per their colour scheme. */
 export function defaultLookId(prefersDark: boolean): string {
-  return prefersDark ? "blueberry" : "strawberry-milk";
+  return prefersDark ? "midnight-grape" : "strawberry-milk";
 }

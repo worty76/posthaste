@@ -4,7 +4,7 @@ use x11rb::protocol::xproto::{
 };
 use x11rb::rust_connection::RustConnection;
 
-use crate::Session;
+use crate::{DisplayArea, Session};
 
 pub type Handle = Window;
 
@@ -103,4 +103,11 @@ pub fn activate(window: &Handle) -> bool {
     )
     .is_ok()
         && conn.flush().is_ok()
+}
+
+/// X11 reports cursor and monitor rectangles in one consistent pixel space,
+/// so Tauri's own `cursor_position` + `monitor_from_point` are already
+/// correct there. Wayland cannot place windows at all; the compositor does.
+pub fn cursor_display_work_area() -> Option<DisplayArea> {
+    None
 }

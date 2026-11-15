@@ -1,64 +1,70 @@
-import { ShareCodeRow } from "@/components/ShareCodeRow";
-import { HeroDemo } from "@/components/HeroDemo";
-import { HeroActions } from "@/components/HeroActions";
-import { HowItWorks } from "@/components/HowItWorks";
-import { MiniInbox } from "@/components/MiniInbox";
+import { CaptureHero } from "@/components/CaptureHero";
 import { ContrastToy } from "@/components/ContrastToy";
+import { Downloads } from "@/components/Downloads";
 import { GitHubMark } from "@/components/icons";
+import { LookChips } from "@/components/LookChips";
+import { LookTiles } from "@/components/LookTiles";
+import { OsKeys } from "@/components/os";
+import { ShareCodeRow } from "@/components/ShareCodeRow";
+import { SiteStateProvider } from "@/components/SiteState";
 import { StarChip } from "@/components/StarChip";
-import { LookMiniature } from "@/components/mini";
-import { LOOKS } from "@/lib/looks";
-import { PRODUCT } from "@/config";
+import { TodayCount, TodayDemo } from "@/components/TodayDemo";
+import { PRODUCT, type Download, type Platform } from "@/config";
 
-const MINIATURE_NOTES: Record<string, { note: string; category: string }> = {
-  "strawberry-milk": { note: "Smoothie: banana, oat milk", category: "home" },
-  matcha: { note: "Call grandma on Sunday", category: "home" },
-  "lavender-haze": { note: "Sketch: sticker ideas", category: "ideas" },
-  "midnight-grape": { note: "Draft the demo script", category: "work" },
-  blueberry: { note: "Finish the book chapter", category: "goals" },
-  ink: { note: "Gather receipts, ugh", category: "life" },
-};
+interface Release {
+  downloads: Record<Platform, Download | null>;
+  linuxExtras: Download[];
+}
 
-const PLATFORMS: { key: "mac" | "windows" | "linux"; name: string; asset: string }[] = [
-  { key: "mac", name: "macOS", asset: ".dmg" },
-  { key: "windows", name: "Windows", asset: "x64-setup.exe" },
-  { key: "linux", name: "Linux", asset: ".AppImage" },
-];
-
-/** Direct download links, baked at build time from the latest release the
-    build-and-release workflow published. Null for a platform means its
-    installer is not in that release yet. */
-async function getDownloads(): Promise<Record<string, string | null>> {
+/** The latest release's installers, read at build time. When the API is
+    unreachable the confirmed links in config.ts stay. */
+async function getRelease(): Promise<Release> {
+  const fallback: Release = { downloads: PRODUCT.downloads, linuxExtras: PRODUCT.linuxExtras };
   try {
     const res = await fetch("https://api.github.com/repos/worty76/Posthaste/releases/latest", {
       cache: "no-store",
       headers: { Accept: "application/vnd.github+json" },
     });
-    if (!res.ok) return { mac: null, windows: null, linux: null };
-    const data = (await res.json()) as { assets?: { name?: string; browser_download_url?: string }[] };
-    const out: Record<string, string | null> = { mac: null, windows: null, linux: null };
+    if (!res.ok) return fallback;
+    const data = (await res.json()) as {
+      assets?: { name?: string; browser_download_url?: string }[];
+    };
+    const found: Release = {
+      downloads: { mac: null, windows: null, linux: null },
+      linuxExtras: [],
+    };
     for (const a of data.assets ?? []) {
       const name = (a.name ?? "").toLowerCase();
-      const url = a.browser_download_url ?? null;
+      const url = a.browser_download_url;
       if (!url) continue;
-      if (name.endsWith(".dmg") && out.mac === null) out.mac = url;
-      if (name.endsWith("x64-setup.exe") && out.windows === null) out.windows = url;
-      if (name.endsWith(".appimage") && out.linux === null) out.linux = url;
+      if (name.endsWith(".dmg") && !found.downloads.mac) {
+        found.downloads.mac = {
+          url,
+          label: name.includes("aarch64") ? "Apple Silicon, .dmg" : ".dmg",
+        };
+      } else if (name.endsWith("x64-setup.exe") && !found.downloads.windows) {
+        found.downloads.windows = { url, label: "64-bit installer, .exe" };
+      } else if (name.endsWith(".appimage") && !found.downloads.linux) {
+        found.downloads.linux = { url, label: "x86-64, .AppImage" };
+      } else if (name.endsWith(".deb")) {
+        found.linuxExtras.push({ url, label: ".deb" });
+      } else if (name.endsWith(".rpm")) {
+        found.linuxExtras.push({ url, label: ".rpm" });
+      }
     }
-    return out;
+    // A release without installers (a broken CI run) must not blank the page.
+    const any = Object.values(found.downloads).some(Boolean);
+    return any ? found : fallback;
   } catch {
-    return { mac: null, windows: null, linux: null };
+    return fallback;
   }
 }
 
-/** Stargazer count, fetched once at build time and baked into the static
-    HTML. The page itself still makes no runtime requests to anyone; when
-    the API is unreachable the count simply does not render. */
+/** Stargazer count, baked in at build time; StarChip refreshes it from the
+    same-origin stars.json. Missing means the chip does not render. */
 async function getStars(): Promise<number | null> {
   try {
     const res = await fetch("https://api.github.com/repos/worty76/Posthaste", {
-      // Always fresh: a cached response here meant the site showed a stale
-      // star count for hours after deploy.
       cache: "no-store",
       headers: { Accept: "application/vnd.github+json" },
     });
@@ -71,238 +77,167 @@ async function getStars(): Promise<number | null> {
 }
 
 export default async function Page() {
-  const [stars, downloads] = await Promise.all([getStars(), getDownloads()]);
+  const [stars, release] = await Promise.all([getStars(), getRelease()]);
 
   return (
-    <>
-      <header className="page site-head">
+    <SiteStateProvider>
+      <header className="page head">
         <a className="wordmark" href="/">
+          <img src="/logo-256.png?v=2" alt="" width={22} height={22} />
           Posthaste
         </a>
-        <span className="site-head__spacer" />
+        <span className="head__spacer" />
         <StarChip baked={stars} />
-        <a className="site-head__icon" href={PRODUCT.repoUrl} aria-label="Posthaste on GitHub">
+        <a className="head__icon" href={PRODUCT.repoUrl} aria-label="Posthaste on GitHub">
           <GitHubMark />
+        </a>
+        <a className="btn btn--small" href="#get">
+          Download
         </a>
       </header>
 
-      <main className="page">
-        {/* 1. Hero: promise, working demo, actions. */}
-        <section className="hero" aria-labelledby="hero-title">
-          <div>
+      <main>
+        <section className="page hero" aria-labelledby="hero-title">
+          <div className="hero__top">
             <h1 className="hero__title" id="hero-title">
-              A thought goes down in two seconds. You're back.
+              Get it out of your head in two seconds.
             </h1>
-            <p className="hero__sub">
-              Press one shortcut, type what's on your mind, press Enter. Done — the note is saved
-              and you're back to whatever you were doing. Free, private, no account.
+            <div className="hero__side">
+              <p className="hero__sub">
+                Press <OsKeys which="capture" /> anywhere, type, press Enter. The window closes and
+                you&apos;re back where you were. Try it here: the box is ready.
+              </p>
+              <noscript>
+                <p className="hero__sub">Turn on JavaScript to try the box below.</p>
+              </noscript>
+              <LookChips />
+            </div>
+          </div>
+          <CaptureHero />
+        </section>
+
+        <section className="page today" aria-labelledby="today-title">
+          <div className="today__copy">
+            <h2 className="h2" id="today-title">
+              Later, see what&apos;s left.
+            </h2>
+            <p>
+              <OsKeys which="today" /> opens a small window with today&apos;s notes and the
+              unfinished ones from before. X ticks one off. Esc puts it away and you&apos;re back
+              again.
             </p>
-            <HeroActions />
+            <TodayCount />
+            <p className="quiet">
+              Everything else is in the inbox, <OsKeys which="inbox" />. Search finds a note by any
+              word in it. A deleted note waits 24 hours in the trash, so Undo always works.
+            </p>
           </div>
-          <HeroDemo />
+          <TodayDemo />
         </section>
 
-        {/* 2. How it works in three beats, keys per detected OS. */}
-        <section className="section" aria-labelledby="how-title">
-          <h2 className="section__title" id="how-title">
-            How it works
+        <section className="page looks" aria-labelledby="looks-title">
+          <h2 className="h2" id="looks-title">
+            Your colors, on all of it.
           </h2>
-          <p className="section__lede">
-            Three beats, no setup, nothing to learn up front. The keys below match your system; the
-            toggle shows the others.
+          <p className="looks__lede">
+            Pick a look and this page changes the way the app does: colors, corners, even the shape
+            of the letters.
           </p>
-          <HowItWorks />
-        </section>
-
-        {/* 3. Your notes stay organized and easy to find. */}
-        <section className="section" aria-labelledby="inbox-title">
-          <h2 className="section__title" id="inbox-title">
-            Everything you save, easy to find
-          </h2>
-          <p className="section__lede">
-            Notes land in your inbox. Finished ones move to the archive, out of the way but never
-            gone. Looking for something? Search finds any note in a blink — even years later.
-          </p>
-          <div className="inbox-grid">
-            <MiniInbox />
-            <div className="keys-legend">
-              <h3>Try it with the keyboard</h3>
-              <div className="keys-legend__row">
-                <span>Move</span>
-                <span>
-                  <kbd>J</kbd> <kbd>K</kbd> or arrows
-                </span>
-              </div>
-              <div className="keys-legend__row">
-                <span>Complete</span>
-                <span>
-                  <kbd>X</kbd>
-                </span>
-              </div>
-              <div className="keys-legend__row">
-                <span>Search</span>
-                <span>
-                  <kbd>/</kbd>
-                </span>
-              </div>
-              <div className="keys-legend__row">
-                <span>Clear</span>
-                <span>
-                  <kbd>esc</kbd>
-                </span>
-              </div>
-              <p style={{ color: "var(--muted)", fontSize: "var(--t-sm)", margin: 0 }}>
-                Prefer the mouse? Everything works with a click too — shortcuts are just faster once
-                you're used to them.
+          <LookTiles />
+          <div className="looks__tools">
+            <div>
+              <h3 className="h3">Or make your own</h3>
+              <p className="quiet">
+                Four colors. If the text would be hard to read, Posthaste says why and won&apos;t
+                save it.
               </p>
+              <ContrastToy />
+            </div>
+            <div>
+              <h3 className="h3">Share it as one line</h3>
+              <ShareCodeRow />
             </div>
           </div>
-          <p className="section__note">
-            Changed your mind about deleting something? It sits in a trash for 24 hours first — undo
-            is always one click away. And your notes save instantly, so nothing is lost even if your
-            computer gives up.
-          </p>
         </section>
 
-        {/* 4. Looks: six live miniatures, make-your-own toy. */}
-        <section className="section" aria-labelledby="looks-title">
-          <h2 className="section__title" id="looks-title">
-            Make it yours
+        <section className="page local" aria-labelledby="local-title">
+          <h2 className="h2" id="local-title">
+            On your computer, not ours.
           </h2>
-          <p className="section__lede">
-            Change the whole mood of the app — six ready-made looks, from soft Strawberry Milk to
-            all-black Ink. Or mix your own colors in seconds.
-          </p>
-          <div className="looks-grid">
-            {LOOKS.map((look) => {
-              const sample = MINIATURE_NOTES[look.id] ?? { note: look.name, category: "demo" };
-              return (
-                <LookMiniature
-                  key={look.id}
-                  look={look}
-                  note={sample.note}
-                  category={sample.category}
-                />
-              );
-            })}
-          </div>
-          <p className="section__lede" style={{ marginBottom: 16 }}>
-            "Make your own" lets you pick any colors you like — and the app checks that everything
-            stays readable. If a combination is too hard on the eyes, it tells you instead of saving
-            it:
-          </p>
-          <ContrastToy />
-          <p className="section__lede" style={{ marginTop: 26, marginBottom: 0 }}>
-            Found a look you love? Send it to a friend as a single line of text — they paste it in
-            and instantly have the exact same theme. No account needed; it all happens in a chat.
-          </p>
-          <ShareCodeRow />
-        </section>
-
-        {/* 5. Privacy, in plain words. */}
-        <section className="section" aria-labelledby="privacy-title">
-          <h2 className="section__title" id="privacy-title">
-            Your notes stay yours
-          </h2>
-          <p className="section__lede">
-            Everything happens on your computer. There's no account to make, nothing to send, and no
-            one reading over your shoulder.
-          </p>
-          <div className="privacy-grid">
+          <div className="local__cols">
             <div>
-              <ul className="privacy-list privacy-list--no">
-                <li>No account</li>
-                <li>No tracking of any kind</li>
-                <li>Even the app's logs skip your note text</li>
-                <li>AI polish is opt-in — off until you add your own key</li>
-              </ul>
-              <ul className="privacy-list privacy-list--yes" style={{ marginTop: 18 }}>
-                <li>Notes, drafts and themes live in one file on your computer</li>
-                <li>Export, import and backup are files you keep</li>
-                <li>Offline by default — AI polish is the only online feature, and only on request</li>
-                <li>This page makes no third-party requests either</li>
+              <h3 className="h3">Stays on your computer</h3>
+              <ul className="ledger">
+                <li>
+                  Your notes, drafts and looks, in one file. Export and backup make copies you keep.
+                </li>
+                <li>No account. No analytics. No telemetry.</li>
+                <li>The app&apos;s logs never include what you wrote.</li>
+                <li>
+                  A note is saved before the window closes, and a half-typed draft survives a crash.
+                </li>
               </ul>
             </div>
             <div>
-              <h3 style={{ fontSize: "var(--t-md)", marginBottom: 8 }}>What that means for you</h3>
-              <p
-                style={{ color: "var(--muted)", fontSize: "var(--t-sm)", lineHeight: "var(--lh)" }}
-              >
-                Your notes can't leak, because they never leave your machine. You could go offline
-                forever and nothing would change. Want a copy? Export everything to a single file
-                whenever you like.
-              </p>
+              <h3 className="h3">Leaves only when</h3>
+              <ul className="ledger">
+                <li>
+                  <strong>You press Polish.</strong> AI polish is off until you pick a provider
+                  (Anthropic, OpenAI or Gemini) and paste your own API key. Then the one note you
+                  polish goes straight to that provider. Nothing else does.
+                </li>
+                <li>
+                  <strong>The app checks for an update.</strong> At launch and every six hours it
+                  asks GitHub whether a newer version exists. Installing one is your click.
+                </li>
+              </ul>
             </div>
           </div>
         </section>
 
-        {/* 6. Get it. */}
-        <section className="section" aria-labelledby="get-title" id="get-it">
-          <h2 className="section__title" id="get-title">
-            Get it
+        <section className="page get" id="get" aria-labelledby="get-title">
+          <h2 className="h2" id="get-title">
+            Free, and open source.
           </h2>
-          <p className="section__lede">
-            Free, and always local. Installers are on their way; for now you can grab the source
-            code and run it yourself.
+          <p className="quiet">
+            MIT licensed. Version {PRODUCT.version}.{" "}
+            <a href={PRODUCT.releasesUrl}>All files and release notes</a>
           </p>
-          <div className="get-grid">
-            <div className="get-rows">
-              {PLATFORMS.map((p) =>
-                downloads[p.key] ? (
-                  <div className="get-row" key={p.key}>
-                    <div>
-                      <div className="get-row__name">{p.name}</div>
-                      <div className="get-row__note">Free · installer</div>
-                    </div>
-                    <a className="btn btn--primary" href={downloads[p.key]!}>
-                      Download
-                    </a>
-                  </div>
-                ) : (
-                  <div className="get-row" key={p.key}>
-                    <div>
-                      <div className="get-row__name">{p.name}</div>
-                      <div className="get-row__note">Installer not in the latest build</div>
-                    </div>
-                    <a className="btn" href={PRODUCT.repoUrl}>
-                      View on GitHub
-                    </a>
-                  </div>
-                ),
-              )}
-              <p className="early-note">
-                Early release: carefully tested on Linux so far; macOS and Windows installers are
-                next. Every update to the main branch rebuilds these files automatically.
-              </p>
-            </div>
-            <div>
-              <h3 style={{ fontSize: "var(--t-md)", marginBottom: 8 }}>
-                Prefer building it yourself?
-              </h3>
-              <pre className="build-snippet">
-                <b>git</b> clone {PRODUCT.repoUrl}
-                <br />
-                <b>cd</b> Posthaste
-                <br />
-                <b>npm</b> install
-                <br />
-                <b>npm</b> run tauri build
-              </pre>
-              <p style={{ color: "var(--muted)", fontSize: "var(--t-sm)", marginTop: 10 }}>
-                The repository's README walks you through it step by step.
-              </p>
-            </div>
-          </div>
+          <Downloads
+            downloads={release.downloads}
+            linuxExtras={release.linuxExtras}
+            releasesUrl={PRODUCT.releasesUrl}
+          />
+          <p className="get__note">
+            Used every day on macOS and tested on Linux. The Windows installer is built
+            automatically but hasn&apos;t been tried on a Windows PC yet, so expect rough edges. On
+            an Intel Mac, build it yourself for now.
+          </p>
+          <details className="terminal">
+            <summary>Comfortable with a terminal? Build it yourself</summary>
+            <pre>
+              <code>
+                {`git clone ${PRODUCT.repoUrl}
+cd Posthaste
+npm install
+npm run tauri build`}
+              </code>
+            </pre>
+            <p className="quiet">
+              Needs Node 20+, Rust and the Tauri system packages. The{" "}
+              <a href={`${PRODUCT.repoUrl}#build-from-source`}>README</a> lists them.
+            </p>
+          </details>
         </section>
       </main>
 
-      {/* 7. Footer. */}
-      <footer className="page site-foot">
-        <span>No analytics, no cookies, no third-party requests on this page.</span>
-        <span>
-          Posthaste {PRODUCT.version} · <a href={PRODUCT.repoUrl}>source</a>
+      <footer className="page foot">
+        <span>This page has no analytics, no cookies, and asks no other site for anything.</span>
+        <span className="foot__meta">
+          <a href={PRODUCT.repoUrl}>Source on GitHub</a>
+          <span>Posthaste {PRODUCT.version}</span>
         </span>
       </footer>
-    </>
+    </SiteStateProvider>
   );
 }

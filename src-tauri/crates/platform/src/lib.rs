@@ -1,8 +1,9 @@
 //! Remembering which application was in front before the capture window
-//! appeared, and handing focus back to it afterwards.
+//! appeared, handing focus back to it afterwards, and telling which display
+//! the mouse pointer is on so floating windows open where the user is.
 //!
-//! Each OS exposes this differently, and Wayland deliberately does not expose
-//! it at all; see [`Session`].
+//! Each OS exposes these differently, and Wayland deliberately does not
+//! expose them at all; see [`Session`].
 
 #[cfg(target_os = "linux")]
 #[path = "linux.rs"]
@@ -65,4 +66,32 @@ pub fn foreground_app() -> Option<PreviousApp> {
 /// made; the window manager has the final say.
 pub fn activate(app: &PreviousApp) -> bool {
     imp::activate(&app.handle)
+}
+
+/// One display's work area (menu bar and dock excluded), in that display's
+/// own logical units, positioned in the OS's global screen space:
+/// top-left physical pixels on Windows, AppKit points with a bottom-left
+/// origin on macOS. These are exactly the units each platform's windowing
+/// API accepts for `LogicalPosition`/`LogicalSize`, so a window can be
+/// placed from them without any scale conversion.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DisplayArea {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    /// Device pixels per point on this display (1 on standard, 2 on Retina).
+    pub scale: f64,
+    /// Whether `x`/`y`/`width`/`height` are physical pixels (true, Windows)
+    /// rather than logical points (false, macOS).
+    pub units_physical: bool,
+}
+
+/// The work area of the display the mouse pointer is currently on, so a
+/// window summoned with a shortcut opens where the user is working.
+///
+/// `None` means the platform cannot tell (Wayland) or the pointer is off
+/// every screen; the caller should fall back to its own monitor logic.
+pub fn cursor_display_work_area() -> Option<DisplayArea> {
+    imp::cursor_display_work_area()
 }

@@ -1,17 +1,39 @@
 // Everything that can change lives here. Nothing else on the site hard-codes
-// product facts, and no download URL is ever invented: null means "not out
-// yet" and the UI shows an honest fallback.
+// product facts, and no download URL is ever invented.
+
+/** One installer per platform, as named in the GitHub release. */
+export interface Download {
+  url: string;
+  /** e.g. "Apple Silicon", ".AppImage". */
+  label: string;
+}
+
+export type Platform = "mac" | "windows" | "linux";
+
+const RELEASE = "https://github.com/worty76/posthaste/releases/download/v0.2.2";
 
 export const PRODUCT = {
   name: "Posthaste",
-  version: "0.1.0",
+  /** From src-tauri/Cargo.toml [workspace.package] version. */
+  version: "0.2.2",
   repoUrl: "https://github.com/worty76/Posthaste",
+  releasesUrl: "https://github.com/worty76/Posthaste/releases/latest",
   /** Set when the site has a permanent home; canonical and share URLs use it. */
   siteUrl: "https://posthaste.worty.id.vn" as string | null,
-  /** Real download URLs per platform; null = not released there yet. */
+  /**
+   * The v0.2.2 installers, checked against the published release on
+   * 15 Nov 2026. The build replaces these with the latest release's assets
+   * when it can reach the GitHub API (see getDownloads in app/page.tsx);
+   * null would mean "not released for this platform".
+   */
   downloads: {
-    mac: null,
-    windows: null,
-    linux: null,
-  } as { mac: string | null; windows: string | null; linux: string | null },
+    mac: { url: `${RELEASE}/Posthaste_0.2.2_aarch64.dmg`, label: "Apple Silicon, .dmg" },
+    windows: { url: `${RELEASE}/Posthaste_0.2.2_x64-setup.exe`, label: "64-bit installer, .exe" },
+    linux: { url: `${RELEASE}/Posthaste_0.2.2_amd64.AppImage`, label: "x86-64, .AppImage" },
+  } as Record<Platform, Download | null>,
+  /** Extra Linux packages from the same release. */
+  linuxExtras: [
+    { url: `${RELEASE}/Posthaste_0.2.2_amd64.deb`, label: ".deb" },
+    { url: `${RELEASE}/Posthaste-0.2.2-1.x86_64.rpm`, label: ".rpm" },
+  ] as Download[],
 } as const;
