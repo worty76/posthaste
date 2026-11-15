@@ -32,6 +32,8 @@ table; unreadable rows are skipped, never trusted.
   last line of defence against a bug in the Rust code.
 - Deleting a note is a soft delete (`deleted_at`). Every read filters
   `deleted_at IS NULL`. A new query that forgets this resurrects deleted notes.
+  The only reads of trashed notes are the Trash ones, and they also skip notes
+  older than `TRASH_RETENTION_MS`, which can no longer be restored.
 - Import never overwrites. Export excludes trashed notes.
 - `synchronous = FULL` and WAL stay. Do not trade durability for speed.
 

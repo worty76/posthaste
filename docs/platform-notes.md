@@ -22,6 +22,11 @@ macOS (Apple Silicon).
 | Tray menu | code runs; no tray host in the test display | not run | not verified | not run |
 | Today window | not run (the e2e script covers it; run it on Linux) | not run | opens with `--today` and renders; keys not exercised | not run |
 | Note details window | e2e (Xvfb + openbox): Enter in Today opens it focused, typing autosaves, Esc saves, hides it and returns to Today, focus ends in the previous app; the window and attachment tiles checked by screenshot | not run | not run | not run |
+| Later (L in Today) | e2e (Xvfb + openbox): L parks the selected note, Today stays open and focused | not run | not run | not run |
+| Day view and origin tag in Today | e2e (Xvfb + openbox): X does nothing on a past day, T returns to today, Esc still closes | not run | not run | not run |
+| Calendar in the inbox | unit tests only | not run | not run | not run |
+| Trash (restore, delete forever) | e2e (Xvfb + openbox): Delete, then R in Trash restores; Delete forever erases only that note | not run | not run | not run |
+| Window size setting | e2e (Xvfb + openbox): Roomy opens capture and Today 1.2 times the size | not run | not run | not run |
 | Launch at login | not exercised | not exercised | not verified | not run |
 | Multiple monitors, HiDPI | **not tested** | not tested | not tested | not tested |
 
@@ -122,3 +127,30 @@ Decisions worth knowing:
 Data location: `<app data dir>/dev.posthaste.desktop/posthaste.db`
 (`~/.local/share/…` on Linux, `~/Library/Application Support/…` on macOS,
 `%APPDATA%\…` on Windows). Settings → Data shows the exact path.
+
+## Trash
+
+A deleted note keeps its text and files in the database for 30 days
+(`TRASH_RETENTION_MS` in `crates/core`), then the launch purge erases it.
+Notes past 30 days are hidden from Trash and cannot be restored even before
+that purge runs. "Delete forever" and "Empty Trash" erase at once. Until then
+the text is still on disk, which matters if the computer is shared.
+
+## Earlier days and the calendar
+
+A past day in Today is rebuilt from timestamps, as it stood at the end of that
+day. Only the latest completion, archive and Later times are kept, so a note
+that was reopened or brought back from Later since then loses its earlier
+history and shows as it is now. The calendar's first weekday comes from the
+locale where the webview exposes it (`Intl.Locale` week info) and is Monday
+otherwise; not checked on the macOS or Windows webviews.
+
+## Window sizes
+
+Capture, Today and the details window's first-open size are base sizes times
+the Window size setting: Compact 0.9, Standard 1.0 (the original sizes), Roomy
+1.2. Capture's width is still 42% of the display, within bounds that scale the
+same way. Every panel is clamped to the display's work area in both width and
+height, so Roomy stays on a short display. The details window is placed once
+per run; changing the setting places it afresh on its next open.
+
