@@ -2,18 +2,17 @@
 
 import { useEffect, useState } from "react";
 import type { Platform } from "@/config";
+import { detectPlatform } from "@/lib/platform";
 
 export type Os = Platform;
 
 /** Best-effort OS detection from the user agent. Null until hydrated, so
-    the server render never guesses. */
+    the server render never guesses, and null for phones, tablets and other
+    systems the app has no installer for. */
 export function useOs(): Os | null {
   const [os, setOs] = useState<Os | null>(null);
   useEffect(() => {
-    const ua = navigator.userAgent;
-    if (/Mac|iPhone|iPad/i.test(ua)) setOs("mac");
-    else if (/Win/i.test(ua)) setOs("windows");
-    else setOs("linux");
+    setOs(detectPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0));
   }, []);
   return os;
 }

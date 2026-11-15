@@ -6,27 +6,21 @@ import {
   PICK_POSTHASTE,
 } from "@/lib/compare";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+import { formatIsoDate as formatChecked } from "@/lib/dates";
 
-/** "2026-11-15" -> "15 Nov 2026", without a locale or time zone to disagree
-    between the build machine and the visitor. */
-function formatChecked(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${d} ${MONTHS[(m ?? 1) - 1]} ${y}`;
-}
-
-/** How Posthaste sits next to four note apps. Plain table, no script: on a
+/** How Posthaste sits next to other note and capture apps. Plain table, no script: on a
     narrow screen the table scrolls sideways inside its own region. */
 export function Compare() {
   const others = COMPARE_APPS.slice(1);
   return (
-    <section className="page compare" aria-labelledby="compare-title">
+    <section className="page compare" id="compare" aria-labelledby="compare-title">
       <h2 className="h2" id="compare-title">
         Next to the apps you already use.
       </h2>
       <p className="compare__lede">
-        Posthaste does one job: catch a thought and get out of your way. It doesn&apos;t replace a
-        notebook, so this is where it differs, and where the others are the better pick.
+        Posthaste catches a thought and keeps it on a short to-do list until it&apos;s done. It
+        doesn&apos;t replace a notebook, so this is where it differs, and where the others are the
+        better pick.
       </p>
 
       <div
@@ -37,7 +31,7 @@ export function Compare() {
       >
         <table className="compare__table">
           <caption className="visually-hidden">
-            Posthaste compared with Apple Notes, Notion, Obsidian and Evernote, checked on{" "}
+            Posthaste compared with {others.map((a) => a.name).join(", ")}, checked on{" "}
             {formatChecked(COMPARE_CHECKED_ON)}.
           </caption>
           <thead>

@@ -46,3 +46,32 @@ export const DEMO_VIDEO = {
   poster: "/demo/posthaste-demo-poster.jpg",
   seconds: 61,
 } as const;
+
+/** Release notes written for people, by version. They replace the automatic
+    release body (commit subjects) in the changelog. */
+export const RELEASE_NOTES: Record<string, string[]> = {
+  "0.2.3": ["A maintenance build: new installers, no changes to the app."],
+  "0.2.2": [
+    "The Today window: today's notes and the unfinished ones from before, on its own shortcut.",
+    "Change the Today shortcut in Settings.",
+  ],
+  "0.2.1": ["Clicking the page you are already on no longer shows a blank window."],
+  "0.2.0": ["Installers for macOS, Windows and Linux."],
+};
+
+/** The changelog when GitHub can't be reached at build time. Dates (UTC) and
+    links checked against the published releases on 15 Nov 2026. */
+export const FALLBACK_RELEASES: { version: string; date: string; url: string; notes: string[] }[] =
+  (
+    [
+      ["0.2.3", "2026-11-15"],
+      ["0.2.2", "2026-11-14"],
+      ["0.2.1", "2026-11-14"],
+      ["0.2.0", "2026-11-14"],
+    ] as const
+  ).map(([version, date]) => ({
+    version,
+    date,
+    url: `https://github.com/worty76/Posthaste/releases/tag/v${version}`,
+    notes: RELEASE_NOTES[version] ?? [],
+  }));

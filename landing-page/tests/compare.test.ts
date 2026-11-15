@@ -14,9 +14,9 @@ const allText = [
 ].join("\n");
 
 describe("comparison data", () => {
-  it("puts Posthaste first, then four other apps with unique ids", () => {
+  it("puts Posthaste first, then seven other apps with unique ids", () => {
     expect(COMPARE_APPS[0]?.id).toBe("posthaste");
-    expect(COMPARE_APPS).toHaveLength(5);
+    expect(COMPARE_APPS).toHaveLength(8);
     expect(new Set(COMPARE_APPS.map((a) => a.id)).size).toBe(COMPARE_APPS.length);
   });
 

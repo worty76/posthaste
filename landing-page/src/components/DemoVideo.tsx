@@ -6,7 +6,7 @@ import { DEMO_VIDEO } from "@/config";
  */
 export function DemoVideo() {
   return (
-    <section className="page watch" aria-labelledby="watch-title">
+    <section className="page watch" id="demo" aria-labelledby="watch-title">
       <h2 className="h2" id="watch-title">
         See a day with it in {DEMO_VIDEO.seconds} seconds.
       </h2>

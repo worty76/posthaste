@@ -58,6 +58,17 @@ Search: `app/robots.ts`, `app/sitemap.ts` and the JSON-LD in `lib/seo.ts`
 must equal the canonical link. The hero says "note app" in plain words; do not
 stuff keywords. `tests/seo.test.ts` pins these.
 
+Page order (v3, plan in `docs/superpowers/plans/2026-11-15-website-v3-master-plan.md`):
+release banner, header with section links, a definition hero (the word's
+meaning, the to-do notes line, four fact links, the download for this OS and
+the demo film), the loop (catch, see what's left, tick off: three live demos
+sharing the hero's state), feature blocks (copy in `src/lib/blocks.ts`, each
+with a small working demo), the film, looks, local, compare, changelog
+(`src/lib/releases.ts`, read from GitHub at build time, hand-written notes in
+`RELEASE_NOTES` in `config.ts` win over commit subjects), the free card, get
+it. Posthaste is described as a to-do notes app. When a competitor's own page
+does not state a fact, the compare cell says "Not stated" rather than guess.
+
 Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the
 demo is stored or sent.

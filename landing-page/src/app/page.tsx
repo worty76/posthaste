@@ -1,27 +1,32 @@
 import { CaptureHero } from "@/components/CaptureHero";
+import { Changelog } from "@/components/Changelog";
 import { Compare } from "@/components/Compare";
 import { ContrastToy } from "@/components/ContrastToy";
 import { DemoVideo } from "@/components/DemoVideo";
 import { Downloads } from "@/components/Downloads";
+import { Features } from "@/components/Features";
+import { FreeCard } from "@/components/FreeCard";
+import { HeroActions } from "@/components/HeroActions";
 import { ChatIcon, GitHubMark } from "@/components/icons";
 import { KeyboardBackdrop } from "@/components/KeyboardBackdrop";
 import { LookTiles } from "@/components/LookTiles";
-import { ShortcutSheet } from "@/components/ShortcutSheet";
+import { Moments } from "@/components/Moments";
+import { ReleaseBanner } from "@/components/ReleaseBanner";
 import { ShareCodeRow } from "@/components/ShareCodeRow";
 import { SiteStateProvider } from "@/components/SiteState";
 import { StarChip } from "@/components/StarChip";
-import { TodayCount, TodayDemo } from "@/components/TodayDemo";
 import { PRODUCT, type Download, type Platform } from "@/config";
+import { fetchReleases } from "@/lib/releases";
 
-interface Release {
+interface Installers {
   downloads: Record<Platform, Download | null>;
   linuxExtras: Download[];
 }
 
 /** The latest release's installers, read at build time. When the API is
     unreachable the confirmed links in config.ts stay. */
-async function getRelease(): Promise<Release> {
-  const fallback: Release = { downloads: PRODUCT.downloads, linuxExtras: PRODUCT.linuxExtras };
+async function getInstallers(): Promise<Installers> {
+  const fallback: Installers = { downloads: PRODUCT.downloads, linuxExtras: PRODUCT.linuxExtras };
   try {
     const res = await fetch("https://api.github.com/repos/worty76/Posthaste/releases/latest", {
       cache: "no-store",
@@ -31,7 +36,7 @@ async function getRelease(): Promise<Release> {
     const data = (await res.json()) as {
       assets?: { name?: string; browser_download_url?: string }[];
     };
-    const found: Release = {
+    const found: Installers = {
       downloads: { mac: null, windows: null, linux: null },
       linuxExtras: [],
     };
@@ -79,15 +84,26 @@ async function getStars(): Promise<number | null> {
 }
 
 export default async function Page() {
-  const [stars, release] = await Promise.all([getStars(), getRelease()]);
+  const [stars, release, releases] = await Promise.all([
+    getStars(),
+    getInstallers(),
+    fetchReleases(4),
+  ]);
 
   return (
     <SiteStateProvider>
+      <ReleaseBanner release={releases[0]} />
       <header className="page head">
         <a className="wordmark" href="/">
           <img src="/logo-256.png?v=2" alt="" width={22} height={22} />
           Posthaste
         </a>
+        <nav className="head__nav" aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#looks">Looks</a>
+          <a href="#compare">Compare</a>
+          <a href="#changelog">Changelog</a>
+        </nav>
         <span className="head__spacer" />
         <a className="head__link" href={PRODUCT.discordUrl} rel="noopener noreferrer">
           <ChatIcon />
@@ -105,58 +121,49 @@ export default async function Page() {
       <main>
         <section className="page hero" aria-labelledby="hero-title">
           <KeyboardBackdrop />
+          <p className="dict">
+            <dfn>posthaste</dfn> <span className="dict__pos">adverb</span>
+            <span className="dict__def">with great speed; right away.</span>
+          </p>
           <div className="hero__top">
             <h1 className="hero__title" id="hero-title">
-              Get it out of your head in two seconds.
+              Your to-do notes, at the speed of your keyboard.
             </h1>
             <div className="hero__side">
               <p className="hero__sub">
-                Posthaste is a keyboard-first note app. A shortcut opens it over any app, Enter saves,
-                and you&apos;re back where you were. Try it here: the box is ready.
+                Posthaste is a to-do notes app for your keyboard. A shortcut opens it over any app,
+                Enter saves, and you&apos;re back where you were. Try it here: the box is ready.
               </p>
               <noscript>
                 <p className="hero__sub">Turn on JavaScript to try the box below.</p>
               </noscript>
             </div>
           </div>
+          <ul className="facts" aria-label="Posthaste in short">
+            <li>
+              <a href="#features">Minimal: one small window</a>
+            </li>
+            <li>
+              <a href="#free">Free: MIT licence</a>
+            </li>
+            <li>
+              <a href="#ai">Optional AI: your own key</a>
+            </li>
+            <li>
+              <a href="#get">macOS, Windows, Linux</a>
+            </li>
+          </ul>
+          <HeroActions downloads={release.downloads} />
           <CaptureHero />
         </section>
 
+        <Moments />
+
+        <Features />
+
         <DemoVideo />
 
-        <section className="page today" aria-labelledby="today-title">
-          <div className="today__copy">
-            <h2 className="h2" id="today-title">
-              Later, see what&apos;s left.
-            </h2>
-            <p>
-              Another shortcut opens a small window with today&apos;s notes and the unfinished ones
-              from before. X ticks one off. Esc puts it away and you&apos;re back again.
-            </p>
-            <TodayCount />
-            <p className="quiet">
-              Everything else waits in the inbox, one more shortcut away. Search finds a note by any
-              word in it. A deleted note waits 24 hours in the trash, so Undo always works.
-            </p>
-          </div>
-          <TodayDemo />
-        </section>
-
-        <section className="page keys-section" aria-labelledby="keys-title">
-          <div className="keys-section__copy">
-            <h2 className="h2" id="keys-title">
-              Every move is a key.
-            </h2>
-            <p>
-              No menus to dig through. The mouse works too, but the keyboard is faster once your
-              hands know the way. Every global shortcut can be changed in Settings, and <kbd>?</kbd>{" "}
-              lists them all inside the app.
-            </p>
-          </div>
-          <ShortcutSheet />
-        </section>
-
-        <section className="page looks" aria-labelledby="looks-title">
+        <section className="page looks" id="looks" aria-labelledby="looks-title">
           <h2 className="h2" id="looks-title">
             Your colors, on all of it.
           </h2>
@@ -218,9 +225,13 @@ export default async function Page() {
 
         <Compare />
 
+        <Changelog releases={releases} />
+
+        <FreeCard />
+
         <section className="page get" id="get" aria-labelledby="get-title">
           <h2 className="h2" id="get-title">
-            Free, and open source.
+            Get Posthaste.
           </h2>
           <p className="quiet">
             MIT licensed. Version {PRODUCT.version}.{" "}

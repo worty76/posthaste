@@ -111,3 +111,18 @@ export function todayView(state: DemoState): TodayView {
   const all = [...carried, ...today];
   return { carried, today, done: all.filter((n) => n.done).length, total: all.length };
 }
+
+/** Notes the visitor ticked off, for the Done column. */
+export function doneNotes(state: DemoState): DemoNote[] {
+  return state.notes.filter((n) => n.done);
+}
+
+/** The inbox search rule: every word must appear, case ignored. */
+export function searchNotes<T extends { text: string }>(notes: T[], query: string): T[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return notes;
+  return notes.filter((n) => {
+    const t = n.text.toLowerCase();
+    return words.every((w) => t.includes(w));
+  });
+}
