@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { PRODUCT } from "@/config";
 import { themeCss } from "@/lib/theme";
 import { DEFAULT_LOOK_ID, lookById } from "@/lib/looks";
+import { jsonLdString, softwareJsonLd } from "@/lib/seo";
 import "./globals.css";
 
 // One self-hosted, open-licence variable font (licence in src/fonts/).
@@ -46,6 +47,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Every look's tokens, generated from lib/looks.ts at build time. */}
         <style dangerouslySetInnerHTML={{ __html: themeCss() }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdString(softwareJsonLd()) }}
+        />
       </head>
       <body>{children}</body>
     </html>

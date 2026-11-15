@@ -111,8 +111,8 @@ export default async function Page() {
             </h1>
             <div className="hero__side">
               <p className="hero__sub">
-                Posthaste lives on your keyboard. A shortcut opens it over any app, Enter saves, and
-                you&apos;re back where you were. Try it here: the box is ready.
+                Posthaste is a keyboard-first note app. A shortcut opens it over any app, Enter saves,
+                and you&apos;re back where you were. Try it here: the box is ready.
               </p>
               <noscript>
                 <p className="hero__sub">Turn on JavaScript to try the box below.</p>

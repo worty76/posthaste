@@ -54,6 +54,12 @@ never a feature the app does not ship yet. Keep a row where Posthaste gives
 something up, keep the "pick the others when" list, and when you change a
 cell, check it on the product's own page and bump `COMPARE_CHECKED_ON`.
 
+Search: `app/robots.ts`, `app/sitemap.ts` and the JSON-LD in `lib/seo.ts`
+(injected in `layout.tsx`) are the only SEO files. The JSON-LD states facts
+(free, OS list, licence) and never ratings, reviews or counts. The sitemap URL
+must equal the canonical link. The hero says "note app" in plain words; do not
+stuff keywords. `tests/seo.test.ts` pins these.
+
 Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the
 demo is stored or sent.
