@@ -1,6 +1,7 @@
 import { CaptureHero } from "@/components/CaptureHero";
 import { Compare } from "@/components/Compare";
 import { ContrastToy } from "@/components/ContrastToy";
+import { DemoVideo } from "@/components/DemoVideo";
 import { Downloads } from "@/components/Downloads";
 import { ChatIcon, GitHubMark } from "@/components/icons";
 import { KeyboardBackdrop } from "@/components/KeyboardBackdrop";
@@ -120,6 +121,8 @@ export default async function Page() {
           </div>
           <CaptureHero />
         </section>
+
+        <DemoVideo />
 
         <section className="page today" aria-labelledby="today-title">
           <div className="today__copy">

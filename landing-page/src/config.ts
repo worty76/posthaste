@@ -39,3 +39,10 @@ export const PRODUCT = {
     { url: `${RELEASE}/Posthaste-0.2.3-1.x86_64.rpm`, label: ".rpm" },
   ] as Download[],
 } as const;
+
+/** The demo film in `public/demo/`. Same-origin files; `seconds` is the film's own length. */
+export const DEMO_VIDEO = {
+  src: "/demo/posthaste-demo.mp4",
+  poster: "/demo/posthaste-demo-poster.jpg",
+  seconds: 61,
+} as const;
