@@ -24,13 +24,7 @@ Your notes live in one SQLite file on your machine. No account, no sync, no
 telemetry — nothing leaves your computer unless you turn on AI polish yourself.
 
 <p align="center">
-  <video src="landing-page/public/demo/posthaste-demo.mp4" poster="landing-page/public/demo/posthaste-demo-poster.jpg" width="720" controls muted playsinline></video>
-</p>
-
-<p align="center">
-  <sub>61 seconds: capture while coding and in a call, polish, Today, the inbox, search and the six looks.
-  Built from the app's own windows with sample notes; the editor and the call are mock-ups.
-  <a href="landing-page/public/demo/posthaste-demo.mp4">Open the video file</a>.</sub>
+  <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg" width="720" controls muted playsinline></video>
 </p>
 
 ## Why Posthaste
