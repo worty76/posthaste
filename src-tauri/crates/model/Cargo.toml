@@ -1,0 +1,10 @@
+[package]
+name = "posthaste-model"
+description = "Posthaste data shapes shared by storage, the desktop shell and the Rust UI. Plain serde types, no I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -6,10 +6,13 @@ overrides the "Never" list below.
 
 | Working in | Also read |
 |---|---|
-| `src/` (React UI) | `src/AGENTS.md` |
+| `src/` (React UI: Today, details, inbox, settings) | `src/AGENTS.md` |
+| `ui/` (Rust UI: capture) | `ui/AGENTS.md` |
 | `src/styles/` (tokens, CSS) | `src/styles/AGENTS.md` |
 | `src-tauri/src/` (desktop shell) | `src-tauri/AGENTS.md` |
 | `src-tauri/crates/core/` (storage) | `src-tauri/crates/core/AGENTS.md` |
+| `src-tauri/crates/model/` (shared data shapes) | `src-tauri/crates/model/AGENTS.md` |
+| `src-tauri/crates/i18n/`, `locales/` (interface text) | `src-tauri/crates/i18n/AGENTS.md` |
 | `src-tauri/crates/platform/` (per-OS code) | `src-tauri/crates/platform/AGENTS.md` |
 
 `AGENTS.md` is the source of truth. Each `CLAUDE.md` is a generated copy for
@@ -70,8 +73,10 @@ less reliable.
 ## Where things go
 
 ```
-UI text, layout, keyboard handling      src/            (no business rules)
-Call to the native side                 src/lib/ipc.ts  (the only place)
+Layout, keyboard handling               src/ (React), ui/ (Rust)   (no business rules)
+Interface text, in every language       locales/        (the only place, for ui/)
+Call to the native side                 src/lib/ipc.ts, ui/src/ipc (the only places)
+Types on the IPC boundary               src-tauri/crates/model
 Colour, type, spacing, motion values    src/styles/tokens.css (the only place)
 Validation, persistence, search         src-tauri/crates/core
 Look validation and derivation          src-tauri/crates/core/src/look
@@ -90,16 +95,19 @@ Follow the existing path; do not invent a parallel one.
 1. Storage: method on `Db` in `crates/core` with tests.
 2. Command: thin adapter in `src-tauri/src/commands.rs`, registered in
    `lib.rs`, returning `AppResult<T>`.
-3. Types: mirror any new serde type in `src/lib/types.ts`.
-4. IPC: one typed wrapper in `src/lib/ipc.ts`, and the same name in
-   `src/test/mockIpc.ts`.
-5. UI: component uses the wrapper. Test it against the mock.
+3. Types: new serde types go in `crates/model`. For a React window, mirror
+   them in `src/lib/types.ts`.
+4. IPC: one typed wrapper. React: `src/lib/ipc.ts`, and the same name in
+   `src/test/mockIpc.ts`. Rust: `ui/src/ipc/api.rs`, and a default answer in
+   `ui/tests/harness.mjs`.
+5. UI: the window uses the wrapper. Test it against the mock or the harness.
 
 ## Done means
 
 ```sh
 npm run check
 (cd src-tauri && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test --workspace)
+npm run build && npm run test:ui   # when ui/, locales/ or crates/model changed
 scripts/e2e-linux.sh        # when capture, focus, shortcuts or windows changed (Linux/X11)
 ```
 

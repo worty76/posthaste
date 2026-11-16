@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::error::{CoreError, Result};
 use crate::migrations;
-use crate::model::*;
+use posthaste_model::*;
 
 const DRAFT_SLOT: &str = "capture";
 const SETTINGS_KEY: &str = "settings";

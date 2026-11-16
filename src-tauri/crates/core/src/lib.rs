@@ -7,12 +7,11 @@ mod error;
 pub mod look;
 mod markdown;
 pub mod migrations;
-mod model;
 mod transfer;
 
 pub use db::{now_ms, Db, RETIRED_AI_PROVIDERS};
 pub use error::{CoreError, Result};
-pub use model::*;
+pub use posthaste_model::*;
 pub use transfer::ExportFormat;
 
 #[cfg(test)]

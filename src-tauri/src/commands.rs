@@ -8,7 +8,8 @@ use posthaste_core::look::store::LookSummary;
 use posthaste_core::look::{code::encode_code, derive::resolve, LookDoc};
 use posthaste_core::{
     now_ms, Attachment, Counts, DataInfo, DayMark, Draft, ExportFormat, Glance, ImportReport,
-    NewNote, Note, NoteDetail, NoteQuery, Settings, Status, TrashedNote, MAX_ATTACHMENT_BYTES,
+    NewNote, Note, NoteDetail, NoteQuery, Settings, SettingsState, Status, TrashedNote,
+    MAX_ATTACHMENT_BYTES,
 };
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
@@ -18,7 +19,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::error::{AppError, AppResult};
-use crate::shortcuts::{self, ShortcutReport};
+use crate::shortcuts;
 use crate::state::{lock, AppState};
 use crate::windows::{self, DetailsTarget};
 
@@ -533,12 +534,6 @@ fn percent_decode(s: &str) -> String {
 }
 
 // ---- settings ----------------------------------------------------------------
-
-#[derive(Serialize)]
-pub struct SettingsState {
-    settings: Settings,
-    shortcuts: ShortcutReport,
-}
 
 #[tauri::command]
 pub fn settings_get(app: AppHandle, state: State<'_, AppState>) -> SettingsState {

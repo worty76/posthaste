@@ -2,6 +2,9 @@
 
 # src/: the React UI
 
+The Today, details and inbox windows. The capture window has moved to Rust
+(`ui/`); the rest follow one at a time. `styles/` is shared by both.
+
 Renders state and handles input. It decides nothing about what a valid note is
 or how it is stored; the Rust side owns that.
 
@@ -11,14 +14,15 @@ or how it is stored; the Rust side owns that.
 lib/         pure logic and the IPC boundary. No React, no DOM where avoidable.
 hooks/       shared stateful logic used by more than one window
 components/  reusable, product-agnostic controls (Button, Dialog, Toasts, …)
-capture/     the floating capture window
+today/       the Today window
+details/     note details
 main/        inbox, search, settings
 styles/      tokens and stylesheets (see styles/AGENTS.md)
 test/        test setup and the IPC mock
 ```
 
 - `components/` knows nothing about notes. If a component imports from
-  `lib/ipc` or mentions a note, it belongs in `capture/` or `main/`.
+  `lib/ipc` or mentions a note, it belongs in a window folder.
 - Before writing a control, check `components/`. Extend an existing one with a
   prop rather than creating a near-duplicate.
 - Logic that can be a pure function goes in `lib/` with a test in
@@ -57,15 +61,6 @@ test/        test setup and the IPC mock
 - Single-letter shortcuts never fire while focus is in an input or textarea.
 - A new shortcut is added in three places together: the handler, the tooltip or
   label that advertises it, and the `ShortcutHelp` list.
-
-## Capture window specifics
-
-- The textarea has focus whenever the window is shown. Nothing may steal it.
-- Draft writes go through `DraftSync` only. A save calls `drafts.cancel()` and
-  awaits it before `captureSave`, so a late draft write cannot resurrect text
-  that was just filed.
-- Nothing is added to the capture window without asking. It is a command
-  field, not a form.
 
 ## Details window specifics
 

@@ -90,11 +90,20 @@ sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
   librsvg2-dev libxdo-dev libssl-dev libdbus-1-dev build-essential
 ```
 
+The capture window is written in Rust and compiled to WebAssembly (the other
+windows are moving the same way), which needs two more tools, once:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.130 --locked
+```
+
 ```sh
 npm install
 npm run tauri dev        # develop
 npm run tauri build      # release build + installers for your OS
 npm run check            # typecheck, lint, tests, rule checks
+npm run build:ui -- --dev  # rebuild the Rust interface while developing
 ```
 
 Contributing rules live in the `AGENTS.md` files at the root and in each

@@ -2,6 +2,8 @@ node_modules
 dist
 src-tauri/target
 src-tauri/gen
+# The built Rust interface; made by scripts/build-ui.sh.
+ui/pkg
 *.log
 .DS_Store
 

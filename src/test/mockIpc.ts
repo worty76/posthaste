@@ -19,6 +19,7 @@ export const defaultSettings: Settings = {
   enter_behavior: "save",
   draft_retention: "forever",
   look_id: "builtin:ink",
+  language: "en",
   ai_provider: "none",
   ai_models: {},
   ai_base_urls: {},

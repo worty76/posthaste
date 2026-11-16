@@ -10,12 +10,14 @@ database file in milliseconds.
 | File | Owns |
 |---|---|
 | `db.rs` | `Db`: the connection and every query |
-| `model.rs` | Types shared with the frontend (serde) |
 | `migrations.rs` + `migrations/*.sql` | Schema history |
 | `transfer.rs` | JSON export and import |
 | `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests.rs` |
 | `error.rs` | `CoreError` and its stable `code()` |
 | `tests.rs` | Tests for db, model and migrations |
+
+The data types themselves live in `crates/model` and are re-exported from
+here, so storage code keeps writing `posthaste_core::Note`.
 
 Look-specific rules: look validation and derivation live only in `look/`
 (`mod.rs` validates, `derive.rs` derives the token map); the bundled looks are

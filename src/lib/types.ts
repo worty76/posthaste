@@ -143,6 +143,8 @@ export interface Settings {
   enter_behavior: EnterBehavior;
   draft_retention: DraftRetention;
   look_id: string | null;
+  /** Interface language code ("en", "vi"). Read by the Rust windows. */
+  language: string;
   ai_provider: AiProviderId;
   /** Model per provider id; missing or empty means the provider's default. */
   ai_models: Record<string, string>;

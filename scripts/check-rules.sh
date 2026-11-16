@@ -42,8 +42,22 @@ rule "posthaste-core must not depend on Tauri (src-tauri/crates/core/AGENTS.md)"
 rule "Shipped migrations are append-only: do not edit, add a new numbered file (src-tauri/crates/core/AGENTS.md)" \
   "$(git diff --name-only --diff-filter=MD HEAD -- src-tauri/crates/core/migrations 2>/dev/null)"
 
+rule "Only ui/src/ipc may touch Tauri (ui/AGENTS.md)" \
+  "$(grep -rnE '__TAURI|tauri_invoke|tauri_listen' ui/src --include='*.rs' | grep -v '^ui/src/ipc/')"
+
+rule "ui/src/logic is plain Rust: no Leptos, browser or IPC imports (ui/AGENTS.md)" \
+  "$(grep -rnE 'leptos|web_sys|wasm_bindgen|js_sys|crate::(ipc|state|windows|components)' ui/src/logic --include='*.rs')"
+
+rule "ui/src/components must not import ipc (ui/AGENTS.md)" \
+  "$(grep -rn 'crate::ipc' ui/src/components --include='*.rs')"
+
+rule "The wasm-bindgen version must be the same in ui/Cargo.toml, scripts/build-ui.sh and the release workflow (ui/AGENTS.md)" \
+  "$(V=$(grep -oE '^wasm-bindgen = "=[0-9.]+"' ui/Cargo.toml | grep -oE '[0-9.]+'); \
+     grep -q "WASM_BINDGEN_VERSION=\"$V\"" scripts/build-ui.sh || echo "scripts/build-ui.sh does not pin $V"; \
+     grep -q "wasm-bindgen-cli --version $V " .github/workflows/release.yml || echo ".github/workflows/release.yml does not install $V")"
+
 rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.md)" \
-  "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src --include='*.rs' \
+  "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src ui/src --include='*.rs' \
       | grep -v '/tests.rs:' | grep -v 'could not start' \
       | awk -F: '{ if (system("awk \"NR<" $2 " && /#\\[cfg\\(test\\)\\]/ {f=1} END {exit !f}\" " $1) != 0) print }')"
 

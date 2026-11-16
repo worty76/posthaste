@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CaptureWindow } from "./capture/CaptureWindow";
 import { DetailsWindow } from "./details/DetailsWindow";
 import { api, toAppError } from "./lib/ipc";
 import { MainWindow } from "./main/MainWindow";
@@ -10,7 +9,6 @@ import type { AppInfo } from "./lib/types";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/ui.css";
-import "./styles/capture.css";
 import "./styles/today.css";
 import "./styles/details.css";
 import "./styles/main.css";
@@ -29,12 +27,11 @@ function Fatal({ message }: { message: string }) {
   );
 }
 
-// All four windows load this bundle; the window's label decides which UI it is.
+// The windows still written in React load this bundle; the window's label
+// decides which one it is. The capture window is Rust now: see ui/.
 const label = getCurrentWindow().label;
-const isCapture = label === "capture";
 const isToday = label === "today";
 const isDetails = label === "details";
-if (isCapture) document.documentElement.classList.add("is-capture");
 if (isToday) document.documentElement.classList.add("is-today");
 if (isDetails) document.documentElement.classList.add("is-details");
 
@@ -49,9 +46,7 @@ api.appInfo().then(
   (info) => {
     root.render(
       <StrictMode>
-        {isCapture ? (
-          <CaptureWindow os={info.os} />
-        ) : isToday ? (
+        {isToday ? (
           <TodayWindow os={info.os} />
         ) : isDetails ? (
           <DetailsWindow os={info.os} />
@@ -65,9 +60,7 @@ api.appInfo().then(
   },
   (e) => {
     root.render(
-      isCapture ? (
-        <CaptureWindow os={fallbackOs()} />
-      ) : isToday ? (
+      isToday ? (
         <TodayWindow os={fallbackOs()} />
       ) : isDetails ? (
         <DetailsWindow os={fallbackOs()} />

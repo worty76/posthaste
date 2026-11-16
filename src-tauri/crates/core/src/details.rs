@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::db::{now_ms, Db};
 use crate::error::{CoreError, Result};
-use crate::model::*;
+use posthaste_model::*;
 
 const MAX_NAME_CHARS: usize = 120;
 const ATTACHMENT_COLUMNS: &str = "a.id, a.note_id, a.name, a.mime, a.size, a.created_at";

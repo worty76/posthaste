@@ -4,7 +4,7 @@
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use posthaste_core::{CapturePosition, WindowSize};
+use posthaste_core::{CapturePosition, CaptureShown, WindowSize};
 use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
@@ -15,6 +15,10 @@ use crate::panels;
 use crate::state::{lock, AppState};
 
 pub const MAIN: &str = "main";
+/// The page that hosts the Rust (WebAssembly) interface. Windows move here
+/// from `index.html`, the React interface, one at a time.
+const RUST_UI: &str = "ui.html";
+
 pub const CAPTURE: &str = "capture";
 pub const TODAY: &str = "today";
 pub const DETAILS: &str = "details";
@@ -70,12 +74,6 @@ impl DetailsTarget {
     }
 }
 
-#[derive(Clone, Serialize)]
-struct CaptureShown {
-    /// Name of the app the user was in, when known.
-    source: Option<String>,
-}
-
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let main = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
         .title("Posthaste")
@@ -108,7 +106,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
 
     // Created once, hidden, and reused: showing an existing window is what
     // makes the shortcut feel instant.
-    let capture = WebviewWindowBuilder::new(app, CAPTURE, WebviewUrl::App("index.html".into()))
+    let capture = WebviewWindowBuilder::new(app, CAPTURE, WebviewUrl::App(RUST_UI.into()))
         .title("Posthaste")
         .inner_size(620.0, CAPTURE_HEIGHT)
         .decorations(false)

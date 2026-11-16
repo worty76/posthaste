@@ -43,7 +43,7 @@ pub struct Note {
     pub completed_at: Option<i64>,
     pub archived_at: Option<i64>,
     /// True when the note has a description. Lists carry only this flag;
-    /// the text itself comes from [`crate::Db::note_detail`].
+    /// the text itself comes from `Db::note_detail`.
     #[serde(default)]
     pub has_details: bool,
     /// How many files are attached. Lists never carry the files themselves.
@@ -75,14 +75,14 @@ pub struct Attachment {
 }
 
 /// Everything the Note details window shows for one note.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoteDetail {
     pub note: Note,
     pub details: String,
     pub attachments: Vec<Attachment>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NewNote {
     pub content: String,
     #[serde(default)]
@@ -92,7 +92,7 @@ pub struct NewNote {
 }
 
 /// Filter for listing notes. Results are always newest first.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct NoteQuery {
     /// Free-text search over content and category. Empty means no text filter.
@@ -110,7 +110,7 @@ pub struct NoteQuery {
     pub offset: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Counts {
     pub inbox: i64,
     pub today: i64,
@@ -125,7 +125,7 @@ pub struct Counts {
 pub const TRASH_RETENTION_MS: i64 = 30 * 86_400_000;
 
 /// A note in the trash, with when it was put there.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrashedNote {
     pub note: Note,
     pub deleted_at: i64,
@@ -138,7 +138,7 @@ pub const GLANCE_GROUP_LIMIT: i64 = 50;
 /// What the Today window shows for one day: open notes carried over from
 /// before it, notes that belong to it, and how many of them are done.
 /// Carry-over is derived, never written: nothing here moves or rewrites notes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Glance {
     pub carried: Vec<Note>,
     pub today: Vec<Note>,
@@ -148,7 +148,7 @@ pub struct Glance {
 
 /// How many notes were captured on one day, and how many of those are still
 /// open. Drives the dots in the calendar.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DayMark {
     pub total: i64,
     pub open: i64,
@@ -314,6 +314,9 @@ pub struct Settings {
     /// The selected look. `None` is the Plain look (system/light/dark);
     /// out of the box every install wears Ink.
     pub look_id: Option<String>,
+    /// The interface language, as a code from the language list ("en",
+    /// "vi"). A code this build does not know is shown in English.
+    pub language: String,
     /// AI polish: the id of the provider that polishes notes, or "none".
     /// Off by default: nothing is sent anywhere until the user picks a
     /// provider (and adds a key, for those that need one).
@@ -352,7 +355,8 @@ impl Default for Settings {
             hide_on_blur: true,
             enter_behavior: EnterBehavior::Save,
             draft_retention: DraftRetention::Forever,
-            look_id: Some(crate::look::DEFAULT_LOOK_ID.into()),
+            look_id: Some(crate::DEFAULT_LOOK_ID.into()),
+            language: crate::DEFAULT_LANGUAGE.into(),
             ai_provider: "none".into(),
             ai_models: BTreeMap::new(),
             ai_base_urls: BTreeMap::new(),
@@ -362,14 +366,14 @@ impl Default for Settings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportReport {
     pub imported: usize,
     pub skipped_existing: usize,
     pub skipped_invalid: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataInfo {
     pub path: String,
     pub size_bytes: u64,
