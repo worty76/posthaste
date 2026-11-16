@@ -188,6 +188,10 @@ settings) move to the keychain on the first launch of 0.3.2.
 
 On macOS an unsigned development build may ask for keychain access again
 after each rebuild, because its code signature changes.
+The keychain is read only when a key is used (polish, Test) or saved; opening
+Settings never reads it, so it never asks for a password. "Key saved" comes
+from a marker in the database that holds no secret. Keys from an older build
+are noticed once, at the first launch that has markers.
 
 GitHub Models is not offered: GitHub retired the service on 30 July 2026,
 and GitHub Copilot has no public API for other apps. A saved choice of

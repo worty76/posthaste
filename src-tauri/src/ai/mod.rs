@@ -55,11 +55,8 @@ fn overview(state: &AppState, secrets: &Secrets) -> AppResult<AiOverview> {
     let providers = PROVIDERS
         .iter()
         .map(|p| {
-            let has_key = p.key != KeyNeed::None
-                && secrets
-                    .get(state, &key_account(p.id))
-                    .map(|k| k.is_some_and(|k| !k.trim().is_empty()))
-                    .unwrap_or(false);
+            // Never reads the keychain: see `Secrets::has`.
+            let has_key = p.key != KeyNeed::None && secrets.has(state, &key_account(p.id));
             ProviderInfo {
                 id: p.id,
                 name: p.name,
@@ -109,6 +106,7 @@ pub fn migrate_legacy_key(state: &AppState, secrets: &Secrets) -> AppResult<()> 
                 e.message
             );
             state.with_db(|db| db.secret_set(&account, &legacy))?;
+            secrets.note_saved(state, &account)?;
         }
     }
     // The keychain may have kept us waiting on a prompt: take the settings
@@ -191,12 +189,15 @@ pub fn start(app: &tauri::AppHandle) {
         if let Err(e) = migrate_legacy_key(&state, &secrets) {
             log::error!("the old AI key could not be moved: {}", e.message);
         }
-        for retired in posthaste_core::RETIRED_AI_PROVIDERS {
-            let _ = secrets.delete(&state, &key_account(retired));
-        }
         let accounts = key_accounts();
         let accounts: Vec<&str> = accounts.iter().map(String::as_str).collect();
         secrets.adopt_database_keys(&state, &accounts);
+        let retired: Vec<String> = posthaste_core::RETIRED_AI_PROVIDERS
+            .iter()
+            .map(|id| key_account(id))
+            .collect();
+        let retired: Vec<&str> = retired.iter().map(String::as_str).collect();
+        secrets.index_existing(&state, &accounts, &retired);
         app.state::<SecretsCell>().put(secrets);
     });
 }
@@ -478,6 +479,97 @@ mod tests {
             Some("sk-ant")
         );
         assert!(!stored_blob(&state).contains("sk-ant"));
+    }
+
+    #[test]
+    fn opening_settings_never_reads_the_keychain() {
+        let state = state();
+        let (k, secrets) = keychain();
+        secrets.set(&state, "ai:openai", "sk-1").unwrap();
+        secrets.set(&state, "ai:gemini", "g-1").unwrap();
+        k.reads.store(0, Ordering::SeqCst);
+
+        let o = overview(&state, &secrets).unwrap();
+
+        assert_eq!(k.reads.load(Ordering::SeqCst), 0, "no keychain read");
+        let has: Vec<&str> = o
+            .providers
+            .iter()
+            .filter(|p| p.has_key)
+            .map(|p| p.id)
+            .collect();
+        assert_eq!(has, ["openai", "gemini"]);
+
+        secrets.delete(&state, "ai:openai").unwrap();
+        let o = overview(&state, &secrets).unwrap();
+        assert!(
+            !o.providers
+                .iter()
+                .find(|p| p.id == "openai")
+                .unwrap()
+                .has_key
+        );
+    }
+
+    #[test]
+    fn keys_from_an_older_build_are_noticed_once_and_never_read_again() {
+        let state = state();
+        let (k, secrets) = keychain();
+        k.items
+            .lock()
+            .unwrap()
+            .insert("ai:anthropic".into(), "sk-ant".into());
+        k.items
+            .lock()
+            .unwrap()
+            .insert("ai:github".into(), "old-github-token".into());
+        let accounts = key_accounts();
+        let accounts: Vec<&str> = accounts.iter().map(String::as_str).collect();
+        assert!(!overview(&state, &secrets)
+            .unwrap()
+            .providers
+            .iter()
+            .any(|p| p.has_key));
+
+        secrets.index_existing(&state, &accounts, &["ai:github"]);
+
+        let o = overview(&state, &secrets).unwrap();
+        assert!(
+            o.providers
+                .iter()
+                .find(|p| p.id == "anthropic")
+                .unwrap()
+                .has_key
+        );
+        assert!(
+            !o.providers
+                .iter()
+                .find(|p| p.id == "openai")
+                .unwrap()
+                .has_key
+        );
+        assert_eq!(k.has("ai:github"), None, "retired provider's key removed");
+        assert_eq!(k.has("ai:anthropic").as_deref(), Some("sk-ant"));
+
+        let reads = k.reads.load(Ordering::SeqCst);
+        secrets.index_existing(&state, &accounts, &["ai:github"]);
+        assert_eq!(k.reads.load(Ordering::SeqCst), reads, "indexed only once");
+    }
+
+    #[test]
+    fn a_key_in_the_database_fallback_shows_as_saved() {
+        let state = state();
+        let (_, secrets) = broken();
+        secrets.set(&state, "ai:openai", "sk-1").unwrap();
+        let o = overview(&state, &secrets).unwrap();
+        assert!(
+            o.providers
+                .iter()
+                .find(|p| p.id == "openai")
+                .unwrap()
+                .has_key
+        );
+        assert_eq!(o.backend, Backend::Database);
     }
 
     #[test]

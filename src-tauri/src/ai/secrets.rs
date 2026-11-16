@@ -119,6 +119,23 @@ impl Secrets {
         state.with_db(|db| db.secret_get(account))
     }
 
+    /// Whether a key is saved for `account`, without touching the keychain:
+    /// reading it can make the system ask for the user's password, and
+    /// Settings asks about every provider each time it opens. The answer
+    /// comes from a marker kept beside the key. It holds no secret.
+    pub fn has(&self, state: &AppState, account: &str) -> bool {
+        state
+            .with_db(|db| db.secret_get(&marker(account)))
+            .ok()
+            .flatten()
+            .is_some()
+    }
+
+    /// Records that a key is saved for `account`, wherever it went.
+    pub fn note_saved(&self, state: &AppState, account: &str) -> AppResult<()> {
+        state.with_db(|db| db.secret_set(&marker(account), "1"))
+    }
+
     /// Saves to the keychain when there is one. A keychain that was not
     /// running at startup (a login item launched before the keyring daemon)
     /// is tried again before falling back to the database.
@@ -126,17 +143,50 @@ impl Secrets {
         if self.keychain().is_some() || self.probe() {
             self.store.set(account, secret).map_err(keychain_error)?;
             // An older database copy must not outlive the new key.
-            return state.with_db(|db| db.secret_delete(account));
+            state.with_db(|db| db.secret_delete(account))?;
+        } else {
+            state.with_db(|db| db.secret_set(account, secret))?;
         }
-        state.with_db(|db| db.secret_set(account, secret))
+        self.note_saved(state, account)
     }
 
     /// Removes the key from wherever it may be.
     pub fn delete(&self, state: &AppState, account: &str) -> AppResult<()> {
+        state.with_db(|db| db.secret_delete(&marker(account)))?;
         state.with_db(|db| db.secret_delete(account))?;
         match self.keychain() {
             Some(k) => k.delete(account).map_err(keychain_error),
             None => Ok(()),
+        }
+    }
+
+    /// Once per installation: notes which providers already have a key
+    /// (saved by a version that kept no marker) and removes keys of
+    /// providers that no longer exist. This is the one time the keychain is
+    /// read for every provider; a prompt answered with Deny leaves that
+    /// provider showing no key, and is not asked again.
+    pub fn index_existing(&self, state: &AppState, accounts: &[&str], retired: &[&str]) {
+        let done = state.with_db(|db| db.secret_get(INDEXED)).ok().flatten();
+        if done.is_some() {
+            return;
+        }
+        for account in retired {
+            let _ = self.delete(state, account);
+        }
+        for account in accounts {
+            let found = self
+                .get(state, account)
+                .ok()
+                .flatten()
+                .is_some_and(|k| !k.trim().is_empty());
+            if found {
+                if let Err(e) = self.note_saved(state, account) {
+                    log::warn!("could not note a saved key: {}", e.message);
+                }
+            }
+        }
+        if let Err(e) = state.with_db(|db| db.secret_set(INDEXED, "1")) {
+            log::warn!("could not note that keys were indexed: {}", e.message);
         }
     }
 
@@ -168,6 +218,14 @@ impl Secrets {
     }
 }
 
+/// Database row noting that a key is saved for an account.
+fn marker(account: &str) -> String {
+    format!("have:{account}")
+}
+
+/// Database row noting that existing keys have been indexed.
+const INDEXED: &str = "have:indexed";
+
 fn keychain_error(detail: String) -> AppError {
     AppError::new(
         "keychain",
@@ -189,6 +247,8 @@ pub mod tests {
         pub items: Mutex<HashMap<String, String>>,
         pub broken: AtomicBool,
         pub deny_writes: AtomicBool,
+        /// How many times a key was read.
+        pub reads: std::sync::atomic::AtomicUsize,
     }
 
     impl FakeKeychain {
@@ -204,6 +264,7 @@ pub mod tests {
 
     impl KeyStore for Arc<FakeKeychain> {
         fn get(&self, account: &str) -> Result<Option<String>, String> {
+            self.reads.fetch_add(1, Ordering::SeqCst);
             if self.broken.load(Ordering::SeqCst) {
                 return Err("no secret service".into());
             }
