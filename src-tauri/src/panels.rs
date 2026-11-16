@@ -12,9 +12,7 @@ use tauri::{AppHandle, WebviewWindow};
 #[cfg(target_os = "macos")]
 mod mac {
     use tauri::{AppHandle, Manager, WebviewWindow};
-    use tauri_nspanel::{
-        tauri_panel, CollectionBehavior, ManagerExt, Panel, StyleMask, WebviewWindowExt,
-    };
+    use tauri_nspanel::{tauri_panel, CollectionBehavior, ManagerExt, StyleMask, WebviewWindowExt};
 
     tauri_panel! {
         panel!(FloatingPanel {

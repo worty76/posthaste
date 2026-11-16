@@ -3234,7 +3234,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "keyring",
  "log",
@@ -3259,7 +3259,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "log",
  "rusqlite",
@@ -3273,7 +3273,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-platform"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "log",
  "objc2",
