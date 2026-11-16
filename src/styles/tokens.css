@@ -72,7 +72,10 @@
   --knob: #ffffff;
   --knob-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --scrim: rgba(0, 0, 0, 0.45);
-  --shadow-float: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 12px 36px rgba(0, 0, 0, 0.45);
+  /* Floating panels draw this inside a transparent margin (20px top, 24px
+     sides, 28px bottom). Keep offset + blur inside it, or the window edge
+     cuts the shadow and leaves a dark rectangle. */
+  --shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.35);
   --shadow-pop: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
@@ -100,7 +103,7 @@
   --knob: #ffffff;
   --knob-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   --scrim: rgba(0, 0, 0, 0.35);
-  --shadow-float: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 10px 30px rgba(0, 0, 0, 0.16);
+  --shadow-float: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.14);
   --shadow-pop: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
