@@ -151,6 +151,13 @@ Capture, Today and the details window's first-open size are base sizes times
 the Window size setting: Compact 0.9, Standard 1.0 (the original sizes), Roomy
 1.2. Capture's width is still 42% of the display, within bounds that scale the
 same way. Every panel is clamped to the display's work area in both width and
-height, so Roomy stays on a short display. The details window is placed once
-per run; changing the setting places it afresh on its next open.
+height, so Roomy stays on a short display. The details window gets its base
+size on its first open in a run; after that it keeps the size the user left
+it at, and changing the setting resizes it afresh on its next open.
+
+Each time the details window opens from hidden it is centred on the display
+the pointer is on, like capture and Today. On macOS it also joins every Space
+for the moment it is shown and then leaves again, so it appears on the
+desktop the user is on instead of switching them back to the Space it was
+last shown on (or out of a full-screen app). Not yet checked on a Mac.
 

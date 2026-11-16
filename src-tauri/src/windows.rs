@@ -385,6 +385,7 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
     }
     *lock(&state.details_target) = Some(target.clone());
 
+    let was_visible = window.is_visible().unwrap_or(false);
     let first = !state.details_placed.swap(true, Ordering::Relaxed);
     let placed = if first {
         let size = state.settings().window_size;
@@ -395,16 +396,35 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
             |_| scaled(DETAILS_WIDTH, size),
             scaled(DETAILS_HEIGHT, size),
         );
-        // place_panel pins the size; this window is resizable.
-        let _ = window.set_max_size(None::<tauri::Size>);
-        let _ = window.set_min_size(Some(tauri::Size::from(LogicalSize::new(
-            DETAILS_MIN_WIDTH,
-            DETAILS_MIN_HEIGHT,
-        ))));
+        unpin_details_size(&window);
+        placed
+    } else if !was_visible {
+        // Reopening from hidden: open on the display the pointer is on, as
+        // capture and Today do, but keep the size the user left it at.
+        // Placed once and left there, it reappeared on whichever display it
+        // was first opened on.
+        let kept = window
+            .inner_size()
+            .ok()
+            .zip(window.scale_factor().ok())
+            .map(|(s, f)| s.to_logical::<f64>(f));
+        let placed = kept.and_then(|s| {
+            place_panel(app, &window, CapturePosition::Center, |_| s.width, s.height)
+        });
+        unpin_details_size(&window);
         placed
     } else {
         None
     };
+
+    // macOS: a window belongs to the Space (desktop) it was last shown on,
+    // and showing it again switches the user back to that Space, or out of a
+    // full-screen app. Joining every Space for the moment it is shown puts
+    // it on the one the user is on; leaving again keeps it there.
+    #[cfg(target_os = "macos")]
+    if !was_visible {
+        let _ = window.set_visible_on_all_workspaces(true);
+    }
 
     let _ = window.unminimize();
     if let Err(e) = window.show() {
@@ -417,6 +437,10 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
     if let Err(e) = window.set_focus() {
         log::warn!("details window could not take focus: {e}");
     }
+    #[cfg(target_os = "macos")]
+    if !was_visible {
+        settle_on_current_space(window.clone());
+    }
     let _ = window.emit("details-open", target);
     if from_today {
         // Today steps aside once details is up. Some window managers answer
@@ -427,6 +451,25 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         }
         refocus_later(window);
     }
+}
+
+/// place_panel pins the size; the details window is resizable.
+fn unpin_details_size(window: &WebviewWindow) {
+    let _ = window.set_max_size(None::<tauri::Size>);
+    let _ = window.set_min_size(Some(tauri::Size::from(LogicalSize::new(
+        DETAILS_MIN_WIDTH,
+        DETAILS_MIN_HEIGHT,
+    ))));
+}
+
+/// Stops the details window joining every Space once it has appeared on the
+/// current one, so switching desktops leaves it behind like any window.
+#[cfg(target_os = "macos")]
+fn settle_on_current_space(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        std::thread::sleep(REFOCUS_DELAY);
+        let _ = window.set_visible_on_all_workspaces(false);
+    });
 }
 
 /// Asks for focus again shortly after a window-manager focus hand-off.
