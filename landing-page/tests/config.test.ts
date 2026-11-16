@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEMO_VIDEO, PRODUCT } from "../src/config";
 
-const pub = (url: string) => join(__dirname, "..", "public", url);
+// A cache-busting "?v=3" is part of the URL, not of the file name.
+const pub = (url: string) => join(__dirname, "..", "public", url.replace(/\?.*$/, ""));
 
 describe("product links", () => {
   it("points the community link at a Discord invite over https", () => {

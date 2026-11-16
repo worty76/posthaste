@@ -130,13 +130,9 @@ export default async function Page() {
               Your to-do notes, at the speed of your keyboard.
             </h1>
             <div className="hero__side">
-              <p className="hero__sub">
-                Posthaste is a to-do notes app for your keyboard.
-              </p>
+              <p className="hero__sub">Posthaste is a to-do notes app for your keyboard.</p>
               <div style={{ height: "2rem" }} />
-              <p className="hero__sub">
-                With shortcuts open it over any app
-              </p>
+              <p className="hero__sub">With shortcuts open it over any app</p>
               <div style={{ height: "2rem" }} />
               <p className="hero__sub">
                 Help you fast write and organize your notes in your daily life
