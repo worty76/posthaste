@@ -95,7 +95,8 @@ src/                      React + TypeScript UI (no business logic)
   styles/tokens.css       design tokens: colour, type, spacing, motion
 src-tauri/
   crates/core/            storage. SQLite, migrations, notes, drafts, search,
-                          settings, export/import. No Tauri dependency.
+                          settings, export/import (Markdown and JSON).
+                          No Tauri dependency.
   crates/platform/        per-OS "which app was in front / give focus back"
   src/                    Tauri shell: windows, shortcuts, tray, commands
 scripts/e2e-linux.sh      end-to-end test against real windows under Xvfb

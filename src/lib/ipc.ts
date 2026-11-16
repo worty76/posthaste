@@ -93,7 +93,10 @@ export const api = {
 
   dataInfo: () => invoke<DataInfo>("data_info"),
   dataReveal: () => invoke<void>("data_reveal"),
-  dataExport: () => invoke<number | null>("data_export"),
+  dataExport: () =>
+    invoke<number | null>("data_export", {
+      utcOffsetMinutes: -new Date().getTimezoneOffset(),
+    }),
   dataImport: () => invoke<ImportReport | null>("data_import"),
   dataBackup: () => invoke<string | null>("data_backup"),
   dataClear: () => invoke<SettingsState>("data_clear", { confirm: "DELETE" }),

@@ -375,7 +375,7 @@ export function SettingsView({
         </div>
         <Row
           label="Export notes"
-          help="A readable JSON file with every note and its details. Attached files are not included; the backup below has them."
+          help="A Markdown file with every note as a checklist, readable in any editor. Choose JSON in the save dialog for tools. Attached files are not included; the backup below has them."
         >
           <Button
             busy={busy === "export"}
@@ -391,7 +391,7 @@ export function SettingsView({
         </Row>
         <Row
           label="Import notes"
-          help="Adds notes from a Posthaste export. Existing notes are never overwritten."
+          help="Adds notes from a Posthaste export (Markdown or JSON) or any Markdown checklist. Existing notes are never overwritten."
         >
           <Button
             busy={busy === "import"}

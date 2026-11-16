@@ -596,6 +596,150 @@ fn import_skips_invalid_entries_and_fills_in_missing_fields() {
     assert_eq!(done.completed_at, Some(done.created_at));
 }
 
+// ---- Markdown export ---------------------------------------------------------
+
+fn tricky_notes(db: &mut Db) -> Vec<String> {
+    let t = 1_700_000_000_000;
+    let open = db
+        .create_note_at(
+            NewNote {
+                content: "Send the slides\nto Anna -- today".into(),
+                category: Some("work stuff".into()),
+                source: Some("Slack --> DM".into()),
+            },
+            t,
+        )
+        .unwrap();
+    db.set_details_at(
+        &open.id,
+        "First line\n\n- [ ] not a separate note\n## not a heading\n```\ncode\n```\n   indented",
+        t + 1,
+    )
+    .unwrap();
+    let later = db.create_note_at(note("Someday"), t + 2).unwrap();
+    db.set_later_at(&later.id, true, t + 3).unwrap();
+    let done = db.create_note_at(note("Book flights"), t + 4).unwrap();
+    db.set_status_at(&done.id, Status::Completed, t + 5)
+        .unwrap();
+    let archived = db.create_note_at(note("Old idea"), t + 6).unwrap();
+    db.set_status_at(&archived.id, Status::Archived, t + 7)
+        .unwrap();
+    vec![open.id, later.id, done.id, archived.id]
+}
+
+#[test]
+fn a_markdown_export_reads_like_a_task_list() {
+    let mut db = db();
+    tricky_notes(&mut db);
+    // UTC+7: 22:13 UTC on 14 Nov shows as 05:13 on 15 Nov.
+    let md = db.export_markdown(7 * 60).unwrap();
+    assert!(md.starts_with("# Posthaste notes\n"), "{md}");
+    assert!(md.contains("· 4 notes"), "{md}");
+    for heading in ["## To do", "## Later", "## Done", "## Archived"] {
+        assert!(md.contains(heading), "{heading}\n{md}");
+    }
+    assert!(
+        md.contains("- [ ] Send the slides\n  to Anna -- today\n"),
+        "{md}"
+    );
+    assert!(md.contains("- [x] Book flights"), "{md}");
+    assert!(md.contains("Added 15 Nov 2023 05:13"), "{md}");
+    assert!(md.contains("`work stuff`"), "{md}");
+    assert!(md.contains("  - [ ] not a separate note"), "{md}");
+    // Nothing in a hidden comment can close it early.
+    for line in md.lines().filter(|l| l.contains("<!-- posthaste {")) {
+        assert_eq!(line.matches("--").count(), 2, "{line}");
+    }
+}
+
+#[test]
+fn a_markdown_export_imports_back_without_loss() {
+    let mut a = db();
+    let ids = tricky_notes(&mut a);
+    let md = a.export_markdown(-300).unwrap();
+
+    let mut b = db();
+    let report = b.import_text(&md).unwrap();
+    assert_eq!(
+        report,
+        ImportReport {
+            imported: 4,
+            skipped_existing: 0,
+            skipped_invalid: 0
+        }
+    );
+    for id in &ids {
+        let (was, now) = (a.note_detail(id).unwrap(), b.note_detail(id).unwrap());
+        assert_eq!(now.note, was.note);
+        assert_eq!(now.details, was.details);
+    }
+    // Importing again adds nothing.
+    assert_eq!(b.import_text(&md).unwrap().skipped_existing, 4);
+}
+
+#[test]
+fn ticking_a_box_in_another_app_counts_as_done() {
+    let mut a = db();
+    let n = a.create_note(note("Call the bank")).unwrap();
+    let md = a
+        .export_markdown(0)
+        .unwrap()
+        .replace("- [ ] Call", "- [x] Call");
+    let mut b = db();
+    b.import_text(&md).unwrap();
+    let got = b.get_note(&n.id).unwrap();
+    assert_eq!(got.status, Status::Completed);
+    assert!(got.completed_at.is_some());
+}
+
+#[test]
+fn a_hand_typed_task_list_imports_too() {
+    let mut db = db();
+    let md = "# My list\n\nSome intro text.\n\n- [ ] Buy milk\n- [x] Pay rent\n\n  Paid by transfer.\n* [ ] Water plants\n- not a task\n\n## Archived\n\n- [ ] Learn Fortran\n";
+    let report = db.import_text(md).unwrap();
+    assert_eq!(report.imported, 4);
+    assert_eq!(search(&db, "milk")[0].status, Status::Inbox);
+    let rent = &search(&db, "rent")[0];
+    assert_eq!(rent.status, Status::Completed);
+    assert_eq!(
+        db.note_detail(&rent.id).unwrap().details,
+        "Paid by transfer."
+    );
+    assert_eq!(search(&db, "Fortran")[0].status, Status::Archived);
+    assert!(search(&db, "not a task").is_empty());
+}
+
+#[test]
+fn markdown_import_rejects_files_that_are_not_notes() {
+    let mut db = db();
+    for bad in [
+        "",
+        "# Just a document\n\nNo tasks here.",
+        "<!-- posthaste-export version 99 -->\n- [ ] from the future",
+    ] {
+        assert!(
+            matches!(db.import_text(bad), Err(CoreError::InvalidImport(_))),
+            "{bad:?}"
+        );
+    }
+    // An empty export of ours is fine.
+    let empty = Db::open_in_memory().unwrap().export_markdown(0).unwrap();
+    assert_eq!(db.import_text(&empty).unwrap().imported, 0);
+}
+
+#[test]
+fn import_still_reads_json_exports() {
+    let mut a = db();
+    let n = a.create_note(note("from json")).unwrap();
+    let json = a.export_json().unwrap();
+    let mut b = db();
+    assert_eq!(
+        b.import_text(&format!("\u{feff}{json}")).unwrap().imported,
+        1
+    );
+    assert_eq!(b.get_note(&n.id).unwrap(), a.get_note(&n.id).unwrap());
+}
+
 #[test]
 fn export_file_and_backup_can_be_reopened() {
     let dir = tempfile::tempdir().unwrap();
@@ -603,7 +747,7 @@ fn export_file_and_backup_can_be_reopened() {
     db.create_note(note("backed up")).unwrap();
 
     let export = dir.path().join("export.json");
-    assert_eq!(db.export_to(&export).unwrap(), 1);
+    assert_eq!(db.export_to(&export, ExportFormat::Json).unwrap(), 1);
     assert!(std::fs::read_to_string(&export)
         .unwrap()
         .contains("backed up"));

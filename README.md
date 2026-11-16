@@ -36,8 +36,9 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 
 - **Instant capture** — the windows are created at startup and hidden, so the
   shortcut shows them in milliseconds
-- **Local-first** — one database file (attachments included), exportable and
-  backup-able from Settings
+- **Local-first** — one database file (attachments included), backup-able from
+  Settings. Export your notes as a Markdown checklist that opens in any editor
+  (or as JSON), and import it back without losing anything
 - **Looks** — six built-in colour themes, or make your own with a live editor
   that refuses anything hard to read; share any look with a one-line code
 - **AI polish** — optional. Off by default; when you turn it on, your note goes
