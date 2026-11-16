@@ -154,6 +154,19 @@ describe("today window", () => {
     expect(selectedRow()).toHaveTextContent("carried");
   });
 
+  it("keeps the selected row in view while moving with the keyboard", async () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    api.glanceGet.mockResolvedValue(
+      glance({ today: [note("first"), note("second"), note("third")], total: 3 }),
+    );
+    await open();
+    key("ArrowDown");
+    key("ArrowDown");
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ block: "nearest" }));
+    expect(spy.mock.contexts.at(-1)).toHaveTextContent("third");
+  });
+
   it("resets the selection to the first row when shown again", async () => {
     api.glanceGet.mockResolvedValue(
       glance({ carried: [note("carried")], today: [note("made today")], done: 0, total: 2 }),

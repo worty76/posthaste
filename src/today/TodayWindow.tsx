@@ -425,8 +425,15 @@ function GlanceRow({
   onToggle: (note: Note) => void;
   onOpen: (note: Note) => void;
 }) {
+  const ref = useRef<HTMLLIElement>(null);
+  // Moving with the keyboard must never leave the selection off screen.
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [selected]);
+
   return (
     <li
+      ref={ref}
       className="today__row"
       data-selected={selected}
       data-status={done ? "completed" : "inbox"}
