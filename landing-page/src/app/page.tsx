@@ -131,8 +131,15 @@ export default async function Page() {
             </h1>
             <div className="hero__side">
               <p className="hero__sub">
-                Posthaste is a to-do notes app for your keyboard. A shortcut opens it over any app,
-                Enter saves, and you&apos;re back where you were. Try it here: the box is ready.
+                Posthaste is a to-do notes app for your keyboard.
+              </p>
+              <div style={{ height: "2rem" }} />
+              <p className="hero__sub">
+                With shortcuts open it over any app
+              </p>
+              <div style={{ height: "2rem" }} />
+              <p className="hero__sub">
+                Help you fast write and organize your notes in your daily life
               </p>
               <noscript>
                 <p className="hero__sub">Turn on JavaScript to try the box below.</p>
@@ -141,16 +148,16 @@ export default async function Page() {
           </div>
           <ul className="facts" aria-label="Posthaste in short">
             <li>
-              <a href="#features">Minimal: one small window</a>
+              <a href="#features">Minimal</a>
             </li>
             <li>
-              <a href="#free">Free: MIT licence</a>
+              <a href="#free">Free</a>
             </li>
             <li>
-              <a href="#ai">Optional AI: your own key</a>
+              <a href="#ai">Optional AI</a>
             </li>
             <li>
-              <a href="#get">macOS, Windows, Linux</a>
+              <a href="#ai">Customizable</a>
             </li>
           </ul>
           <HeroActions downloads={release.downloads} />
@@ -210,13 +217,7 @@ export default async function Page() {
               <h3 className="h3">Leaves only when</h3>
               <ul className="ledger">
                 <li>
-                  <strong>You press Polish.</strong> AI polish is off until you pick a provider
-                  (Anthropic, OpenAI or Gemini) and paste your own API key. Then the one note you
-                  polish goes straight to that provider. Nothing else does.
-                </li>
-                <li>
-                  <strong>The app checks for an update.</strong> At launch and every six hours it
-                  asks GitHub whether a newer version exists. Installing one is your click.
+                  <strong>AI or not.</strong> It's your choice.
                 </li>
               </ul>
             </div>

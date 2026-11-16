@@ -4,7 +4,7 @@
 // full list when we can't tell), and the demo film.
 
 import { useOs, OS_LABEL } from "./os";
-import { DEMO_VIDEO, type Download, type Platform } from "@/config";
+import { type Download, type Platform } from "@/config";
 import { primaryDownload } from "@/lib/platform";
 
 export function HeroActions({ downloads }: { downloads: Record<Platform, Download | null> }) {
@@ -22,7 +22,7 @@ export function HeroActions({ downloads }: { downloads: Record<Platform, Downloa
         </a>
       )}
       <a className="btn btn--ghost" href="#demo">
-        Watch the demo, {DEMO_VIDEO.seconds} s
+        Watch the demo
       </a>
     </div>
   );

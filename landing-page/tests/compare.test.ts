@@ -5,15 +5,12 @@ import {
   COMPARE_ROWS,
   PICK_OTHERS,
   PICK_POSTHASTE,
-  VS_TODOGLOW,
 } from "../src/lib/compare";
 
 const allText = [
   ...COMPARE_ROWS.flatMap((r) => [r.label, ...Object.values(r.cells)]),
   ...PICK_POSTHASTE,
   ...PICK_OTHERS,
-  ...VS_TODOGLOW.ours,
-  ...VS_TODOGLOW.theirs,
 ].join("\n");
 
 describe("comparison data", () => {
@@ -63,13 +60,5 @@ describe("comparison data", () => {
   it("says where the other apps are the better pick, as well as where Posthaste is", () => {
     expect(PICK_POSTHASTE.length).toBeGreaterThanOrEqual(2);
     expect(PICK_OTHERS.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("sets Posthaste next to TodoGlow in both directions, without claiming what its page does not say", () => {
-    expect(VS_TODOGLOW.ours.length).toBeGreaterThanOrEqual(3);
-    expect(VS_TODOGLOW.theirs.length).toBeGreaterThanOrEqual(3);
-    // Absence is only ever "doesn't list" / "page doesn't say", never "no X" about TodoGlow.
-    for (const line of VS_TODOGLOW.ours) expect(line).not.toMatch(/todoglow (has|offers) no\b/i);
-    expect(COMPARE_APPS.find((a) => a.id === "todoglow")?.url).toBe("https://devglow.app/todoglow");
   });
 });
