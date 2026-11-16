@@ -516,6 +516,27 @@ describe("settings", () => {
     );
   });
 
+  it("sets where capture and Today open, each on its own", async () => {
+    const user = await openSettings();
+    const capture = screen.getByRole("radiogroup", { name: "Capture window position" });
+    const today = screen.getByRole("radiogroup", { name: "Today window position" });
+    expect(within(capture).getByRole("radio", { name: "Center" })).toBeChecked();
+    expect(within(today).getByRole("radio", { name: "Center" })).toBeChecked();
+
+    await user.click(within(today).getByRole("radio", { name: "Top right" }));
+    await waitFor(() =>
+      expect(api.settingsUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ today_position: "top_right", capture_position: "center" }),
+      ),
+    );
+    await user.click(within(capture).getByRole("radio", { name: "Bottom left" }));
+    await waitFor(() =>
+      expect(api.settingsUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ capture_position: "bottom_left", today_position: "top_right" }),
+      ),
+    );
+  });
+
   it("records a new shortcut from a key press", async () => {
     const user = await openSettings();
     await user.click(screen.getByRole("button", { name: "Capture shortcut: change" }));

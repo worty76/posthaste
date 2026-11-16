@@ -145,6 +145,15 @@ history and shows as it is now. The calendar's first weekday comes from the
 locale where the webview exposes it (`Intl.Locale` week info) and is Monday
 otherwise; not checked on the macOS or Windows webviews.
 
+## Window position
+
+Capture and Today each have their own position: one spot of a 3×3 grid on the
+display under the pointer, 8 logical pixels from the edges it sits against
+(the window's transparent shadow margin adds to that). Settings from before
+0.3.2 had one shared position; Today starts where capture was, and the old
+"Upper third" loads as Top center, which now sits near the top edge rather
+than 22% down. The details window always opens centred.
+
 ## Window sizes
 
 Capture, Today and the details window's first-open size are base sizes times

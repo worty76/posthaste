@@ -1760,3 +1760,72 @@ fn purge_trashed_uses_the_retention_cutoff() {
 fn notes_of(list: &[TrashedNote]) -> Vec<Note> {
     list.iter().map(|t| t.note.clone()).collect()
 }
+
+#[test]
+fn the_old_upper_position_loads_as_top() {
+    let db = db();
+    store_settings(&db, r#"{"capture_position":"upper"}"#);
+    assert_eq!(
+        db.load_settings().unwrap().capture_position,
+        CapturePosition::Top
+    );
+}
+
+#[test]
+fn today_position_starts_where_capture_was() {
+    // Before 0.3.2 Today shared the capture position; keep it where it was.
+    let db = db();
+    store_settings(&db, r#"{"capture_position":"upper"}"#);
+    assert_eq!(
+        db.load_settings().unwrap().today_position,
+        CapturePosition::Top
+    );
+    let fresh = Db::open_in_memory().unwrap();
+    assert_eq!(
+        fresh.load_settings().unwrap().today_position,
+        CapturePosition::Center
+    );
+}
+
+#[test]
+fn unknown_position_loads_as_center_and_keeps_other_settings() {
+    let db = db();
+    store_settings(
+        &db,
+        r#"{"theme":"dark","capture_position":"sideways","today_position":"nowhere"}"#,
+    );
+    let s = db.load_settings().unwrap();
+    assert_eq!(s.capture_position, CapturePosition::Center);
+    assert_eq!(s.today_position, CapturePosition::Center);
+    assert_eq!(s.theme, Theme::Dark);
+}
+
+#[test]
+fn every_position_round_trips_for_both_windows() {
+    let all = [
+        (CapturePosition::TopLeft, "top_left"),
+        (CapturePosition::Top, "top"),
+        (CapturePosition::TopRight, "top_right"),
+        (CapturePosition::Left, "left"),
+        (CapturePosition::Center, "center"),
+        (CapturePosition::Right, "right"),
+        (CapturePosition::BottomLeft, "bottom_left"),
+        (CapturePosition::Bottom, "bottom"),
+        (CapturePosition::BottomRight, "bottom_right"),
+    ];
+    for (position, name) in all {
+        let mut db = db();
+        let s = Settings {
+            capture_position: position,
+            today_position: CapturePosition::BottomRight,
+            ..Settings::default()
+        };
+        db.save_settings(&s).unwrap();
+        let loaded = db.load_settings().unwrap();
+        assert_eq!(loaded.capture_position, position);
+        assert_eq!(loaded.today_position, CapturePosition::BottomRight);
+        assert!(serde_json::to_string(&s)
+            .unwrap()
+            .contains(&format!(r#""capture_position":"{name}""#)));
+    }
+}

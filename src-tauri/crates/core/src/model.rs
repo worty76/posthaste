@@ -167,13 +167,46 @@ pub enum Theme {
     Dark,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// Where a floating window (capture or Today) opens on the display the user
+/// is working on: one spot of a 3×3 grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CapturePosition {
-    /// Centre of the active display.
+    TopLeft,
+    /// Centred along the top edge. Stored as "upper" before 0.3.2.
+    #[serde(alias = "upper")]
+    Top,
+    TopRight,
+    Left,
+    #[default]
     Center,
-    /// Horizontally centred, in the upper third (launcher style).
-    Upper,
+    Right,
+    BottomLeft,
+    Bottom,
+    BottomRight,
+}
+
+/// Which column and row of the 3×3 grid a position is in: -1, 0 or 1.
+impl CapturePosition {
+    pub fn grid(self) -> (i8, i8) {
+        use CapturePosition::*;
+        match self {
+            TopLeft => (-1, -1),
+            Top => (0, -1),
+            TopRight => (1, -1),
+            Left => (-1, 0),
+            Center => (0, 0),
+            Right => (1, 0),
+            BottomLeft => (-1, 1),
+            Bottom => (0, 1),
+            BottomRight => (1, 1),
+        }
+    }
+}
+
+fn lenient_position<'de, D: serde::Deserializer<'de>>(d: D) -> Result<CapturePosition, D::Error> {
+    let value = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(value).unwrap_or_default())
 }
 
 /// How big the floating windows (capture, Today, note details) open. Only
@@ -272,7 +305,13 @@ pub struct Settings {
     pub inbox_shortcut: String,
     /// Opens the Today window: a small glance at today's notes.
     pub today_shortcut: String,
+    /// Where the capture window opens.
+    #[serde(deserialize_with = "lenient_position")]
     pub capture_position: CapturePosition,
+    /// Where the Today window opens. Settings from before 0.3.2 have none
+    /// and load with the capture position, which Today used to share.
+    #[serde(deserialize_with = "lenient_position")]
+    pub today_position: CapturePosition,
     /// How big the capture, Today and details windows open.
     #[serde(deserialize_with = "lenient_window_size")]
     pub window_size: WindowSize,
@@ -302,6 +341,7 @@ impl Default for Settings {
             inbox_shortcut: DEFAULT_INBOX_SHORTCUT.into(),
             today_shortcut: DEFAULT_TODAY_SHORTCUT.into(),
             capture_position: CapturePosition::Center,
+            today_position: CapturePosition::Center,
             window_size: WindowSize::Medium,
             hide_after_save: true,
             hide_on_blur: true,

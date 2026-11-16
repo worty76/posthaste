@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "../components/Button";
 import { Segmented, Switch, TextField } from "../components/Controls";
 import { Dialog } from "../components/Dialog";
+import { PositionPicker } from "../components/PositionPicker";
 import { api, toAppError } from "../lib/ipc";
 import {
   DEFAULT_CAPTURE_SHORTCUT,
@@ -267,18 +268,31 @@ export function SettingsView({
           help={
             info.session === "wayland"
               ? "On Wayland the compositor decides where windows appear, so this may have no effect."
-              : "Where the Posthaste window appears on the display you're working on."
+              : "Where each window opens on the display you're working on."
           }
         >
-          <Segmented
-            label="Window position"
-            value={settings.capture_position}
-            options={[
-              { value: "center", label: "Center" },
-              { value: "upper", label: "Upper third" },
-            ]}
-            onChange={(capture_position) => void set({ capture_position })}
-          />
+          <div className="positions">
+            <div className="positions__item">
+              <PositionPicker
+                label="Capture window position"
+                value={settings.capture_position}
+                onChange={(capture_position) => void set({ capture_position })}
+              />
+              <span className="positions__caption" aria-hidden="true">
+                Capture
+              </span>
+            </div>
+            <div className="positions__item">
+              <PositionPicker
+                label="Today window position"
+                value={settings.today_position}
+                onChange={(today_position) => void set({ today_position })}
+              />
+              <span className="positions__caption" aria-hidden="true">
+                Today
+              </span>
+            </div>
+          </div>
         </Row>
         <Row
           label="Window size"

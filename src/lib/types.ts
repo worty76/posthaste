@@ -111,7 +111,17 @@ export interface Draft {
 
 export type Theme = "system" | "light" | "dark";
 export type AiProvider = "none" | "anthropic" | "openai" | "gemini";
-export type CapturePosition = "center" | "upper";
+/** Where a floating window opens: one spot of a 3×3 grid on the display. */
+export type CapturePosition =
+  | "top_left"
+  | "top"
+  | "top_right"
+  | "left"
+  | "center"
+  | "right"
+  | "bottom_left"
+  | "bottom"
+  | "bottom_right";
 /** Shown as Compact, Standard and Roomy. */
 export type WindowSize = "small" | "medium" | "large";
 export type EnterBehavior = "save" | "newline";
@@ -125,6 +135,7 @@ export interface Settings {
   inbox_shortcut: string;
   today_shortcut: string;
   capture_position: CapturePosition;
+  today_position: CapturePosition;
   window_size: WindowSize;
   hide_after_save: boolean;
   hide_on_blur: boolean;

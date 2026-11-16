@@ -576,7 +576,7 @@ impl Db {
             .optional()?;
         Ok(match raw {
             // A corrupt blob must not lock the user out of their notes.
-            Some(json) => serde_json::from_str(&json).unwrap_or_else(|e| {
+            Some(json) => parse_settings(&json).unwrap_or_else(|e| {
                 log::warn!("stored settings unreadable, using defaults: {e}");
                 Settings::default()
             }),
@@ -734,4 +734,16 @@ fn like_escape(text: &str) -> String {
         out.push(c);
     }
     out
+}
+
+/// Reads stored settings. Today shared the capture window's position before
+/// it had its own, so a blob without one starts Today where capture is.
+fn parse_settings(json: &str) -> serde_json::Result<Settings> {
+    let value: serde_json::Value = serde_json::from_str(json)?;
+    let has_today_position = value.get("today_position").is_some();
+    let mut settings: Settings = serde_json::from_value(value)?;
+    if !has_today_position {
+        settings.today_position = settings.capture_position;
+    }
+    Ok(settings)
 }

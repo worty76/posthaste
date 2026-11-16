@@ -12,6 +12,7 @@ export const defaultSettings: Settings = {
   inbox_shortcut: "Ctrl+Alt+N",
   today_shortcut: "Ctrl+Alt+G",
   capture_position: "center",
+  today_position: "center",
   window_size: "medium",
   hide_after_save: true,
   hide_on_blur: true,
