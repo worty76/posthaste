@@ -7,6 +7,7 @@
 //! |---|---|---|
 //! | `logic` | decisions as plain functions | no browser, no framework; tested with `cargo test` |
 //! | `ipc` | every command and event | the only module that touches Tauri |
+//! | `time` | the clock, the time zone, date formatting | the only module that reads them from the browser |
 //! | `state` | settings, language, look, shared by windows | the only writer of `<html>` attributes |
 //! | `components` | controls that know nothing about notes | no `ipc` imports |
 //! | `windows` | one module per window | composes the layers above |
@@ -21,6 +22,8 @@ mod draft_sync;
 mod ipc;
 #[cfg(target_arch = "wasm32")]
 mod state;
+#[cfg(target_arch = "wasm32")]
+mod time;
 #[cfg(target_arch = "wasm32")]
 mod windows;
 

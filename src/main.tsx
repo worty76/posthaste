@@ -4,12 +4,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { DetailsWindow } from "./details/DetailsWindow";
 import { api, toAppError } from "./lib/ipc";
 import { MainWindow } from "./main/MainWindow";
-import { TodayWindow } from "./today/TodayWindow";
 import type { AppInfo } from "./lib/types";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/ui.css";
-import "./styles/today.css";
 import "./styles/details.css";
 import "./styles/main.css";
 
@@ -28,11 +26,9 @@ function Fatal({ message }: { message: string }) {
 }
 
 // The windows still written in React load this bundle; the window's label
-// decides which one it is. The capture window is Rust now: see ui/.
+// decides which one it is. The capture and Today windows are Rust now: see ui/.
 const label = getCurrentWindow().label;
-const isToday = label === "today";
 const isDetails = label === "details";
-if (isToday) document.documentElement.classList.add("is-today");
 if (isDetails) document.documentElement.classList.add("is-details");
 
 const root = createRoot(document.getElementById("root")!);
@@ -46,9 +42,7 @@ api.appInfo().then(
   (info) => {
     root.render(
       <StrictMode>
-        {isToday ? (
-          <TodayWindow os={info.os} />
-        ) : isDetails ? (
+        {isDetails ? (
           <DetailsWindow os={info.os} />
         ) : info.startup_error ? (
           <Fatal message={info.startup_error.message} />
@@ -60,13 +54,7 @@ api.appInfo().then(
   },
   (e) => {
     root.render(
-      isToday ? (
-        <TodayWindow os={fallbackOs()} />
-      ) : isDetails ? (
-        <DetailsWindow os={fallbackOs()} />
-      ) : (
-        <Fatal message={toAppError(e).message} />
-      ),
+      isDetails ? <DetailsWindow os={fallbackOs()} /> : <Fatal message={toAppError(e).message} />,
     );
   },
 );

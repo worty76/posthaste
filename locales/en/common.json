@@ -1,3 +1,24 @@
 {
-  "unknown_error": "Something went wrong."
+  "unknown_error": "Something went wrong.",
+  "badges": {
+    "has_details": "has details",
+    "files": {
+      "one": "{count} file",
+      "other": "{count} files"
+    }
+  },
+  "calendar": {
+    "choose_day": "Choose a day",
+    "previous_month": "Previous month",
+    "next_month": "Next month",
+    "today": "Today",
+    "clear": "Clear",
+    "day_open": "{date}, {count} open",
+    "day_done": "{date}, all done",
+    "hint": {
+      "day": "day",
+      "month": "month",
+      "today": "today"
+    }
+  }
 }

@@ -140,7 +140,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         _ => {}
     });
 
-    let today = WebviewWindowBuilder::new(app, TODAY, WebviewUrl::App("index.html".into()))
+    let today = WebviewWindowBuilder::new(app, TODAY, WebviewUrl::App(RUST_UI.into()))
         .title("Posthaste Today")
         .inner_size(TODAY_WIDTH, TODAY_HEIGHT)
         .decorations(false)

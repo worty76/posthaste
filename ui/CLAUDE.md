@@ -14,6 +14,7 @@ stored; `crates/core` owns that.
 src/lib.rs        entry point; the module table at its top is the map
 src/logic/        decisions as plain functions. No browser, no Leptos
 src/ipc/          every command and event. The only code that touches Tauri
+src/time.rs       the clock, the time zone, date formatting
 src/state/        settings, language, look: shared by windows
 src/components/   controls that know nothing about notes
 src/windows/      one module per window
@@ -29,6 +30,10 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
 
 ## Where code goes
 
+- Dates: `logic/dates.rs` works in calendar days (`Day`) and knows no time
+  zone. Only `time.rs` reads the clock, turns an instant into a local day,
+  or formats a date. Always pass the language's locale; never format with
+  the browser default.
 - Can it be decided from plain values (a key press and the settings, an
   accelerator string, a theme)? It goes in `logic/` as a function with unit
   tests, and the window calls it. `logic/capture.rs` is the model.
@@ -36,7 +41,7 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
   on it (`Capture` in `windows/capture.rs`). Handlers call those methods; the
   `view!` holds markup and wiring only.
 - A new window: one module in `windows/`, one arm in `windows::mount`, its
-  stylesheet imported in `boot.js`, and its URL changed to `RUST_UI` in
+  and its URL changed to `RUST_UI` in
   `src-tauri/src/windows.rs`. Delete the React window and its test in the
   same change, after the browser tests cover what that test covered.
 
@@ -90,6 +95,15 @@ The stylesheets are the shared ones in `src/styles/`; this folder has none.
   text that was just filed.
 - Nothing is added to the capture window without asking. It is a command
   field, not a form.
+
+## Today window specifics
+
+- Past days are read-only and are rebuilt from timestamps; nothing is
+  written to show them. There are no future days.
+- A refresh keeps the selection and redraws only rows whose note changed
+  (`row_key`), so focus and scroll survive `notes-changed`.
+- Keys are handled on the window, not the panel: focus can fall to the page
+  when a focused button goes away, and Esc must still close.
 
 ## Errors and panics
 

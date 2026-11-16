@@ -48,6 +48,9 @@ rule "Only ui/src/ipc may touch Tauri (ui/AGENTS.md)" \
 rule "ui/src/logic is plain Rust: no Leptos, browser or IPC imports (ui/AGENTS.md)" \
   "$(grep -rnE 'leptos|web_sys|wasm_bindgen|js_sys|crate::(ipc|state|windows|components)' ui/src/logic --include='*.rs')"
 
+rule "Only ui/src/time.rs reads the clock or formats dates (ui/AGENTS.md)" \
+  "$(grep -rnE 'js_sys::Date|Date::(new|now)|DateTimeFormat' ui/src --include='*.rs' | grep -v '^ui/src/time.rs:')"
+
 rule "ui/src/components must not import ipc (ui/AGENTS.md)" \
   "$(grep -rn 'crate::ipc' ui/src/components --include='*.rs')"
 

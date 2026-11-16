@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { open, start, stop } from "./harness.mjs";
+import { eventually, open, start, stop, text } from "./harness.mjs";
 
 before(start);
 after(stop);
@@ -14,20 +14,6 @@ async function capture(options) {
   const saves = () => window.mock.calls("capture_save");
   return { ...window, note, status, saves };
 }
-
-/** Polls until `read()` satisfies `check`, the way a person waits. */
-async function eventually(read, check, message) {
-  const deadline = Date.now() + 3000;
-  let value;
-  do {
-    value = await read();
-    if (check(value)) return value;
-    await new Promise((r) => setTimeout(r, 25));
-  } while (Date.now() < deadline);
-  assert.fail(`${message}; last saw ${JSON.stringify(value)}`);
-}
-const text = (locator, expected) =>
-  eventually(() => locator.textContent(), (t) => t.includes(expected), `expected "${expected}"`);
 
 describe("capture input", () => {
   it("focuses the input without a click and shows the placeholder", async () => {

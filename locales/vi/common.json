@@ -1,3 +1,23 @@
 {
-  "unknown_error": "Đã xảy ra lỗi."
+  "unknown_error": "Đã xảy ra lỗi.",
+  "badges": {
+    "has_details": "có mô tả",
+    "files": {
+      "other": "{count} tệp"
+    }
+  },
+  "calendar": {
+    "choose_day": "Chọn ngày",
+    "previous_month": "Tháng trước",
+    "next_month": "Tháng sau",
+    "today": "Hôm nay",
+    "clear": "Xóa chọn",
+    "day_open": "{date}, {count} việc còn mở",
+    "day_done": "{date}, đã xong hết",
+    "hint": {
+      "day": "ngày",
+      "month": "tháng",
+      "today": "hôm nay"
+    }
+  }
 }

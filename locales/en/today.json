@@ -1,0 +1,46 @@
+{
+  "title": "Today",
+  "previous_day": "Previous day",
+  "next_day": "Next day",
+  "choose_day_tip": "Choose a day (C)",
+  "back_to_today": "Back to today",
+  "count": "{done} of {total} done",
+  "all_done": "All done",
+  "progress_label": "Notes done",
+  "empty": {
+    "today_title": "Nothing for today",
+    "past_title": "Nothing on this day",
+    "past_text": "No notes were open or captured that day.",
+    "capture_with_shortcut": "Press {keys} anywhere to capture one.",
+    "capture_plain": "Capture one from anywhere with Posthaste."
+  },
+  "group": {
+    "carried": "Carried over",
+    "today": "Today",
+    "that_day": "That day"
+  },
+  "more_in_inbox": "and {count} more in the inbox",
+  "more": "and {count} more",
+  "hint": {
+    "past": "As it was on this day",
+    "day": "day",
+    "done": "done",
+    "later": "later",
+    "today": "today",
+    "details": "details",
+    "close": "close"
+  },
+  "row": {
+    "done_by_end": "Done by the end of this day",
+    "not_done_by_end": "Not done by the end of this day",
+    "mark_not_completed": "Mark as not completed",
+    "mark_completed": "Mark as completed",
+    "show_captured": "Show notes captured {day}",
+    "show_captured_tip": "Show the notes captured that day",
+    "open_details": "Open details (Enter)"
+  },
+  "origin": {
+    "yesterday": "Yesterday",
+    "days_ago": "{date} · {count} days ago"
+  }
+}

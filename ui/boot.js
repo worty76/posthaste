@@ -4,7 +4,12 @@
 import "../src/styles/tokens.css";
 import "../src/styles/base.css";
 import "../src/styles/ui.css";
+// Every window loads every stylesheet, as the React page does: shared pieces
+// such as the tick box live in whichever sheet first needed them.
 import "../src/styles/capture.css";
+import "../src/styles/today.css";
+import "../src/styles/details.css";
+import "../src/styles/main.css";
 import init from "./pkg/posthaste_ui.js";
 
 await init();

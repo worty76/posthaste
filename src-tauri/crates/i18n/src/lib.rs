@@ -29,6 +29,31 @@ impl Key {
     }
 }
 
+/// The name of a message that changes with a number ("1 file", "2 files").
+/// Read it with [`Translator::plural`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PluralKey(&'static str);
+
+/// How a language chooses a plural form from a number. Each language names
+/// its rule in `meta.json`; a language whose rule is not here yet needs a
+/// variant added, with the CLDR rule it implements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PluralRule {
+    /// One form for every number (Vietnamese, Japanese, Chinese).
+    Other,
+    /// `one` for exactly 1, `other` otherwise (English, German, Spanish).
+    OneOther,
+}
+
+impl PluralRule {
+    fn category(self, count: u64) -> &'static str {
+        match self {
+            PluralRule::OneOther if count == 1 => "one",
+            _ => "other",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Ltr,
@@ -53,16 +78,24 @@ pub struct Language {
     /// The language's own name for itself, for the picker.
     pub name: &'static str,
     pub direction: Direction,
+    plural: PluralRule,
     /// Sorted by key.
     messages: &'static [(&'static str, &'static str)],
 }
 
 impl Language {
-    fn lookup(&self, key: Key) -> Option<&'static str> {
+    fn lookup(&self, key: &str) -> Option<&'static str> {
         self.messages
-            .binary_search_by(|(k, _)| k.cmp(&key.0))
+            .binary_search_by(|(k, _)| (*k).cmp(key))
             .ok()
             .map(|i| self.messages[i].1)
+    }
+
+    /// The form of a plural message for `count`: the language's category
+    /// for that number, or its `other` form when that category has no text.
+    fn lookup_plural(&self, key: PluralKey, count: u64) -> Option<&'static str> {
+        let form = |category: &str| self.lookup(&format!("{}#{category}", key.0));
+        form(self.plural.category(count)).or_else(|| form("other"))
     }
 }
 
@@ -105,39 +138,68 @@ impl Translator {
     /// The message as written, for text with no placeholders.
     pub fn text(&self, key: Key) -> &'static str {
         self.language
-            .lookup(key)
-            .or_else(|| source().lookup(key))
+            .lookup(key.0)
+            .or_else(|| source().lookup(key.0))
             // Unreachable for generated keys; the key is still better
             // than nothing on screen.
             .unwrap_or(key.0)
     }
 
-    /// The message with each `{name}` replaced by its value. A placeholder
-    /// with no value is left as written.
+    /// The message with each `{name}` replaced by its value.
     pub fn format(&self, key: Key, values: &[(&str, &str)]) -> String {
-        let mut out = String::new();
-        let mut rest = self.text(key);
-        while let Some(open) = rest.find('{') {
-            out.push_str(&rest[..open]);
-            let after = &rest[open + 1..];
-            let Some(close) = after.find('}') else {
-                rest = &rest[open..];
-                break;
-            };
-            let name = &after[..close];
-            match values.iter().find(|(n, _)| *n == name) {
-                Some((_, value)) => out.push_str(value),
-                None => {
-                    out.push('{');
-                    out.push_str(name);
-                    out.push('}');
-                }
-            }
-            rest = &after[close + 1..];
-        }
-        out.push_str(rest);
-        out
+        fill(self.text(key), values)
     }
+
+    /// The form of a plural message that fits `count`, with `{count}` and
+    /// each other `{name}` filled in.
+    pub fn plural(&self, key: PluralKey, count: u64, values: &[(&str, &str)]) -> String {
+        let text = self
+            .language
+            .lookup_plural(key, count)
+            .or_else(|| source().lookup_plural(key, count))
+            .unwrap_or(key.0);
+        let count = count.to_string();
+        let mut all = vec![("count", count.as_str())];
+        all.extend_from_slice(values);
+        fill(text, &all)
+    }
+
+    /// The text before and after `{name}`, for a message with a control in
+    /// the middle of it ("Press [keys] anywhere to capture one.").
+    pub fn around(&self, key: Key, name: &str) -> (&'static str, &'static str) {
+        let text = self.text(key);
+        match text.split_once(&format!("{{{name}}}")) {
+            Some(parts) => parts,
+            None => (text, ""),
+        }
+    }
+}
+
+/// Replaces each `{name}` in `text` with its value. A placeholder with no
+/// value is left as written.
+fn fill(text: &str, values: &[(&str, &str)]) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(open) = rest.find('{') {
+        out.push_str(&rest[..open]);
+        let after = &rest[open + 1..];
+        let Some(close) = after.find('}') else {
+            rest = &rest[open..];
+            break;
+        };
+        let name = &after[..close];
+        match values.iter().find(|(n, _)| *n == name) {
+            Some((_, value)) => out.push_str(value),
+            None => {
+                out.push('{');
+                out.push_str(name);
+                out.push('}');
+            }
+        }
+        rest = &after[close + 1..];
+    }
+    out.push_str(rest);
+    out
 }
 
 #[cfg(test)]
@@ -190,6 +252,7 @@ mod tests {
             code: "zz",
             name: "Partial",
             direction: Direction::Ltr,
+            plural: PluralRule::Other,
             messages: &[],
         };
         let partial: &'static Language = Box::leak(Box::new(partial));
@@ -207,7 +270,10 @@ mod tests {
                 .messages
                 .iter()
                 .map(|(k, _)| *k)
-                .filter(|k| language.lookup(Key(k)).is_none())
+                // A language needs every message, but of a plural message
+                // only the forms its own rule uses; `other` is always one.
+                .filter(|k| !k.contains('#') || k.ends_with("#other"))
+                .filter(|k| language.lookup(k).is_none())
                 .collect();
             assert!(
                 missing.is_empty(),
@@ -216,6 +282,27 @@ mod tests {
                 missing.join(", ")
             );
         }
+    }
+
+    #[test]
+    fn a_plural_message_follows_each_languages_own_rule() {
+        let en = Translator::new("en");
+        assert_eq!(en.plural(key::COMMON_BADGES_FILES, 1, &[]), "1 file");
+        assert_eq!(en.plural(key::COMMON_BADGES_FILES, 2, &[]), "2 files");
+        assert_eq!(en.plural(key::COMMON_BADGES_FILES, 0, &[]), "0 files");
+        let vi = Translator::new("vi");
+        assert_eq!(vi.plural(key::COMMON_BADGES_FILES, 1, &[]), "1 tệp");
+        assert_eq!(vi.plural(key::COMMON_BADGES_FILES, 5, &[]), "5 tệp");
+    }
+
+    #[test]
+    fn a_message_can_be_split_around_a_placeholder() {
+        let en = Translator::new("en");
+        assert_eq!(
+            en.around(key::TODAY_EMPTY_CAPTURE_WITH_SHORTCUT, "keys"),
+            ("Press ", " anywhere to capture one.")
+        );
+        assert_eq!(en.around(key::CAPTURE_STATUS_SAVED, "keys"), ("Saved", ""));
     }
 
     #[test]

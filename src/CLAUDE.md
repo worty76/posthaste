@@ -2,8 +2,8 @@
 
 # src/: the React UI
 
-The Today, details and inbox windows. The capture window has moved to Rust
-(`ui/`); the rest follow one at a time. `styles/` is shared by both.
+The details and inbox windows. The capture and Today windows have moved to
+Rust (`ui/`); the rest follow one at a time. `styles/` is shared by both.
 
 Renders state and handles input. It decides nothing about what a valid note is
 or how it is stored; the Rust side owns that.
@@ -14,7 +14,6 @@ or how it is stored; the Rust side owns that.
 lib/         pure logic and the IPC boundary. No React, no DOM where avoidable.
 hooks/       shared stateful logic used by more than one window
 components/  reusable, product-agnostic controls (Button, Dialog, Toasts, …)
-today/       the Today window
 details/     note details
 main/        inbox, search, settings
 styles/      tokens and stylesheets (see styles/AGENTS.md)

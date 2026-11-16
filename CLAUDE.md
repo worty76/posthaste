@@ -8,8 +8,8 @@ overrides the "Never" list below.
 
 | Working in | Also read |
 |---|---|
-| `src/` (React UI: Today, details, inbox, settings) | `src/AGENTS.md` |
-| `ui/` (Rust UI: capture) | `ui/AGENTS.md` |
+| `src/` (React UI: details, inbox, settings) | `src/AGENTS.md` |
+| `ui/` (Rust UI: capture, Today) | `ui/AGENTS.md` |
 | `src/styles/` (tokens, CSS) | `src/styles/AGENTS.md` |
 | `src-tauri/src/` (desktop shell) | `src-tauri/AGENTS.md` |
 | `src-tauri/crates/core/` (storage) | `src-tauri/crates/core/AGENTS.md` |

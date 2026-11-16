@@ -1,0 +1,46 @@
+{
+  "title": "Hôm nay",
+  "previous_day": "Ngày trước",
+  "next_day": "Ngày sau",
+  "choose_day_tip": "Chọn ngày (C)",
+  "back_to_today": "Về hôm nay",
+  "count": "Xong {done} trên {total}",
+  "all_done": "Đã xong hết",
+  "progress_label": "Ghi chú đã xong",
+  "empty": {
+    "today_title": "Hôm nay chưa có gì",
+    "past_title": "Ngày này không có gì",
+    "past_text": "Hôm đó không có ghi chú nào còn mở hay được ghi lại.",
+    "capture_with_shortcut": "Nhấn {keys} ở bất cứ đâu để ghi một ghi chú.",
+    "capture_plain": "Ghi một ghi chú từ bất cứ đâu bằng Posthaste."
+  },
+  "group": {
+    "carried": "Chuyển từ trước",
+    "today": "Hôm nay",
+    "that_day": "Hôm đó"
+  },
+  "more_in_inbox": "và {count} ghi chú nữa trong hộp thư",
+  "more": "và {count} ghi chú nữa",
+  "hint": {
+    "past": "Như lúc hôm đó",
+    "day": "ngày",
+    "done": "xong",
+    "later": "để sau",
+    "today": "hôm nay",
+    "details": "chi tiết",
+    "close": "đóng"
+  },
+  "row": {
+    "done_by_end": "Đã xong tính đến cuối ngày này",
+    "not_done_by_end": "Chưa xong tính đến cuối ngày này",
+    "mark_not_completed": "Đánh dấu chưa xong",
+    "mark_completed": "Đánh dấu đã xong",
+    "show_captured": "Xem ghi chú đã ghi {day}",
+    "show_captured_tip": "Xem các ghi chú đã ghi hôm đó",
+    "open_details": "Mở chi tiết (Enter)"
+  },
+  "origin": {
+    "yesterday": "Hôm qua",
+    "days_ago": "{date} · {count} ngày trước"
+  }
+}

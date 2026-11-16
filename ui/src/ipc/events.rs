@@ -44,6 +44,19 @@ event!(
     CaptureHidden, "capture-hidden", ()
 );
 
+event!(
+    /// A note was added, changed or removed, in any window.
+    NotesChanged, "notes-changed", ()
+);
+event!(
+    /// The Today window was just shown by its shortcut.
+    TodayShown, "today-shown", ()
+);
+event!(
+    /// Note details closed and gave the Today window back.
+    TodayReturned, "today-returned", ()
+);
+
 #[derive(Deserialize)]
 struct Envelope<T> {
     payload: T,

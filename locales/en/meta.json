@@ -1,1 +1,5 @@
-{ "name": "English", "dir": "ltr" }
+{
+  "name": "English",
+  "dir": "ltr",
+  "plural": "one_other"
+}

@@ -78,22 +78,38 @@ export async function stop() {
  *   os        what `app_info` reports
  *   settings  overrides for the default settings
  *   draft     the stored draft, or null
+ *   glance    what `glance_get` answers, or a function body of (from, to)
+ *   now       a local date-time to pin the clock to, e.g. "2026-11-15T12:00:00"
  */
-export async function open({ label = "capture", os = "linux", settings = {}, draft = null } = {}) {
-  const context = await browser.newContext();
+export async function open({
+  label = "capture",
+  os = "linux",
+  settings = {},
+  draft = null,
+  glance = null,
+  now = null,
+  locale = "en-GB",
+} = {}) {
+  // A fixed zone and locale, so dates read the same on every machine.
+  const context = await browser.newContext({ timezoneId: "Asia/Ho_Chi_Minh", locale });
   const page = await context.newPage();
+  // Pins `Date.now()`; timers keep running.
+  if (now) await page.clock.setFixedTime(new Date(now));
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
   await page.addInitScript(
-    ({ label, os, settings, draft, shortcuts }) => {
+    ({ label, os, settings, draft, glance, shortcuts }) => {
       const listeners = {};
       const mock = {
         /** Every command the interface ran, in order. */
         calls: [],
         settings,
         draft,
+        glance: glance ?? { carried: [], today: [], done: 0, total: 0 },
+        /** Day counts for the calendar, keyed by the day's start instant. */
+        marks: {},
         /** cmd -> function(args): overrides the default answer. */
         handlers: {},
         /** Resolvers of commands a test is holding open, by command. */
@@ -127,6 +143,12 @@ export async function open({ label = "capture", os = "linux", settings = {}, dra
           mock.draft = null;
           return null;
         },
+        glance_get: () => mock.glance,
+        notes_day_marks: ({ edges }) =>
+          edges.slice(0, -1).map((start) => mock.marks[start] ?? { total: 0, open: 0 }),
+        // The shell announces every change to notes; so does this.
+        note_set_status: () => (mock.emit("notes-changed"), null),
+        note_set_later: () => (mock.emit("notes-changed"), null),
         capture_save: ({ content, category }) => ({
           id: "n1",
           content,
@@ -166,6 +188,7 @@ export async function open({ label = "capture", os = "linux", settings = {}, dra
       label,
       os,
       draft,
+      glance,
       settings: { ...defaultSettings, ...settings },
       shortcuts: {
         capture: status("CmdOrCtrl+Shift+Space"),
@@ -193,6 +216,51 @@ export async function open({ label = "capture", os = "linux", settings = {}, dra
         window.__mock.emit("settings-changed", window.__mock.settings);
       }, patch),
     draft: () => page.evaluate(() => window.__mock.draft),
+    setGlance: (glance) => page.evaluate((g) => (window.__mock.glance = g), glance),
+    setMarks: (marks) => page.evaluate((m) => (window.__mock.marks = m), marks),
   };
+  mock.setNow = (now) => page.clock.setFixedTime(new Date(now));
   return { page, mock, errors, close: () => context.close() };
 }
+
+let nextNote = 0;
+
+/** A note as the shell sends it. */
+export function note(content, patch = {}) {
+  nextNote += 1;
+  return {
+    id: `n${nextNote}`,
+    content,
+    status: "inbox",
+    category: null,
+    source: null,
+    created_at: 0,
+    updated_at: 0,
+    completed_at: null,
+    archived_at: null,
+    has_details: false,
+    attachment_count: 0,
+    later_at: null,
+    ...patch,
+  };
+}
+
+/** Polls until `read()` satisfies `check`, the way a person waits. */
+export async function eventually(read, check, message) {
+  const deadline = Date.now() + 3000;
+  let value;
+  do {
+    value = await read();
+    if (check(value)) return value;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  } while (Date.now() < deadline);
+  throw new Error(`${message}; last saw ${JSON.stringify(value)}`);
+}
+
+/** Waits for `locator`'s text to contain `expected`. */
+export const text = (locator, expected) =>
+  eventually(
+    () => locator.textContent(),
+    (t) => (t ?? "").includes(expected),
+    `expected "${expected}"`,
+  );

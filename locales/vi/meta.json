@@ -1,1 +1,5 @@
-{ "name": "Tiếng Việt", "dir": "ltr" }
+{
+  "name": "Tiếng Việt",
+  "dir": "ltr",
+  "plural": "other"
+}

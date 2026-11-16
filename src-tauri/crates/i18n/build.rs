@@ -7,6 +7,9 @@
 //! language has not translated yet is allowed: it falls back to English at
 //! run time and the `every_language_is_complete` test reports it.
 //!
+//! A message written as an object of plural categories (`one`, `other`, …)
+//! is one plural message; its forms are stored as `key#category`.
+//!
 //! A new language is a new folder. Nothing in Rust names a language.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,8 +27,18 @@ struct Language {
     code: String,
     name: String,
     rtl: bool,
+    /// The name of a `PluralRule` variant.
+    plural: &'static str,
     messages: Messages,
 }
+
+/// The plural categories a message may have a form for. A JSON object made
+/// only of these, with `other` among them, is one plural message; any other
+/// object is a group of messages.
+const CATEGORIES: [&str; 6] = ["zero", "one", "two", "few", "many", "other"];
+
+/// Separates a plural message's key from the category of one of its forms.
+const FORM: char = '#';
 
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -57,6 +70,7 @@ fn read_language(dir: &Path) -> Language {
     let code = dir.file_name().unwrap().to_string_lossy().into_owned();
     let mut name = code.clone();
     let mut rtl = false;
+    let mut plural = "Other";
     let mut messages = Messages::new();
     let mut files: Vec<PathBuf> = fs::read_dir(dir)
         .unwrap()
@@ -75,6 +89,15 @@ fn read_language(dir: &Path) -> Language {
                 name = n.to_owned();
             }
             rtl = json.get("dir").and_then(Value::as_str) == Some("rtl");
+            plural = match json.get("plural").and_then(Value::as_str) {
+                None | Some("other") => "Other",
+                Some("one_other") => "OneOther",
+                Some(unknown) => panic!(
+                    "{}: unknown plural rule {unknown:?}. Known: \"other\", \"one_other\". \
+                     A language with other forms needs its rule added to PluralRule first.",
+                    file.display()
+                ),
+            };
         } else {
             flatten(&namespace, &json, &file, &mut messages);
         }
@@ -83,6 +106,7 @@ fn read_language(dir: &Path) -> Language {
         code,
         name,
         rtl,
+        plural,
         messages,
     }
 }
@@ -91,6 +115,14 @@ fn flatten(prefix: &str, value: &Value, file: &Path, out: &mut Messages) {
     match value {
         Value::String(text) => {
             out.insert(prefix.to_owned(), text.clone());
+        }
+        Value::Object(map) if is_plural(map) => {
+            for (category, form) in map {
+                let Value::String(text) = form else {
+                    panic!("{}: `{prefix}.{category}` must be text", file.display());
+                };
+                out.insert(format!("{prefix}{FORM}{category}"), text.clone());
+            }
         }
         Value::Object(map) => {
             for (name, child) in map {
@@ -102,6 +134,10 @@ fn flatten(prefix: &str, value: &Value, file: &Path, out: &mut Messages) {
             file.display()
         ),
     }
+}
+
+fn is_plural(map: &serde_json::Map<String, Value>) -> bool {
+    map.contains_key("other") && map.keys().all(|k| CATEGORIES.contains(&k.as_str()))
 }
 
 /// The `{names}` a message expects to be filled in.
@@ -123,9 +159,15 @@ fn placeholders(text: &str) -> BTreeSet<&str> {
 
 fn check(language: &Language, source: &Messages) {
     for (key, text) in &language.messages {
-        let Some(original) = source.get(key) else {
+        // A plural form is checked against the English `other` form: a
+        // language may have categories English lacks, and the reverse.
+        let english = match key.split_once(FORM) {
+            Some((base, _)) => source.get(&format!("{base}{FORM}other")),
+            None => source.get(key),
+        };
+        let Some(original) = english else {
             panic!(
-                "locales/{}: `{key}` is not in locales/{SOURCE}. Add it to English first, or remove it.",
+                "locales/{}: `{key}` is not in locales/{SOURCE} (or is plural in only one of them). Add it to English first, or remove it.",
                 language.code
             );
         };
@@ -141,20 +183,31 @@ fn check(language: &Language, source: &Messages) {
 fn render(languages: &[Language]) -> String {
     let mut out = String::new();
     out.push_str(
-        "/// One constant per message, named after its key.\npub mod key {\n    use super::Key;\n",
+        "/// One constant per message, named after its key.\npub mod key {\n    use super::{Key, PluralKey};\n",
     );
     for key in languages[0].messages.keys() {
-        let constant = key.replace(['.', '-'], "_").to_uppercase();
-        writeln!(out, "    pub const {constant}: Key = Key({key:?});").unwrap();
+        let constant = |name: &str| name.replace(['.', '-'], "_").to_uppercase();
+        match key.split_once(FORM) {
+            None => writeln!(out, "    pub const {}: Key = Key({key:?});", constant(key)),
+            Some((base, "other")) => writeln!(
+                out,
+                "    pub const {}: PluralKey = PluralKey({base:?});",
+                constant(base)
+            ),
+            // The other forms share the constant of their `other` form.
+            Some(_) => Ok(()),
+        }
+        .unwrap();
     }
     out.push_str("}\n\npub(crate) static LANGUAGES: &[Language] = &[\n");
     for language in languages {
         writeln!(
             out,
-            "    Language {{ code: {:?}, name: {:?}, direction: Direction::{}, messages: &[",
+            "    Language {{ code: {:?}, name: {:?}, direction: Direction::{}, plural: PluralRule::{}, messages: &[",
             language.code,
             language.name,
-            if language.rtl { "Rtl" } else { "Ltr" }
+            if language.rtl { "Rtl" } else { "Ltr" },
+            language.plural
         )
         .unwrap();
         // BTreeMap order is the order `lookup` binary-searches.

@@ -15,14 +15,21 @@ one copy of every message.
   placeholder; they may not add, drop or rename one. The build enforces this.
 - Do not put text for one programming language's side in a separate place.
   Split files by what the text is about, never by who reads it.
-- No plural forms yet. When the first message needs one, add plural support
-  here (CLDR categories), not in a window.
+- A message that changes with a number is an object of plural categories
+  (`{"one": "{count} file", "other": "{count} files"}`), read with
+  `Translator::plural`. Every language writes `other`; the rest follow its
+  own rule, named by `plural` in its `meta.json`. A language whose rule is
+  not in `PluralRule` yet needs a variant added there, never a special case
+  in a window.
+- A control in the middle of a sentence: keep one message with a
+  placeholder and split it with `Translator::around`.
 - This crate does no I/O and has no dependencies at run time.
 
 ## Adding a language
 
 1. Copy `locales/en/` to `locales/<code>/` and translate the values.
-2. Set `name` (the language's own name) and `dir` in its `meta.json`.
+2. Set `name` (the language's own name), `dir` and `plural` in its
+   `meta.json`.
 3. `cargo test -p posthaste-i18n`: `every_language_is_complete` lists
    anything untranslated.
 

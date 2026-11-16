@@ -3,6 +3,8 @@
 //! adding one arm here.
 
 mod capture;
+mod note_badges;
+mod today;
 
 use leptos::prelude::*;
 use posthaste_model::Os;
@@ -11,6 +13,7 @@ use crate::ipc::{self, api};
 
 /// Labels the shell gives its windows (`src-tauri/src/windows.rs`).
 const CAPTURE: &str = "capture";
+const TODAY: &str = "today";
 
 pub fn mount() {
     let label = ipc::window_label().unwrap_or_default();
@@ -24,10 +27,9 @@ pub fn mount() {
             Ok(info) => info.os,
             Err(_) => guess_os(),
         };
-        // One arm per window; the next ported window adds the second.
-        #[allow(clippy::single_match)]
         match label.as_str() {
             CAPTURE => show(move || view! { <capture::CaptureWindow os=os /> }),
+            TODAY => show(move || view! { <today::TodayWindow os=os /> }),
             // A window that has not moved to Rust yet is never sent here.
             _ => {}
         }
