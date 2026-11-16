@@ -113,6 +113,55 @@ pub fn read_reply(wire: Wire, value: &Value) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
+/// The polished text from a successful reply body. Accepts plain JSON
+/// (with a byte order mark or padding around it) and, for the OpenAI
+/// format, a streamed reply (`data: …` lines) from servers that stream even
+/// when asked not to.
+pub fn read_body(wire: Wire, body: &str) -> Option<String> {
+    let body = body.trim_start_matches('\u{feff}').trim();
+    if let Ok(value) = serde_json::from_str::<Value>(body) {
+        return read_reply(wire, &value);
+    }
+    if wire != Wire::OpenAi || !body.starts_with("data:") {
+        return None;
+    }
+    let text: String = body
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("data:"))
+        .map(str::trim)
+        .filter(|data| *data != "[DONE]")
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .filter_map(|chunk| {
+            let choice = &chunk["choices"][0];
+            choice["delta"]["content"]
+                .as_str()
+                .or_else(|| choice["message"]["content"].as_str())
+                .map(str::to_string)
+        })
+        .collect();
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_string())
+}
+
+/// A successful reply that held no readable answer, with enough of what
+/// came back to tell what went wrong. Provider replies never contain the
+/// key, so the snippet is safe to show.
+pub fn describe_unreadable(provider: &str, status: u16, content_type: &str, body: &str) -> String {
+    let snippet = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    if snippet.is_empty() {
+        return format!("{provider} sent an empty answer (HTTP {status}).");
+    }
+    let kind = if content_type.is_empty() {
+        String::new()
+    } else {
+        format!(", {content_type}")
+    };
+    format!(
+        "{provider} sent an answer this app could not read (HTTP {status}{kind}: \"{}\").",
+        shorten(&snippet, 100)
+    )
+}
+
 /// A failed reply, in words the user can act on. Includes the provider's
 /// own message when it sends one, shortened.
 pub fn describe_failure(provider: &str, status: u16, body: &str) -> String {
@@ -187,26 +236,6 @@ mod tests {
         assert_eq!(call.body["messages"][0]["content"], SYSTEM_PROMPT);
         assert_eq!(call.body["messages"][1]["content"], "my rough note");
         assert_eq!(call.body["stream"], false);
-    }
-
-    #[test]
-    fn github_models_adds_githubs_headers() {
-        let call = build(
-            &resolved(
-                "github",
-                Some("github_pat_1"),
-                "openai/gpt-4.1-mini",
-                "https://models.github.ai/inference",
-            ),
-            "n",
-        );
-        assert_eq!(
-            call.url,
-            "https://models.github.ai/inference/chat/completions"
-        );
-        assert_eq!(header(&call, "Authorization"), Some("Bearer github_pat_1"));
-        assert_eq!(header(&call, "Accept"), Some("application/vnd.github+json"));
-        assert_eq!(header(&call, "X-GitHub-Api-Version"), Some("2022-11-28"));
     }
 
     #[test]
@@ -326,5 +355,54 @@ mod tests {
         );
         let long = format!(r#"{{"error":{{"message":"{}"}}}}"#, "x".repeat(500));
         assert!(describe_failure("Claude", 400, &long).chars().count() < 280);
+    }
+
+    #[test]
+    fn a_streamed_openai_reply_is_read_too() {
+        let body = "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"}}]}\n\n\
+                    data: {\"choices\":[{\"delta\":{\"content\":\"Fix\"}}]}\n\n\
+                    data: {\"choices\":[{\"delta\":{\"content\":\"ed.\"}}]}\n\n\
+                    data: [DONE]\n";
+        assert_eq!(read_body(Wire::OpenAi, body).as_deref(), Some("Fixed."));
+    }
+
+    #[test]
+    fn a_reply_with_a_byte_order_mark_or_padding_is_read() {
+        let body = "\u{feff}\n {\"choices\":[{\"message\":{\"content\":\"Fixed.\"}}]}\n";
+        assert_eq!(read_body(Wire::OpenAi, body).as_deref(), Some("Fixed."));
+    }
+
+    #[test]
+    fn something_unreadable_is_described_with_what_came_back() {
+        assert_eq!(read_body(Wire::OpenAi, "<html>Sign in</html>"), None);
+        let msg = describe_unreadable(
+            "GitHub Models",
+            200,
+            "text/html; charset=utf-8",
+            "<html>\n  <title>Sign in</title>\n</html>",
+        );
+        assert_eq!(
+            msg,
+            "GitHub Models sent an answer this app could not read (HTTP 200, text/html; charset=utf-8: \"<html> <title>Sign in</title> </html>\")."
+        );
+        let empty = describe_unreadable("Ollama", 200, "", "");
+        assert_eq!(empty, "Ollama sent an empty answer (HTTP 200).");
+        let long = describe_unreadable("X", 200, "text/plain", &"y".repeat(400));
+        assert!(long.chars().count() < 200, "{long}");
+    }
+
+    #[test]
+    fn github_models_is_called_like_githubs_own_openai_example() {
+        let call = build(
+            &resolved(
+                "github",
+                Some("github_pat_1"),
+                "openai/gpt-4.1-mini",
+                "https://models.github.ai/inference",
+            ),
+            "n",
+        );
+        assert_eq!(header(&call, "Authorization"), Some("Bearer github_pat_1"));
+        assert_eq!(header(&call, "Accept"), None);
     }
 }

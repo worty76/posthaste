@@ -283,6 +283,12 @@ async fn send(r: &config::Resolved, text: &str) -> AppResult<String> {
     })?;
 
     let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
     let body = response.text().await.map_err(|e| {
         AppError::new(
             "ai_network",
@@ -295,16 +301,11 @@ async fn send(r: &config::Resolved, text: &str) -> AppResult<String> {
             wire::describe_failure(name, status.as_u16(), &body),
         ));
     }
-    let value: serde_json::Value = serde_json::from_str(&body).map_err(|_| {
+    wire::read_body(r.provider.wire, &body).ok_or_else(|| {
+        log::warn!("unreadable answer from {name}: HTTP {status}, {content_type}");
         AppError::new(
             "ai_provider_error",
-            format!("{name} sent an answer this app could not read."),
-        )
-    })?;
-    wire::read_reply(r.provider.wire, &value).ok_or_else(|| {
-        AppError::new(
-            "ai_provider_error",
-            format!("{name} returned an empty answer. Try again."),
+            wire::describe_unreadable(name, status.as_u16(), &content_type, &body),
         )
     })
 }

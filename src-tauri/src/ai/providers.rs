@@ -103,10 +103,8 @@ pub const PROVIDERS: &[Provider] = &[
         key_url: Some("https://github.com/settings/personal-access-tokens/new"),
         key_help: "A GitHub fine-grained token with the Models: read permission.",
         default_model: "openai/gpt-4.1-mini",
-        extra_headers: &[
-            ("Accept", "application/vnd.github+json"),
-            ("X-GitHub-Api-Version", "2022-11-28"),
-        ],
+        // Called like GitHub's own OpenAI-client example: no extra headers.
+        extra_headers: &[],
     },
     Provider {
         id: "openrouter",
@@ -200,8 +198,5 @@ mod tests {
         let github = find("github").unwrap();
         assert_eq!(github.base_url, "https://models.github.ai/inference");
         assert_eq!(github.wire, Wire::OpenAi);
-        assert!(github
-            .extra_headers
-            .contains(&("X-GitHub-Api-Version", "2022-11-28")));
     }
 }
