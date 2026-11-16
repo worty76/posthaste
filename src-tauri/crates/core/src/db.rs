@@ -593,6 +593,36 @@ impl Db {
         Ok(())
     }
 
+    // ---- secrets -------------------------------------------------------------
+
+    /// A secret kept in the database, for systems with no usable keychain.
+    /// Stored apart from the settings blob, which the interface can see.
+    pub fn secret_get(&self, name: &str) -> Result<Option<String>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                [secret_key(name)],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn secret_set(&mut self, name: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            params![secret_key(name), value],
+        )?;
+        Ok(())
+    }
+
+    pub fn secret_delete(&mut self, name: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM settings WHERE key = ?1", [secret_key(name)])?;
+        Ok(())
+    }
+
     // ---- data management -------------------------------------------------
 
     pub fn info(&self) -> Result<DataInfo> {
@@ -745,5 +775,17 @@ fn parse_settings(json: &str) -> serde_json::Result<Settings> {
     if !has_today_position {
         settings.today_position = settings.capture_position;
     }
+    // Before 0.3.2 one model setting served whichever provider was on.
+    let legacy_model = std::mem::take(&mut settings.ai_model);
+    if !legacy_model.trim().is_empty() && settings.ai_provider != "none" {
+        settings
+            .ai_models
+            .entry(settings.ai_provider.clone())
+            .or_insert(legacy_model);
+    }
     Ok(settings)
+}
+
+fn secret_key(name: &str) -> String {
+    format!("secret:{name}")
 }

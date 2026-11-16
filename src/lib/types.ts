@@ -110,7 +110,8 @@ export interface Draft {
 }
 
 export type Theme = "system" | "light" | "dark";
-export type AiProvider = "none" | "anthropic" | "openai" | "gemini";
+/** A provider id from the native provider table, or "none" for off. */
+export type AiProviderId = string;
 /** Where a floating window opens: one spot of a 3×3 grid on the display. */
 export type CapturePosition =
   | "top_left"
@@ -142,9 +143,11 @@ export interface Settings {
   enter_behavior: EnterBehavior;
   draft_retention: DraftRetention;
   look_id: string | null;
-  ai_provider: AiProvider;
-  ai_api_key: string;
-  ai_model: string;
+  ai_provider: AiProviderId;
+  /** Model per provider id; missing or empty means the provider's default. */
+  ai_models: Record<string, string>;
+  /** Server address per provider id, for providers that can move. */
+  ai_base_urls: Record<string, string>;
 }
 
 // Mirrors the look types in src-tauri/crates/core/src/look/. Keep in step.
@@ -259,3 +262,25 @@ export type View = "inbox" | "today" | "later" | "archive" | "trash" | "settings
 export const DEFAULT_CAPTURE_SHORTCUT = "CmdOrCtrl+Shift+Space";
 export const defaultInboxShortcut = (os: Os) => (os === "macos" ? "Cmd+Ctrl+N" : "Ctrl+Alt+N");
 export const defaultTodayShortcut = (os: Os) => (os === "macos" ? "Cmd+Ctrl+G" : "Ctrl+Alt+G");
+
+/** Whether a provider takes an API key. */
+export type AiKeyNeed = "required" | "optional" | "none";
+
+/** One AI provider as Settings shows it. The key itself never reaches the page. */
+export interface AiProviderInfo {
+  id: AiProviderId;
+  name: string;
+  key: AiKeyNeed;
+  has_key: boolean;
+  key_url: string | null;
+  key_help: string;
+  default_model: string;
+  base_url: string;
+  base_url_editable: boolean;
+}
+
+export interface AiOverview {
+  /** Where keys are kept: the system keychain, or the database when there is none. */
+  backend: "keychain" | "database";
+  providers: AiProviderInfo[];
+}

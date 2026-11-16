@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -250,18 +252,6 @@ pub enum EnterBehavior {
     Newline,
 }
 
-/// Which AI provider polishes notes, if any. Off by default: nothing is
-/// sent anywhere until the user picks a provider and adds their own key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum AiProvider {
-    #[default]
-    None,
-    Anthropic,
-    OpenAI,
-    Gemini,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DraftRetention {
@@ -324,10 +314,25 @@ pub struct Settings {
     /// The selected look. `None` is the Plain look (system/light/dark);
     /// out of the box every install wears Ink.
     pub look_id: Option<String>,
-    /// AI polish: the provider, the user's own API key, and the model
-    /// (empty string = the provider's small default model).
-    pub ai_provider: AiProvider,
+    /// AI polish: the id of the provider that polishes notes, or "none".
+    /// Off by default: nothing is sent anywhere until the user picks a
+    /// provider (and adds a key, for those that need one).
+    pub ai_provider: String,
+    /// The model chosen per provider id. Missing or empty means that
+    /// provider's small default.
+    pub ai_models: BTreeMap<String, String>,
+    /// The address chosen per provider id, for providers that can point at
+    /// another server (a local Ollama, any OpenAI-compatible service).
+    pub ai_base_urls: BTreeMap<String, String>,
+    /// Before 0.3.2 the API key lived here, in plain text. Kept on disk
+    /// only until startup moves it to the keychain, so a failed move or an
+    /// early save never loses it; empty (and not written) after that.
+    /// Never sent to the interface.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub ai_api_key: String,
+    /// Before 0.3.2 one model for whichever provider was on. Read once and
+    /// moved into `ai_models`; never written again.
+    #[serde(skip_serializing)]
     pub ai_model: String,
 }
 
@@ -348,7 +353,9 @@ impl Default for Settings {
             enter_behavior: EnterBehavior::Save,
             draft_retention: DraftRetention::Forever,
             look_id: Some(crate::look::DEFAULT_LOOK_ID.into()),
-            ai_provider: AiProvider::None,
+            ai_provider: "none".into(),
+            ai_models: BTreeMap::new(),
+            ai_base_urls: BTreeMap::new(),
             ai_api_key: String::new(),
             ai_model: String::new(),
         }

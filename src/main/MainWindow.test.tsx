@@ -607,16 +607,10 @@ describe("settings", () => {
 
   it("sets up AI polish from the settings section", async () => {
     const user = await openSettings();
-    await user.click(screen.getByRole("radio", { name: "Claude" }));
+    await user.selectOptions(await screen.findByLabelText("Polish with"), "anthropic");
     await waitFor(() =>
       expect(api.settingsUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ ai_provider: "anthropic" }),
-      ),
-    );
-    await user.type(screen.getByLabelText("AI API key"), "sk-test");
-    await waitFor(() =>
-      expect(api.settingsUpdate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ ai_api_key: "sk-test" }),
       ),
     );
   });

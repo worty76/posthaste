@@ -2,7 +2,7 @@
 // native events with `emit`.
 
 import { vi } from "vitest";
-import type { Note, Settings, SettingsState } from "../lib/types";
+import type { AiOverview, AiProviderInfo, Note, Settings, SettingsState } from "../lib/types";
 
 export const defaultSettings: Settings = {
   theme: "system",
@@ -20,8 +20,8 @@ export const defaultSettings: Settings = {
   draft_retention: "forever",
   look_id: "builtin:ink",
   ai_provider: "none",
-  ai_api_key: "",
-  ai_model: "",
+  ai_models: {},
+  ai_base_urls: {},
 };
 
 export function settingsState(patch: Partial<Settings> = {}): SettingsState {
@@ -114,6 +114,11 @@ export const api = {
   lookExportCode: vi.fn(),
   lookDelete: vi.fn(),
   aiPolish: vi.fn(),
+  aiProviders: vi.fn(),
+  aiKeySet: vi.fn(),
+  aiKeyClear: vi.fn(),
+  aiKeyPage: vi.fn(),
+  aiTest: vi.fn(),
   checkForUpdate: vi.fn(),
   installUpdate: vi.fn(),
 };
@@ -124,6 +129,7 @@ export function resetIpc() {
   Object.values(api).forEach((fn) => fn.mockReset().mockResolvedValue(undefined));
   api.settingsGet.mockResolvedValue(settingsState());
   api.settingsUpdate.mockImplementation(async (s: Settings) => settingsState(s));
+  api.aiProviders.mockResolvedValue(aiOverview());
   api.draftGet.mockResolvedValue(null);
   api.notesList.mockResolvedValue([]);
   api.notesCounts.mockResolvedValue({ inbox: 0, today: 0, later: 0, archive: 0, trash: 0 });
@@ -173,3 +179,72 @@ export const ipcMock = {
     return { code: "unknown", message: "Something went wrong." };
   },
 };
+
+/** The native provider table, as `ai_providers` reports it. */
+export const aiProviderList: AiProviderInfo[] = [
+  {
+    id: "anthropic",
+    name: "Claude",
+    key: "required",
+    has_key: false,
+    key_url: "console.anthropic.com/settings/keys",
+    key_help: "An Anthropic API key.",
+    default_model: "claude-haiku-4-5",
+    base_url: "api.anthropic.com/v1",
+    base_url_editable: false,
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    key: "required",
+    has_key: false,
+    key_url: "platform.openai.com/api-keys",
+    key_help: "An OpenAI API key.",
+    default_model: "gpt-4o-mini",
+    base_url: "api.openai.com/v1",
+    base_url_editable: false,
+  },
+  {
+    id: "github",
+    name: "GitHub Models",
+    key: "required",
+    has_key: false,
+    key_url: "github.com/settings/personal-access-tokens/new",
+    key_help: "A GitHub fine-grained token with the Models: read permission.",
+    default_model: "openai/gpt-4.1-mini",
+    base_url: "models.github.ai/inference",
+    base_url_editable: false,
+  },
+  {
+    id: "ollama",
+    name: "Ollama",
+    key: "none",
+    has_key: false,
+    key_url: null,
+    key_help: "Runs on this computer. Notes never leave it.",
+    default_model: "llama3.2",
+    base_url: "localhost:11434/v1",
+    base_url_editable: true,
+  },
+  {
+    id: "custom",
+    name: "OpenAI-compatible",
+    key: "optional",
+    has_key: false,
+    key_url: null,
+    key_help: "Any server that speaks the OpenAI chat format.",
+    default_model: "",
+    base_url: "",
+    base_url_editable: true,
+  },
+];
+
+export function aiOverview(
+  keyed: string[] = [],
+  backend: AiOverview["backend"] = "keychain",
+): AiOverview {
+  return {
+    backend,
+    providers: aiProviderList.map((p) => ({ ...p, has_key: keyed.includes(p.id) })),
+  };
+}

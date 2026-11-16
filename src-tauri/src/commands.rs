@@ -549,7 +549,7 @@ pub fn settings_get(app: AppHandle, state: State<'_, AppState>) -> SettingsState
         settings.launch_at_login = enabled;
     }
     SettingsState {
-        settings,
+        settings: crate::ai::for_interface(&settings),
         shortcuts: lock(&state.shortcuts).clone(),
     }
 }
@@ -561,6 +561,7 @@ pub fn settings_update(
     settings: Settings,
 ) -> AppResult<SettingsState> {
     let old = state.settings();
+    let settings = crate::ai::keep_legacy_key(settings, &old);
 
     if settings.launch_at_login != app.autolaunch().is_enabled().unwrap_or(old.launch_at_login) {
         let result = if settings.launch_at_login {
@@ -607,7 +608,7 @@ pub fn settings_update(
         // next time so the new size shows.
         state.details_placed.store(false, Ordering::Relaxed);
     }
-    let _ = app.emit("settings-changed", &settings);
+    let _ = app.emit("settings-changed", crate::ai::for_interface(&settings));
 
     Ok(SettingsState {
         settings,
@@ -714,23 +715,31 @@ pub async fn data_backup(app: AppHandle, state: State<'_, AppState>) -> AppResul
 /// Deletes all notes, drafts and settings. The frontend asks for explicit
 /// confirmation first; `confirm` is a second guard against stray calls.
 #[tauri::command]
-pub fn data_clear(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    confirm: String,
-) -> AppResult<SettingsState> {
+pub async fn data_clear(app: AppHandle, confirm: String) -> AppResult<SettingsState> {
     if confirm != "DELETE" {
         return Err(AppError::new(
             "not_confirmed",
             "Clearing data was not confirmed.",
         ));
     }
-    state.with_db(|db| db.clear_all())?;
+    app.state::<AppState>().with_db(|db| db.clear_all())?;
     log::warn!("all application data cleared at the user's request");
     notes_changed(&app);
     looks_changed(&app);
+    // Keys come off the main thread (the keychain may prompt) and never
+    // stop the reset: the notes are already gone.
+    let keys_app = app.clone();
+    let left = tauri::async_runtime::spawn_blocking(move || {
+        let secrets = keys_app.state::<crate::ai::SecretsCell>().wait();
+        crate::ai::forget_all_keys(&keys_app.state::<AppState>(), &secrets)
+    })
+    .await
+    .unwrap_or(0);
+    if left > 0 {
+        log::warn!("{left} AI key(s) could not be removed from the keychain");
+    }
     // Settings are back to defaults; apply them like any other change.
-    settings_update(app, state, Settings::default())
+    settings_update(app.clone(), app.state::<AppState>(), Settings::default())
 }
 
 // ---- looks -------------------------------------------------------------------

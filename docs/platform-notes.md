@@ -170,3 +170,27 @@ for the moment it is shown and then leaves again, so it appears on the
 desktop the user is on instead of switching them back to the Space it was
 last shown on (or out of a full-screen app). Not yet checked on a Mac.
 
+
+## AI providers and keys
+
+AI polish can use any provider in `src-tauri/src/ai/providers.rs`; adding
+one that speaks the OpenAI chat format is a single entry there. Requests go
+straight from this computer to the provider (or to the server the user runs).
+
+Keys are stored with the `keyring` crate: macOS Keychain, Windows Credential
+Manager, or the Secret Service on Linux (GNOME Keyring, KWallet). When no
+keychain answers at startup — common on minimal Linux setups with no Secret
+Service running — keys go to a `secret:ai:<provider>` row in the database
+instead, apart from the settings the interface reads, and Settings says
+which store is in use. Keys from 0.3.1 and earlier (plain text in the
+settings) move to the keychain on the first launch of 0.3.2.
+
+On macOS an unsigned development build may ask for keychain access again
+after each rebuild, because its code signature changes.
+
+GitHub: "GitHub Models" uses GitHub's documented inference API with a
+fine-grained token that has the Models: read permission. GitHub Copilot has
+no public API for other apps, so it is not offered.
+
+Checked on Linux without a keychain (database fallback, key moved from old
+settings, Settings shown). Not yet checked on macOS or Windows.

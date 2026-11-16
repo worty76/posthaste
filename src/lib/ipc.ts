@@ -7,6 +7,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import type {
+  AiOverview,
   AppError,
   AppInfo,
   AttachReport,
@@ -107,6 +108,11 @@ export const api = {
   lookDelete: (id: string) => invoke<void>("look_delete", { id }),
 
   aiPolish: (text: string) => invoke<string>("ai_polish", { text }),
+  aiProviders: () => invoke<AiOverview>("ai_providers"),
+  aiKeySet: (provider: string, key: string) => invoke<AiOverview>("ai_key_set", { provider, key }),
+  aiKeyClear: (provider: string) => invoke<AiOverview>("ai_key_clear", { provider }),
+  aiKeyPage: (provider: string) => invoke<void>("ai_key_page", { provider }),
+  aiTest: (provider: string) => invoke<string>("ai_test", { provider }),
 
   /** Looks for a newer release. Null means the app is current. */
   checkForUpdate: async (): Promise<UpdateInfo | null> => {

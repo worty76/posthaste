@@ -235,9 +235,7 @@ describe("drafts", () => {
 
 describe("ai polish", () => {
   it("replaces the note text with the polished version", async () => {
-    api.settingsGet.mockResolvedValue(
-      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
-    );
+    api.settingsGet.mockResolvedValue(settingsState({ ai_provider: "anthropic" }));
     api.aiPolish.mockResolvedValue("Return the library books");
     const user = await open();
     await user.type(input(), "retun libary book");
@@ -248,9 +246,7 @@ describe("ai polish", () => {
   });
 
   it("keeps the note and shows the error when polishing fails", async () => {
-    api.settingsGet.mockResolvedValue(
-      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
-    );
+    api.settingsGet.mockResolvedValue(settingsState({ ai_provider: "anthropic" }));
     api.aiPolish.mockRejectedValue({
       code: "ai_provider_error",
       message:
@@ -264,18 +260,14 @@ describe("ai polish", () => {
   });
 
   it("shows the polish shortcut on the button", async () => {
-    api.settingsGet.mockResolvedValue(
-      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
-    );
+    api.settingsGet.mockResolvedValue(settingsState({ ai_provider: "anthropic" }));
     await open();
     const button = await screen.findByRole("button", { name: "Polish note with AI" });
     expect(button).toHaveTextContent(/Ctrl\s*I\s*polish/);
   });
 
   it("locks the note while polishing and ignores a second polish", async () => {
-    api.settingsGet.mockResolvedValue(
-      settingsState({ ai_provider: "anthropic", ai_api_key: "key" }),
-    );
+    api.settingsGet.mockResolvedValue(settingsState({ ai_provider: "anthropic" }));
     let finish: (text: string) => void = () => undefined;
     api.aiPolish.mockReturnValue(new Promise<string>((r) => (finish = r)));
     const user = await open();

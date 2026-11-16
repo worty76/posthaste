@@ -1829,3 +1829,100 @@ fn every_position_round_trips_for_both_windows() {
             .contains(&format!(r#""capture_position":"{name}""#)));
     }
 }
+
+// ---- AI providers --------------------------------------------------------
+
+#[test]
+fn old_ai_settings_load_into_the_per_provider_shape() {
+    let db = db();
+    store_settings(
+        &db,
+        r#"{"ai_provider":"openai","ai_api_key":"sk-old","ai_model":"gpt-4.1-nano"}"#,
+    );
+    let s = db.load_settings().unwrap();
+    assert_eq!(s.ai_provider, "openai");
+    assert_eq!(
+        s.ai_models.get("openai").map(String::as_str),
+        Some("gpt-4.1-nano")
+    );
+    // The old key is readable once, for moving into the keychain...
+    assert_eq!(s.ai_api_key, "sk-old");
+}
+
+#[test]
+fn an_old_key_stays_on_disk_until_it_has_moved_and_no_other_key_is_ever_written() {
+    let mut db = db();
+    let raw = |db: &Db| -> String {
+        db.conn()
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'settings'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    // Nothing to move: no key field at all, and the old model field is gone.
+    let s = Settings {
+        ai_provider: "anthropic".into(),
+        ai_model: "legacy".into(),
+        ..Settings::default()
+    };
+    db.save_settings(&s).unwrap();
+    assert!(!raw(&db).contains("ai_api_key"), "{}", raw(&db));
+    assert!(!raw(&db).contains("\"ai_model\""), "{}", raw(&db));
+
+    // An old key not yet moved survives any save, so a failed move or an
+    // early save can never lose it.
+    let s = Settings {
+        ai_api_key: "sk-old".into(),
+        ..s
+    };
+    db.save_settings(&s).unwrap();
+    assert_eq!(db.load_settings().unwrap().ai_api_key, "sk-old");
+}
+
+#[test]
+fn any_provider_id_round_trips_with_its_model_and_address() {
+    let mut db = db();
+    let mut s = Settings {
+        ai_provider: "custom".into(),
+        ..Settings::default()
+    };
+    s.ai_models.insert("custom".into(), "my-model".into());
+    s.ai_base_urls
+        .insert("custom".into(), "http://localhost:1234/v1".into());
+    db.save_settings(&s).unwrap();
+    let loaded = db.load_settings().unwrap();
+    assert_eq!(loaded.ai_provider, "custom");
+    assert_eq!(loaded.ai_models["custom"], "my-model");
+    assert_eq!(loaded.ai_base_urls["custom"], "http://localhost:1234/v1");
+}
+
+#[test]
+fn ai_is_off_by_default() {
+    assert_eq!(Settings::default().ai_provider, "none");
+}
+
+#[test]
+fn fallback_secrets_are_stored_apart_from_the_settings() {
+    let mut db = db();
+    assert_eq!(db.secret_get("ai:openai").unwrap(), None);
+    db.secret_set("ai:openai", "sk-1").unwrap();
+    db.secret_set("ai:openai", "sk-2").unwrap();
+    assert_eq!(db.secret_get("ai:openai").unwrap().as_deref(), Some("sk-2"));
+    // Settings load and save untouched by a stored secret.
+    db.save_settings(&Settings::default()).unwrap();
+    assert_eq!(db.load_settings().unwrap(), Settings::default());
+    db.secret_delete("ai:openai").unwrap();
+    assert_eq!(db.secret_get("ai:openai").unwrap(), None);
+    // Deleting what is not there is fine.
+    db.secret_delete("ai:openai").unwrap();
+}
+
+#[test]
+fn clearing_all_data_removes_fallback_secrets() {
+    let mut db = db();
+    db.secret_set("ai:gemini", "key").unwrap();
+    db.clear_all().unwrap();
+    assert_eq!(db.secret_get("ai:gemini").unwrap(), None);
+}
