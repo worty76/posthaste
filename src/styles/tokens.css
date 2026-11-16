@@ -85,8 +85,9 @@
   --bg-sunken: #eeeeee;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --hover: rgba(0, 0, 0, 0.045);
-  --active: rgba(0, 0, 0, 0.08);
+  /* Strong enough to read on a white panel; 4.5% vanished on screen. */
+  --hover: rgba(0, 0, 0, 0.06);
+  --active: rgba(0, 0, 0, 0.1);
   --border: rgba(0, 0, 0, 0.1);
   --border-strong: rgba(0, 0, 0, 0.18);
   --text: #1a1a1a;
