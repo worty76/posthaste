@@ -1850,6 +1850,19 @@ fn old_ai_settings_load_into_the_per_provider_shape() {
 }
 
 #[test]
+fn a_provider_that_has_shut_down_reverts_to_off() {
+    let db = db();
+    store_settings(
+        &db,
+        r#"{"ai_provider":"github","ai_models":{"github":"openai/gpt-4.1","openai":"gpt-4o"},"ai_model":"x"}"#,
+    );
+    let s = db.load_settings().unwrap();
+    assert_eq!(s.ai_provider, "none");
+    assert!(!s.ai_models.contains_key("github"));
+    assert_eq!(s.ai_models["openai"], "gpt-4o");
+}
+
+#[test]
 fn an_old_key_stays_on_disk_until_it_has_moved_and_no_other_key_is_ever_written() {
     let mut db = db();
     let raw = |db: &Db| -> String {

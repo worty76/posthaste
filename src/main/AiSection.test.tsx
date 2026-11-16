@@ -30,7 +30,6 @@ describe("AI section", () => {
       "Off",
       "Claude",
       "OpenAI",
-      "GitHub Models",
       "Ollama",
       "OpenAI-compatible",
     ]);
@@ -39,8 +38,8 @@ describe("AI section", () => {
 
   it("choosing a provider saves it", async () => {
     const { set, user } = setup();
-    await user.selectOptions(await picker(), "github");
-    expect(set).toHaveBeenCalledWith({ ai_provider: "github" });
+    await user.selectOptions(await picker(), "openai");
+    expect(set).toHaveBeenCalledWith({ ai_provider: "openai" });
   });
 
   it("saves a pasted key to the keychain, never into the settings", async () => {
@@ -85,10 +84,9 @@ describe("AI section", () => {
   });
 
   it("links to where the provider hands out keys", async () => {
-    const { user } = setup({ ai_provider: "github" });
-    expect(await screen.findByText(/Models: read permission/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Get a key" }));
-    expect(api.aiKeyPage).toHaveBeenCalledWith("github");
+    const { user } = setup({ ai_provider: "openai" });
+    await user.click(await screen.findByRole("button", { name: "Get a key" }));
+    expect(api.aiKeyPage).toHaveBeenCalledWith("openai");
   });
 
   it("a local provider needs no key and says notes stay on this computer", async () => {
@@ -129,10 +127,10 @@ describe("AI section", () => {
   });
 
   it("the model field shows the provider's default until one is typed", async () => {
-    setup({ ai_provider: "github" });
-    expect(await screen.findByLabelText("GitHub Models model")).toHaveAttribute(
+    setup({ ai_provider: "openai" });
+    expect(await screen.findByLabelText("OpenAI model")).toHaveAttribute(
       "placeholder",
-      "openai/gpt-4.1-mini",
+      "gpt-4o-mini",
     );
   });
 

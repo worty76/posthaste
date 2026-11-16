@@ -188,9 +188,9 @@ settings) move to the keychain on the first launch of 0.3.2.
 On macOS an unsigned development build may ask for keychain access again
 after each rebuild, because its code signature changes.
 
-GitHub: "GitHub Models" uses GitHub's documented inference API with a
-fine-grained token that has the Models: read permission. GitHub Copilot has
-no public API for other apps, so it is not offered.
+GitHub Models is not offered: GitHub retired the service on 30 July 2026,
+and GitHub Copilot has no public API for other apps. A saved choice of
+GitHub Models (from a development build) reverts to Off.
 
 Checked on Linux without a keychain (database fallback, key moved from old
 settings, Settings shown). Not yet checked on macOS or Windows.

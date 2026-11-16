@@ -191,6 +191,9 @@ pub fn start(app: &tauri::AppHandle) {
         if let Err(e) = migrate_legacy_key(&state, &secrets) {
             log::error!("the old AI key could not be moved: {}", e.message);
         }
+        for retired in posthaste_core::RETIRED_AI_PROVIDERS {
+            let _ = secrets.delete(&state, &key_account(retired));
+        }
         let accounts = key_accounts();
         let accounts: Vec<&str> = accounts.iter().map(String::as_str).collect();
         secrets.adopt_database_keys(&state, &accounts);
@@ -481,11 +484,11 @@ mod tests {
     fn the_overview_says_which_providers_have_keys_without_revealing_them() {
         let state = state();
         let (_, secrets) = keychain();
-        secrets.set(&state, "ai:github", "github_pat_x").unwrap();
+        secrets.set(&state, "ai:openrouter", "or-key-x").unwrap();
         let o = overview(&state, &secrets).unwrap();
         assert_eq!(o.backend, Backend::Keychain);
-        let github = o.providers.iter().find(|p| p.id == "github").unwrap();
-        assert!(github.has_key);
+        let router = o.providers.iter().find(|p| p.id == "openrouter").unwrap();
+        assert!(router.has_key);
         assert!(
             !o.providers
                 .iter()
@@ -493,7 +496,7 @@ mod tests {
                 .unwrap()
                 .has_key
         );
-        assert!(!serde_json::to_string(&o).unwrap().contains("github_pat_x"));
+        assert!(!serde_json::to_string(&o).unwrap().contains("or-key-x"));
         assert_eq!(o.providers.len(), PROVIDERS.len());
     }
 

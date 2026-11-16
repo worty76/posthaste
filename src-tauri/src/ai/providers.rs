@@ -12,7 +12,7 @@ use serde::Serialize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wire {
     /// `POST {base}/chat/completions`, OpenAI's chat format. Also spoken by
-    /// GitHub Models, OpenRouter, Ollama and most self-hosted servers.
+    /// OpenRouter, Ollama and most self-hosted servers.
     OpenAi,
     /// `POST {base}/messages`, Anthropic's Messages API.
     Anthropic,
@@ -88,22 +88,6 @@ pub const PROVIDERS: &[Provider] = &[
         key_url: Some("https://aistudio.google.com/app/apikey"),
         key_help: "A Google AI Studio API key.",
         default_model: "gemini-2.0-flash",
-        extra_headers: &[],
-    },
-    Provider {
-        // GitHub Models: GitHub's documented, OpenAI-compatible inference
-        // API, free to start with any GitHub account. (Copilot itself has no
-        // public API for other apps.)
-        id: "github",
-        name: "GitHub Models",
-        wire: Wire::OpenAi,
-        base_url: "https://models.github.ai/inference",
-        base_url_editable: false,
-        key: KeyNeed::Required,
-        key_url: Some("https://github.com/settings/personal-access-tokens/new"),
-        key_help: "A GitHub fine-grained token with the Models: read permission.",
-        default_model: "openai/gpt-4.1-mini",
-        // Called like GitHub's own OpenAI-client example: no extra headers.
         extra_headers: &[],
     },
     Provider {
@@ -191,12 +175,5 @@ mod tests {
             }
             assert!(!p.key_help.is_empty(), "{}", p.id);
         }
-    }
-
-    #[test]
-    fn github_models_uses_githubs_documented_api() {
-        let github = find("github").unwrap();
-        assert_eq!(github.base_url, "https://models.github.ai/inference");
-        assert_eq!(github.wire, Wire::OpenAi);
     }
 }

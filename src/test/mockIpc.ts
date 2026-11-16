@@ -205,17 +205,6 @@ export const aiProviderList: AiProviderInfo[] = [
     base_url_editable: false,
   },
   {
-    id: "github",
-    name: "GitHub Models",
-    key: "required",
-    has_key: false,
-    key_url: "github.com/settings/personal-access-tokens/new",
-    key_help: "A GitHub fine-grained token with the Models: read permission.",
-    default_model: "openai/gpt-4.1-mini",
-    base_url: "models.github.ai/inference",
-    base_url_editable: false,
-  },
-  {
     id: "ollama",
     name: "Ollama",
     key: "none",

@@ -41,7 +41,7 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 - **Looks** — six built-in colour themes, or make your own with a live editor
   that refuses anything hard to read; share any look with a one-line code
 - **AI polish** — optional. Off by default; when you turn it on, your note goes
-  straight to the provider you picked: Claude, OpenAI, Gemini, GitHub Models,
+  straight to the provider you picked: Claude, OpenAI, Gemini,
   OpenRouter, any OpenAI-compatible server, or Ollama on your own computer.
   Keys live in your system keychain, never in the settings
 - **In-app updates** — signed installers, one click, nothing auto-runs

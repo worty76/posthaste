@@ -766,6 +766,9 @@ fn like_escape(text: &str) -> String {
     out
 }
 
+/// AI providers that were offered once and have shut down.
+pub const RETIRED_AI_PROVIDERS: &[&str] = &["github"];
+
 /// Reads stored settings. Today shared the capture window's position before
 /// it had its own, so a blob without one starts Today where capture is.
 fn parse_settings(json: &str) -> serde_json::Result<Settings> {
@@ -774,6 +777,14 @@ fn parse_settings(json: &str) -> serde_json::Result<Settings> {
     let mut settings: Settings = serde_json::from_value(value)?;
     if !has_today_position {
         settings.today_position = settings.capture_position;
+    }
+    // A provider that no longer exists reverts to off.
+    for retired in RETIRED_AI_PROVIDERS {
+        if settings.ai_provider == *retired {
+            settings.ai_provider = "none".into();
+        }
+        settings.ai_models.remove(*retired);
+        settings.ai_base_urls.remove(*retired);
     }
     // Before 0.3.2 one model setting served whichever provider was on.
     let legacy_model = std::mem::take(&mut settings.ai_model);

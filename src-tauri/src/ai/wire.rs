@@ -346,7 +346,7 @@ mod tests {
                 .contains("model 'x' not found")
         );
         assert!(
-            describe_failure("GitHub Models", 403, r#"{"message":"Forbidden"}"#)
+            describe_failure("OpenRouter", 403, r#"{"message":"Forbidden"}"#)
                 .contains("(Forbidden)")
         );
         assert_eq!(
@@ -376,33 +376,18 @@ mod tests {
     fn something_unreadable_is_described_with_what_came_back() {
         assert_eq!(read_body(Wire::OpenAi, "<html>Sign in</html>"), None);
         let msg = describe_unreadable(
-            "GitHub Models",
+            "OpenRouter",
             200,
             "text/html; charset=utf-8",
             "<html>\n  <title>Sign in</title>\n</html>",
         );
         assert_eq!(
             msg,
-            "GitHub Models sent an answer this app could not read (HTTP 200, text/html; charset=utf-8: \"<html> <title>Sign in</title> </html>\")."
+            "OpenRouter sent an answer this app could not read (HTTP 200, text/html; charset=utf-8: \"<html> <title>Sign in</title> </html>\")."
         );
         let empty = describe_unreadable("Ollama", 200, "", "");
         assert_eq!(empty, "Ollama sent an empty answer (HTTP 200).");
         let long = describe_unreadable("X", 200, "text/plain", &"y".repeat(400));
         assert!(long.chars().count() < 200, "{long}");
-    }
-
-    #[test]
-    fn github_models_is_called_like_githubs_own_openai_example() {
-        let call = build(
-            &resolved(
-                "github",
-                Some("github_pat_1"),
-                "openai/gpt-4.1-mini",
-                "https://models.github.ai/inference",
-            ),
-            "n",
-        );
-        assert_eq!(header(&call, "Authorization"), Some("Bearer github_pat_1"));
-        assert_eq!(header(&call, "Accept"), None);
     }
 }
