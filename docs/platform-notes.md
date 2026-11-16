@@ -95,7 +95,8 @@ src/                      React + TypeScript UI (no business logic)
   styles/tokens.css       design tokens: colour, type, spacing, motion
 src-tauri/
   crates/core/            storage. SQLite, migrations, notes, drafts, search,
-                          settings, export/import. No Tauri dependency.
+                          settings, export/import (Markdown and JSON).
+                          No Tauri dependency.
   crates/platform/        per-OS "which app was in front / give focus back"
   src/                    Tauri shell: windows, shortcuts, tray, commands
 scripts/e2e-linux.sh      end-to-end test against real windows under Xvfb
@@ -145,12 +146,68 @@ history and shows as it is now. The calendar's first weekday comes from the
 locale where the webview exposes it (`Intl.Locale` week info) and is Monday
 otherwise; not checked on the macOS or Windows webviews.
 
+## Window position
+
+Capture and Today each have their own position: one spot of a 3×3 grid on the
+display under the pointer, 8 logical pixels from the edges it sits against
+(the window's transparent shadow margin adds to that). Settings from before
+0.3.2 had one shared position; Today starts where capture was, and the old
+"Upper third" loads as Top center, which now sits near the top edge rather
+than 22% down. The details window always opens centred.
+
 ## Window sizes
 
 Capture, Today and the details window's first-open size are base sizes times
 the Window size setting: Compact 0.9, Standard 1.0 (the original sizes), Roomy
 1.2. Capture's width is still 42% of the display, within bounds that scale the
 same way. Every panel is clamped to the display's work area in both width and
-height, so Roomy stays on a short display. The details window is placed once
-per run; changing the setting places it afresh on its next open.
+height, so Roomy stays on a short display. The details window gets its base
+size on its first open in a run; after that it keeps the size the user left
+it at, and changing the setting resizes it afresh on its next open.
 
+Each time the details window opens from hidden it is centred on the display
+the pointer is on, like capture and Today. On macOS it also joins every Space
+for the moment it is shown and then leaves again, so it appears on the
+desktop the user is on instead of switching them back to the Space it was
+last shown on (or out of a full-screen app). Not yet checked on a Mac.
+
+
+## AI providers and keys
+
+AI polish can use any provider in `src-tauri/src/ai/providers.rs`; adding
+one that speaks the OpenAI chat format is a single entry there. Requests go
+straight from this computer to the provider (or to the server the user runs).
+
+Keys are stored with the `keyring` crate: macOS Keychain, Windows Credential
+Manager, or the Secret Service on Linux (GNOME Keyring, KWallet). When no
+keychain answers at startup — common on minimal Linux setups with no Secret
+Service running — keys go to a `secret:ai:<provider>` row in the database
+instead, apart from the settings the interface reads, and Settings says
+which store is in use. Keys from 0.3.1 and earlier (plain text in the
+settings) move to the keychain on the first launch of 0.3.2.
+
+On macOS an unsigned development build may ask for keychain access again
+after each rebuild, because its code signature changes.
+The keychain is read only when a key is used (polish, Test) or saved; opening
+Settings never reads it, so it never asks for a password. "Key saved" comes
+from a marker in the database that holds no secret. Keys from an older build
+are noticed once, at the first launch that has markers.
+
+GitHub Models is not offered: GitHub retired the service on 30 July 2026,
+and GitHub Copilot has no public API for other apps. A saved choice of
+GitHub Models (from a development build) reverts to Off.
+
+Checked on Linux without a keychain (database fallback, key moved from old
+settings, Settings shown). Not yet checked on macOS or Windows.
+
+## Capture and Today are non-activating panels (macOS)
+
+Showing an ordinary window makes its application active, and activating
+Posthaste brings every Posthaste window in front of the app you are working
+in, greys that app out and can switch desktops. So on macOS the capture and
+Today windows are turned into `NSPanel`s with the non-activating style
+(through `tauri-nspanel`, `src-tauri/src/panels.rs`), like Spotlight: they
+take the keyboard but Posthaste stays in the background and the app you were
+in stays active behind them. They float on every desktop and above apps in
+full screen. If a window cannot be made a panel it is shown the ordinary
+way. Not yet checked on a real Mac: type-checked only on Linux.

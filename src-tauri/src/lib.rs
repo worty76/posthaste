@@ -4,6 +4,7 @@
 mod ai;
 mod commands;
 mod error;
+mod panels;
 mod shortcuts;
 mod state;
 mod tray;
@@ -151,6 +152,11 @@ pub fn run() {
             commands::look_export_code,
             commands::look_delete,
             ai::ai_polish,
+            ai::ai_providers,
+            ai::ai_key_set,
+            ai::ai_key_clear,
+            ai::ai_test,
+            ai::ai_key_page,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -158,6 +164,10 @@ pub fn run() {
             let db = open_database(&handle);
             let db_failed = db.is_err();
             app.manage(AppState::new(db));
+            app.manage(ai::SecretsCell::default());
+            // The keychain may prompt or wait on D-Bus: set it up off the
+            // main thread. Saving settings meanwhile keeps any old key.
+            ai::start(&handle);
             let state = handle.state::<AppState>();
             let settings = state.settings();
 

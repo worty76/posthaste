@@ -118,17 +118,17 @@ export const COMPARE_ROWS: CompareRow[] = [
 
 /** Why you would pick Posthaste. Each line is a behaviour, not a boast. */
 export const PICK_POSTHASTE: string[] = [
-  "You want a thought saved before it slips, then to be back in your work.",
-  "You want your notes in a file you can export, not on someone else's server.",
-  "You want AI cleanup on your terms: your key, one note, only when you press Polish.",
+  "You want to manage your to-dos in a simple, distraction-free way through keyboard shortcuts.",
+  "You want your notes in a safe place, not on someone else's server.",
+  "You want AI to improve your notes, but only when you ask for it, and only on the note you are polishing.",
   "You want a short list of what's left today, not a pile of files.",
-  "You work on Windows or Linux as well as a Mac.",
+  "You work on MacOS, Windows or Linux, and want a fast, minimal, keyboard-first to-do app with cool UI and features.",
   "You want to-dos that carry a description and files, and a backup file of everything that you keep wherever you like.",
 ];
 
 /** Where the others are the better pick. Said plainly, because it is true. */
 export const PICK_OTHERS: string[] = [
-  "You need your notes on your phone. Posthaste has no sync and no phone app.",
+  "You need your notes on your phone.",
   "You plan or write with other people, or build pages and tables. That is Notion's job.",
   "You keep a linked library of long notes. Obsidian is built for that.",
   "You live on Apple devices and want scans and drawings beside your notes. That is Apple Notes.",
@@ -137,23 +137,3 @@ export const PICK_OTHERS: string[] = [
   "You want a focus timer, time stats, or coding agents (Claude Code, Codex, Cursor) working your list over MCP. TodoGlow has those.",
   "You want your list synced between your Macs and PCs. TodoGlow offers that after you sign in.",
 ];
-
-/** Posthaste next to TodoGlow, the closest in spirit: a keyboard-first to-do app opened by one
-    global shortcut. Every line comes from TodoGlow's own page (see COMPARE_APPS), and where
-    the page says nothing the line says "doesn't list", never that the app lacks it. */
-export const VS_TODOGLOW = {
-  ours: [
-    "Runs on Linux as well as Mac and Windows. TodoGlow lists Mac and Windows.",
-    "Free and open source under the MIT licence. TodoGlow has a free trial, then a one-time purchase.",
-    "Needs no sign-in for anything. TodoGlow's sign-in is for sync, and its page doesn't say if local use needs an account.",
-    "A description and files on any to-do. TodoGlow's page doesn't list either.",
-    "A backup file and a JSON export from Settings. TodoGlow's page lists only an image of its receipt view.",
-    "Polish with your own Anthropic, OpenAI or Gemini key. TodoGlow's page names Gemini.",
-  ],
-  theirs: [
-    "A timer and a stats dashboard. Posthaste has neither.",
-    "Claude Code, Codex CLI and Cursor can connect to your list over MCP. Posthaste has no agent connection.",
-    "Optional sync between your Macs and PCs after you sign in. Posthaste has no sync.",
-    "A typed command that adds an item to Apple Reminders.",
-  ],
-};

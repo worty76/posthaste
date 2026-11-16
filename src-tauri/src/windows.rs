@@ -11,6 +11,7 @@ use tauri::{
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
+use crate::panels;
 use crate::state::{lock, AppState};
 
 pub const MAIN: &str = "main";
@@ -33,6 +34,9 @@ const DETAILS_WIDTH: f64 = 680.0;
 const DETAILS_HEIGHT: f64 = 620.0;
 const DETAILS_MIN_WIDTH: f64 = 480.0;
 const DETAILS_MIN_HEIGHT: f64 = 420.0;
+/// Space between a floating window and the display edge it sits against.
+/// The window's own transparent margin adds to it.
+const EDGE_GAP: f64 = 8.0;
 /// How long to wait before asking for focus again after hiding another of
 /// our windows.
 const REFOCUS_DELAY: Duration = Duration::from_millis(120);
@@ -117,6 +121,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible_on_all_workspaces(true)
         .visible(false)
         .build()?;
+    panels::adopt(app, &capture);
 
     let handle = app.clone();
     capture.on_window_event(move |event| match event {
@@ -150,6 +155,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible_on_all_workspaces(true)
         .visible(false)
         .build()?;
+    panels::adopt(app, &today);
 
     let handle = app.clone();
     today.on_window_event(move |event| match event {
@@ -227,17 +233,22 @@ pub fn show_capture(app: &AppHandle) {
     );
     *lock(&state.capture_shown_at) = Some(Instant::now());
 
-    if let Err(e) = window.show() {
-        log::error!("capture window could not be shown: {e}");
-        return;
-    }
+    let has_keyboard = match panels::show(app, &window) {
+        Ok(has_keyboard) => has_keyboard,
+        Err(e) => {
+            log::error!("capture window could not be shown: {e}");
+            return;
+        }
+    };
     // Some window managers only honour a position once the window is mapped.
     if let Some(pos) = placed {
         let _ = window.set_position(pos);
     }
     let _ = window.set_always_on_top(true);
-    if let Err(e) = window.set_focus() {
-        log::warn!("capture window could not take focus: {e}");
+    if !has_keyboard {
+        if let Err(e) = window.set_focus() {
+            log::warn!("capture window could not take focus: {e}");
+        }
     }
     let _ = window.emit("capture-shown", CaptureShown { source });
 }
@@ -311,24 +322,29 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
     let placed = place_panel(
         app,
         &window,
-        settings.capture_position,
+        settings.today_position,
         // A glance has one size: fixed width, clamped to the display.
         |_| scaled(TODAY_WIDTH, settings.window_size),
         scaled(TODAY_HEIGHT, settings.window_size),
     );
     *lock(&state.today_shown_at) = Some(Instant::now());
 
-    if let Err(e) = window.show() {
-        log::error!("today window could not be shown: {e}");
-        return;
-    }
+    let has_keyboard = match panels::show(app, &window) {
+        Ok(has_keyboard) => has_keyboard,
+        Err(e) => {
+            log::error!("today window could not be shown: {e}");
+            return;
+        }
+    };
     // Some window managers only honour a position once the window is mapped.
     if let Some(pos) = placed {
         let _ = window.set_position(pos);
     }
     let _ = window.set_always_on_top(true);
-    if let Err(e) = window.set_focus() {
-        log::warn!("today window could not take focus: {e}");
+    if !has_keyboard {
+        if let Err(e) = window.set_focus() {
+            log::warn!("today window could not take focus: {e}");
+        }
     }
     let _ = window.emit(
         if fresh {
@@ -385,6 +401,7 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
     }
     *lock(&state.details_target) = Some(target.clone());
 
+    let was_visible = window.is_visible().unwrap_or(false);
     let first = !state.details_placed.swap(true, Ordering::Relaxed);
     let placed = if first {
         let size = state.settings().window_size;
@@ -395,16 +412,35 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
             |_| scaled(DETAILS_WIDTH, size),
             scaled(DETAILS_HEIGHT, size),
         );
-        // place_panel pins the size; this window is resizable.
-        let _ = window.set_max_size(None::<tauri::Size>);
-        let _ = window.set_min_size(Some(tauri::Size::from(LogicalSize::new(
-            DETAILS_MIN_WIDTH,
-            DETAILS_MIN_HEIGHT,
-        ))));
+        unpin_details_size(&window);
+        placed
+    } else if !was_visible {
+        // Reopening from hidden: open on the display the pointer is on, as
+        // capture and Today do, but keep the size the user left it at.
+        // Placed once and left there, it reappeared on whichever display it
+        // was first opened on.
+        let kept = window
+            .inner_size()
+            .ok()
+            .zip(window.scale_factor().ok())
+            .map(|(s, f)| s.to_logical::<f64>(f));
+        let placed = kept.and_then(|s| {
+            place_panel(app, &window, CapturePosition::Center, |_| s.width, s.height)
+        });
+        unpin_details_size(&window);
         placed
     } else {
         None
     };
+
+    // macOS: a window belongs to the Space (desktop) it was last shown on,
+    // and showing it again switches the user back to that Space, or out of a
+    // full-screen app. Joining every Space for the moment it is shown puts
+    // it on the one the user is on; leaving again keeps it there.
+    #[cfg(target_os = "macos")]
+    if !was_visible {
+        let _ = window.set_visible_on_all_workspaces(true);
+    }
 
     let _ = window.unminimize();
     if let Err(e) = window.show() {
@@ -417,6 +453,10 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
     if let Err(e) = window.set_focus() {
         log::warn!("details window could not take focus: {e}");
     }
+    #[cfg(target_os = "macos")]
+    if !was_visible {
+        settle_on_current_space(window.clone());
+    }
     let _ = window.emit("details-open", target);
     if from_today {
         // Today steps aside once details is up. Some window managers answer
@@ -427,6 +467,25 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         }
         refocus_later(window);
     }
+}
+
+/// place_panel pins the size; the details window is resizable.
+fn unpin_details_size(window: &WebviewWindow) {
+    let _ = window.set_max_size(None::<tauri::Size>);
+    let _ = window.set_min_size(Some(tauri::Size::from(LogicalSize::new(
+        DETAILS_MIN_WIDTH,
+        DETAILS_MIN_HEIGHT,
+    ))));
+}
+
+/// Stops the details window joining every Space once it has appeared on the
+/// current one, so switching desktops leaves it behind like any window.
+#[cfg(target_os = "macos")]
+fn settle_on_current_space(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        std::thread::sleep(REFOCUS_DELAY);
+        let _ = window.set_visible_on_all_workspaces(false);
+    });
 }
 
 /// Asks for focus again shortly after a window-manager focus hand-off.
@@ -565,11 +624,20 @@ fn compute_layout(
     // A tall window on a short display stays on it.
     let h = logical_height.min(area.h - 16.0).max(200.0).round();
 
-    let x = area.x + (area.w - w) / 2.0;
-    let y = match position {
-        CapturePosition::Center => area.y + (area.h - h) / 2.0,
-        CapturePosition::Upper => area.y + (area.h * 0.22).min(area.h - h),
+    // One spot of a 3×3 grid: against an edge with a small gap, or centred.
+    let gap = if area.units_physical {
+        EDGE_GAP * area.scale
+    } else {
+        EDGE_GAP
     };
+    let along = |start: f64, room: f64, size: f64, step: i8| match step {
+        -1 => start + gap,
+        1 => start + room - size - gap,
+        _ => start + (room - size) / 2.0,
+    };
+    let (column, row) = position.grid();
+    let x = along(area.x, area.w, w, column);
+    let y = along(area.y, area.h, h, row);
     (x.round(), y.round().max(area.y), w, h)
 }
 
@@ -704,9 +772,28 @@ mod tests {
     }
 
     #[test]
-    fn capture_sits_in_the_upper_third_when_asked() {
-        let (_, y, _, _) = compute_layout(&retina(), CapturePosition::Upper, capture_width, 268.0);
-        assert_eq!(y, 230.0); // 25 + 932 * 0.22, never below the panel
+    fn each_grid_spot_hugs_its_edges_with_the_same_gap() {
+        // 440x540 on the retina work area (x 0..1512, y 25..957); gap 8.
+        let at = |p| {
+            let (x, y, _, _) = compute_layout(&retina(), p, |_| 440.0, 540.0);
+            (x, y)
+        };
+        assert_eq!(at(CapturePosition::TopLeft), (8.0, 33.0));
+        assert_eq!(at(CapturePosition::Top), (536.0, 33.0));
+        assert_eq!(at(CapturePosition::TopRight), (1064.0, 33.0)); // 1512-440-8
+        assert_eq!(at(CapturePosition::Left), (8.0, 221.0));
+        assert_eq!(at(CapturePosition::Center), (536.0, 221.0));
+        assert_eq!(at(CapturePosition::Right), (1064.0, 221.0));
+        assert_eq!(at(CapturePosition::BottomLeft), (8.0, 409.0)); // 25+932-540-8
+        assert_eq!(at(CapturePosition::Bottom), (536.0, 409.0));
+        assert_eq!(at(CapturePosition::BottomRight), (1064.0, 409.0));
+    }
+
+    #[test]
+    fn corners_stay_on_a_display_that_is_not_at_the_origin() {
+        let (x, y, w, _) =
+            compute_layout(&external(), CapturePosition::BottomRight, |_| 440.0, 540.0);
+        assert_eq!((x, y, w), (2984.0, 500.0, 440.0)); // 1512+1920-440-8, 1048-540-8
     }
 
     #[test]
@@ -749,9 +836,11 @@ mod tests {
         let (_, y, _, h) = compute_layout(&short, CapturePosition::Center, |_| 528.0, 648.0);
         assert_eq!(h, 584.0);
         assert_eq!(y, 8.0);
-        // Upper placement stays on the display too.
-        let (_, y, _, h) = compute_layout(&short, CapturePosition::Upper, |_| 528.0, 648.0);
-        assert!(y + h <= 600.0);
+        // Every spot stays on the display too.
+        for p in [CapturePosition::Top, CapturePosition::BottomRight] {
+            let (_, y, _, h) = compute_layout(&short, p, |_| 528.0, 648.0);
+            assert!(y >= 0.0 && y + h <= 600.0, "{p:?}");
+        }
     }
 
     #[test]

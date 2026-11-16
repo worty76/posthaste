@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "../components/Button";
 import { Segmented, Switch, TextField } from "../components/Controls";
 import { Dialog } from "../components/Dialog";
+import { PositionPicker } from "../components/PositionPicker";
 import { api, toAppError } from "../lib/ipc";
 import {
   DEFAULT_CAPTURE_SHORTCUT,
@@ -16,6 +17,7 @@ import {
   type ShortcutStatus,
   type UpdateInfo,
 } from "../lib/types";
+import { AiSection } from "./AiSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
@@ -267,18 +269,31 @@ export function SettingsView({
           help={
             info.session === "wayland"
               ? "On Wayland the compositor decides where windows appear, so this may have no effect."
-              : "Where the Posthaste window appears on the display you're working on."
+              : "Where each window opens on the display you're working on."
           }
         >
-          <Segmented
-            label="Window position"
-            value={settings.capture_position}
-            options={[
-              { value: "center", label: "Center" },
-              { value: "upper", label: "Upper third" },
-            ]}
-            onChange={(capture_position) => void set({ capture_position })}
-          />
+          <div className="positions">
+            <div className="positions__item">
+              <PositionPicker
+                label="Capture window position"
+                value={settings.capture_position}
+                onChange={(capture_position) => void set({ capture_position })}
+              />
+              <span className="positions__caption" aria-hidden="true">
+                Capture
+              </span>
+            </div>
+            <div className="positions__item">
+              <PositionPicker
+                label="Today window position"
+                value={settings.today_position}
+                onChange={(today_position) => void set({ today_position })}
+              />
+              <span className="positions__caption" aria-hidden="true">
+                Today
+              </span>
+            </div>
+          </div>
         </Row>
         <Row
           label="Window size"
@@ -337,58 +352,7 @@ export function SettingsView({
         </Row>
       </section>
 
-      <section className="settings__section" aria-labelledby="s-ai">
-        <h2 className="settings__heading" id="s-ai">
-          AI polish
-        </h2>
-        <Row
-          label="Provider"
-          help="Off by default. Polishing sends the note text to the provider you choose, using your own API key. The key stays on this computer."
-        >
-          <Segmented
-            label="AI provider"
-            value={settings.ai_provider}
-            options={[
-              { value: "none", label: "Off" },
-              { value: "anthropic", label: "Claude" },
-              { value: "openai", label: "OpenAI" },
-              { value: "gemini", label: "Gemini" },
-            ]}
-            onChange={(ai_provider) => void set({ ai_provider })}
-          />
-        </Row>
-        {settings.ai_provider !== "none" && (
-          <>
-            <Row label="API key">
-              <TextField
-                type="password"
-                aria-label="AI API key"
-                value={settings.ai_api_key}
-                placeholder="Paste your API key"
-                onChange={(e) => void set({ ai_api_key: e.target.value })}
-                spellCheck={false}
-                autoComplete="off"
-              />
-            </Row>
-            <Row label="Model" help="Leave empty to use the provider's small, fast default.">
-              <TextField
-                aria-label="AI model"
-                value={settings.ai_model}
-                placeholder={
-                  settings.ai_provider === "anthropic"
-                    ? "claude-haiku-4-5"
-                    : settings.ai_provider === "openai"
-                      ? "gpt-4o-mini"
-                      : "gemini-2.0-flash"
-                }
-                onChange={(e) => void set({ ai_model: e.target.value })}
-                spellCheck={false}
-                autoComplete="off"
-              />
-            </Row>
-          </>
-        )}
-      </section>
+      <AiSection settings={settings} set={set} notify={notify} />
 
       <section className="settings__section" aria-labelledby="s-data">
         <h2 className="settings__heading" id="s-data">
@@ -411,7 +375,7 @@ export function SettingsView({
         </div>
         <Row
           label="Export notes"
-          help="A readable JSON file with every note and its details. Attached files are not included; the backup below has them."
+          help="A Markdown file with every note as a checklist, readable in any editor. Choose JSON in the save dialog for tools. Attached files are not included; the backup below has them."
         >
           <Button
             busy={busy === "export"}
@@ -427,7 +391,7 @@ export function SettingsView({
         </Row>
         <Row
           label="Import notes"
-          help="Adds notes from a Posthaste export. Existing notes are never overwritten."
+          help="Adds notes from a Posthaste export (Markdown or JSON) or any Markdown checklist. Existing notes are never overwritten."
         >
           <Button
             busy={busy === "import"}

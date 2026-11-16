@@ -5,13 +5,15 @@ mod db;
 mod details;
 mod error;
 pub mod look;
+mod markdown;
 pub mod migrations;
 mod model;
 mod transfer;
 
-pub use db::{now_ms, Db};
+pub use db::{now_ms, Db, RETIRED_AI_PROVIDERS};
 pub use error::{CoreError, Result};
 pub use model::*;
+pub use transfer::ExportFormat;
 
 #[cfg(test)]
 mod tests;

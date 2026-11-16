@@ -1,4 +1,4 @@
-//! Portable JSON export and import.
+//! Portable export and import: Markdown to read anywhere, JSON for tools.
 
 use std::path::Path;
 
@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db, NOTE_COLUMNS};
 use crate::details::clean_details;
 use crate::error::{CoreError, Result};
+use crate::markdown;
 use crate::model::{ImportReport, Status};
 
 pub const EXPORT_FORMAT: &str = "posthaste-export";
@@ -27,30 +28,30 @@ struct ExportFile {
 /// One note in the export file. Timestamps are RFC 3339 UTC strings so the
 /// file is readable without Posthaste.
 #[derive(Debug, Serialize, Deserialize)]
-struct ExportNote {
+pub(crate) struct ExportNote {
     #[serde(default)]
-    id: Option<String>,
-    content: String,
+    pub(crate) id: Option<String>,
+    pub(crate) content: String,
     #[serde(default)]
-    status: Option<String>,
+    pub(crate) status: Option<String>,
     #[serde(default)]
-    category: Option<String>,
+    pub(crate) category: Option<String>,
     #[serde(default)]
-    source: Option<String>,
+    pub(crate) source: Option<String>,
     #[serde(default)]
-    created_at: Option<String>,
+    pub(crate) created_at: Option<String>,
     #[serde(default)]
-    updated_at: Option<String>,
+    pub(crate) updated_at: Option<String>,
     #[serde(default)]
-    completed_at: Option<String>,
+    pub(crate) completed_at: Option<String>,
     #[serde(default)]
-    archived_at: Option<String>,
+    pub(crate) archived_at: Option<String>,
     /// When the note was parked in Later; absent when it is not.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    later_at: Option<String>,
+    pub(crate) later_at: Option<String>,
     /// The note's description. Attached files are not exported.
     #[serde(default, skip_serializing_if = "String::is_empty")]
-    details: String,
+    pub(crate) details: String,
 }
 
 fn to_rfc3339(ms: i64) -> String {
@@ -66,8 +67,18 @@ fn from_rfc3339(s: &str) -> Option<i64> {
         .map(|t| (t.unix_timestamp_nanos() / 1_000_000) as i64)
 }
 
+/// Which kind of file an export is written as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    /// A readable task list; dates are shown in the given time zone.
+    Markdown {
+        utc_offset_minutes: i32,
+    },
+    Json,
+}
+
 impl Db {
-    pub fn export_json(&self) -> Result<String> {
+    fn export_notes(&self) -> Result<Vec<ExportNote>> {
         let mut stmt = self.conn().prepare(&format!(
             "SELECT {NOTE_COLUMNS}, details
              FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq"
@@ -90,33 +101,63 @@ impl Db {
                 })
             })
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(notes)
+    }
+
+    pub fn export_json(&self) -> Result<String> {
         Ok(serde_json::to_string_pretty(&ExportFile {
             format: EXPORT_FORMAT.into(),
             version: EXPORT_VERSION,
             exported_at: to_rfc3339(now_ms()),
-            notes,
+            notes: self.export_notes()?,
         })?)
+    }
+
+    pub fn export_markdown(&self, utc_offset_minutes: i32) -> Result<String> {
+        Ok(markdown::write(
+            &self.export_notes()?,
+            &to_rfc3339(now_ms()),
+            utc_offset_minutes,
+        ))
     }
 
     /// Writes the export to `dest` via a temporary file, so a failed write
     /// never leaves a truncated export behind.
-    pub fn export_to(&self, dest: &Path) -> Result<usize> {
-        let json = self.export_json()?;
+    pub fn export_to(&self, dest: &Path, format: ExportFormat) -> Result<usize> {
+        let text = match format {
+            ExportFormat::Markdown { utc_offset_minutes } => {
+                self.export_markdown(utc_offset_minutes)?
+            }
+            ExportFormat::Json => self.export_json()?,
+        };
         let count = self.info()?.note_count as usize;
         let mut tmp = dest.as_os_str().to_owned();
         tmp.push(".part");
         let tmp = std::path::PathBuf::from(tmp);
-        std::fs::write(&tmp, json)?;
+        std::fs::write(&tmp, text)?;
         std::fs::rename(&tmp, dest)?;
         Ok(count)
     }
 
     pub fn import_from(&mut self, src: &Path) -> Result<ImportReport> {
-        self.import_json(&std::fs::read_to_string(src)?)
+        self.import_text(&std::fs::read_to_string(src)?)
     }
 
-    /// Merges an export into the database. Notes whose id already exists are
-    /// left untouched; nothing is ever overwritten. All or nothing.
+    /// Imports either kind of export, telling them apart by their content.
+    pub fn import_text(&mut self, text: &str) -> Result<ImportReport> {
+        let text = text.trim_start_matches('\u{feff}');
+        if text.trim_start().starts_with('{') {
+            self.import_json(text)
+        } else {
+            self.import_markdown(text)
+        }
+    }
+
+    pub fn import_markdown(&mut self, text: &str) -> Result<ImportReport> {
+        let notes = markdown::read(text)?;
+        self.import_notes(notes)
+    }
+
     pub fn import_json(&mut self, json: &str) -> Result<ImportReport> {
         let file: ExportFile =
             serde_json::from_str(json).map_err(|e| CoreError::InvalidImport(e.to_string()))?;
@@ -132,7 +173,12 @@ impl Db {
                 file.version
             )));
         }
+        self.import_notes(file.notes)
+    }
 
+    /// Merges notes into the database. Notes whose id already exists are
+    /// left untouched; nothing is ever overwritten. All or nothing.
+    fn import_notes(&mut self, notes: Vec<ExportNote>) -> Result<ImportReport> {
         let now = now_ms();
         let mut report = ImportReport {
             imported: 0,
@@ -147,7 +193,7 @@ impl Db {
                     completed_at, archived_at, details, later_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )?;
-            for n in file.notes {
+            for n in notes {
                 let content = match clean_content(&n.content) {
                     Ok(c) => c,
                     Err(_) => {

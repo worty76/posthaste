@@ -138,8 +138,11 @@ html.is-today body {
   padding: var(--s-2);
   border-radius: var(--r-md);
 }
-.today__row[data-selected="true"] {
+.today__row:hover {
   background: var(--hover);
+}
+.today__row[data-selected="true"] {
+  background: var(--active);
 }
 .today__row .check {
   flex: none;
