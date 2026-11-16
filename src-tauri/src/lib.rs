@@ -4,6 +4,7 @@
 mod ai;
 mod commands;
 mod error;
+mod panels;
 mod shortcuts;
 mod state;
 mod tray;

@@ -11,6 +11,7 @@ use tauri::{
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
+use crate::panels;
 use crate::state::{lock, AppState};
 
 pub const MAIN: &str = "main";
@@ -120,6 +121,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible_on_all_workspaces(true)
         .visible(false)
         .build()?;
+    panels::adopt(app, &capture);
 
     let handle = app.clone();
     capture.on_window_event(move |event| match event {
@@ -153,6 +155,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible_on_all_workspaces(true)
         .visible(false)
         .build()?;
+    panels::adopt(app, &today);
 
     let handle = app.clone();
     today.on_window_event(move |event| match event {
@@ -230,17 +233,22 @@ pub fn show_capture(app: &AppHandle) {
     );
     *lock(&state.capture_shown_at) = Some(Instant::now());
 
-    if let Err(e) = window.show() {
-        log::error!("capture window could not be shown: {e}");
-        return;
-    }
+    let has_keyboard = match panels::show(app, &window) {
+        Ok(has_keyboard) => has_keyboard,
+        Err(e) => {
+            log::error!("capture window could not be shown: {e}");
+            return;
+        }
+    };
     // Some window managers only honour a position once the window is mapped.
     if let Some(pos) = placed {
         let _ = window.set_position(pos);
     }
     let _ = window.set_always_on_top(true);
-    if let Err(e) = window.set_focus() {
-        log::warn!("capture window could not take focus: {e}");
+    if !has_keyboard {
+        if let Err(e) = window.set_focus() {
+            log::warn!("capture window could not take focus: {e}");
+        }
     }
     let _ = window.emit("capture-shown", CaptureShown { source });
 }
@@ -321,17 +329,22 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
     );
     *lock(&state.today_shown_at) = Some(Instant::now());
 
-    if let Err(e) = window.show() {
-        log::error!("today window could not be shown: {e}");
-        return;
-    }
+    let has_keyboard = match panels::show(app, &window) {
+        Ok(has_keyboard) => has_keyboard,
+        Err(e) => {
+            log::error!("today window could not be shown: {e}");
+            return;
+        }
+    };
     // Some window managers only honour a position once the window is mapped.
     if let Some(pos) = placed {
         let _ = window.set_position(pos);
     }
     let _ = window.set_always_on_top(true);
-    if let Err(e) = window.set_focus() {
-        log::warn!("today window could not take focus: {e}");
+    if !has_keyboard {
+        if let Err(e) = window.set_focus() {
+            log::warn!("today window could not take focus: {e}");
+        }
     }
     let _ = window.emit(
         if fresh {

@@ -199,3 +199,15 @@ GitHub Models (from a development build) reverts to Off.
 
 Checked on Linux without a keychain (database fallback, key moved from old
 settings, Settings shown). Not yet checked on macOS or Windows.
+
+## Capture and Today are non-activating panels (macOS)
+
+Showing an ordinary window makes its application active, and activating
+Posthaste brings every Posthaste window in front of the app you are working
+in, greys that app out and can switch desktops. So on macOS the capture and
+Today windows are turned into `NSPanel`s with the non-activating style
+(through `tauri-nspanel`, `src-tauri/src/panels.rs`), like Spotlight: they
+take the keyboard but Posthaste stays in the background and the app you were
+in stays active behind them. They float on every desktop and above apps in
+full screen. If a window cannot be made a panel it is shown the ordinary
+way. Not yet checked on a real Mac: type-checked only on Linux.

@@ -42,6 +42,10 @@ thiserror = "2"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 log = "0.4"
 
+# The floating windows are non-activating panels on macOS.
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri-nspanel = "2.1"
+
 [profile.release]
 codegen-units = 1
 lto = "thin"
