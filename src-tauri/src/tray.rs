@@ -1,28 +1,50 @@
 //! System tray (Windows, Linux) / menu bar (macOS) icon and its menu.
 
+use posthaste_i18n::{key, Key, Translator};
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::AppHandle;
+use tauri::{AppHandle, Wry};
 
 use crate::windows;
 
-pub fn create(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Posthaste", true, None::<&str>)?;
-    let capture = MenuItem::with_id(app, "capture", "New Posthaste", true, None::<&str>)?;
-    let inbox = MenuItem::with_id(app, "inbox", "Open Inbox", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Posthaste", true, None::<&str>)?;
+/// The tray menu's items and the message each one shows, kept so the menu
+/// can be rewritten when the language changes. Managed Tauri state.
+pub struct TrayMenu {
+    items: Vec<(MenuItem<Wry>, Key)>,
+}
+
+impl TrayMenu {
+    /// Rewrites every item in the translator's language.
+    pub fn translate(&self, t: Translator) {
+        for (item, label) in &self.items {
+            if let Err(e) = item.set_text(t.text(*label)) {
+                log::warn!("tray menu item could not be renamed: {e}");
+            }
+        }
+    }
+}
+
+pub fn create(app: &AppHandle, t: Translator) -> tauri::Result<TrayMenu> {
+    let item = |id: &str, label: Key| -> tauri::Result<(MenuItem<Wry>, Key)> {
+        let item = MenuItem::with_id(app, id, t.text(label), true, None::<&str>)?;
+        Ok((item, label))
+    };
+    let open = item("open", key::DESKTOP_TRAY_OPEN)?;
+    let capture = item("capture", key::DESKTOP_TRAY_CAPTURE)?;
+    let inbox = item("inbox", key::DESKTOP_TRAY_INBOX)?;
+    let settings = item("settings", key::DESKTOP_TRAY_SETTINGS)?;
+    let quit = item("quit", key::DESKTOP_TRAY_QUIT)?;
     let menu = Menu::with_items(
         app,
         &[
-            &open,
-            &capture,
-            &inbox,
+            &open.0,
+            &capture.0,
+            &inbox.0,
             &PredefinedMenuItem::separator(app)?,
-            &settings,
+            &settings.0,
             &PredefinedMenuItem::separator(app)?,
-            &quit,
+            &quit.0,
         ],
     )?;
 
@@ -49,5 +71,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
     let builder = builder.icon_as_template(true);
     builder.build(app)?;
-    Ok(())
+    Ok(TrayMenu {
+        items: vec![open, capture, inbox, settings, quit],
+    })
 }

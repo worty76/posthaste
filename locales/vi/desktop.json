@@ -1,0 +1,20 @@
+{
+  "tray": {
+    "open": "Mở Posthaste",
+    "capture": "Ghi chú mới",
+    "inbox": "Mở Hộp thư",
+    "settings": "Cài đặt…",
+    "quit": "Thoát Posthaste"
+  },
+  "dialog": {
+    "attach": "Đính kèm tệp",
+    "save_copy": "Lưu một bản sao",
+    "export": "Xuất ghi chú",
+    "import": "Nhập ghi chú",
+    "backup": "Sao lưu cơ sở dữ liệu"
+  },
+  "filter": {
+    "export": "Bản xuất Posthaste",
+    "database": "Cơ sở dữ liệu SQLite"
+  }
+}

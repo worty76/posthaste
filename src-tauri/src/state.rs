@@ -68,6 +68,12 @@ impl AppState {
         }
     }
 
+    /// Text in the language the user chose, for what the shell itself
+    /// shows: the tray menu and the titles of file dialogs.
+    pub fn translator(&self) -> posthaste_i18n::Translator {
+        posthaste_i18n::Translator::new(&self.settings().language)
+    }
+
     pub fn settings(&self) -> Settings {
         self.settings
             .read()

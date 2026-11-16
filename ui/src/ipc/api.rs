@@ -2,32 +2,17 @@
 //! adding it here, next to its argument struct; the names and shapes match
 //! `src-tauri/src/commands.rs`.
 
-use std::collections::BTreeMap;
-
-use posthaste_model::{CommandError, DayMark, Draft, Glance, Os, SettingsState, Status};
+use posthaste_model::{
+    AiOverview, AppInfo, AttachReport, Attachment, CommandError, Counts, DataInfo, DayMark,
+    DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookSummary, Note,
+    NoteDetail, NoteQuery, ResolvedLook, Settings, SettingsState, Status, TrashedNote, UpdateInfo,
+};
 use serde::de::IgnoredAny;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-use super::tauri::{invoke, NoArgs};
+use super::tauri::{invoke, invoke_for_bytes, invoke_with_bytes, NoArgs};
 
 pub type Response<T> = Result<T, CommandError>;
-
-/// The part of `app_info` the Rust windows use.
-#[derive(Debug, Clone, Deserialize)]
-pub struct AppInfo {
-    pub os: Os,
-}
-
-/// The active look as `look_active` sends it: tokens ready to apply.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct ActiveLook {
-    /// "light" or "dark": the scheme the look is drawn on.
-    pub base: String,
-    pub shape: String,
-    pub font: String,
-    /// CSS custom properties, name to value.
-    pub tokens: BTreeMap<String, String>,
-}
 
 pub async fn app_info() -> Response<AppInfo> {
     invoke("app_info", &NoArgs {}).await
@@ -38,7 +23,7 @@ pub async fn settings_get() -> Response<SettingsState> {
 }
 
 /// `None` is the Plain look.
-pub async fn look_active() -> Response<Option<ActiveLook>> {
+pub async fn look_active() -> Response<Option<ResolvedLook>> {
     invoke("look_active", &NoArgs {}).await
 }
 
@@ -163,19 +148,322 @@ pub async fn note_set_later(id: &str, later: bool) -> Response<()> {
         .map(drop)
 }
 
-/// The window Note details was opened from, and goes back to.
-#[derive(Clone, Copy, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum DetailsFrom {
-    Today,
-}
-
 #[derive(Serialize)]
 struct DetailsOpen<'a> {
     id: &'a str,
     from: DetailsFrom,
 }
 
+/// Opens Note details on a note. `from` is the window Esc goes back to.
 pub async fn details_open(id: &str, from: DetailsFrom) -> Response<()> {
     invoke("details_open", &DetailsOpen { id, from }).await
+}
+
+pub async fn details_dismiss() -> Response<()> {
+    invoke("details_dismiss", &NoArgs {}).await
+}
+
+/// The note the details window should show, for when it loads after the
+/// `details-open` event was sent.
+pub async fn details_current() -> Response<Option<DetailsTarget>> {
+    invoke("details_current", &NoArgs {}).await
+}
+
+#[derive(Serialize)]
+struct ById<'a> {
+    id: &'a str,
+}
+
+pub async fn note_detail_get(id: &str) -> Response<NoteDetail> {
+    invoke("note_detail_get", &ById { id }).await
+}
+
+#[derive(Serialize)]
+struct DetailsSet<'a> {
+    id: &'a str,
+    details: &'a str,
+}
+
+pub async fn note_details_set(id: &str, details: &str) -> Response<()> {
+    invoke::<_, IgnoredAny>("note_details_set", &DetailsSet { id, details })
+        .await
+        .map(drop)
+}
+
+#[derive(Serialize)]
+struct NoteUpdate<'a> {
+    id: &'a str,
+    content: &'a str,
+    category: Option<&'a str>,
+}
+
+pub async fn note_update(id: &str, content: &str, category: Option<&str>) -> Response<()> {
+    let args = NoteUpdate {
+        id,
+        content,
+        category,
+    };
+    invoke::<_, IgnoredAny>("note_update", &args)
+        .await
+        .map(drop)
+}
+
+// ---- attachments -----------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ForNote<'a> {
+    note_id: &'a str,
+}
+
+/// Lets the user pick files to attach. `None` when they cancelled.
+pub async fn attachment_add_files(note_id: &str) -> Response<Option<AttachReport>> {
+    invoke("attachment_add_files", &ForNote { note_id }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AddPaths<'a> {
+    note_id: &'a str,
+    paths: &'a [String],
+}
+
+/// Attaches files by their paths on this computer (a drop).
+pub async fn attachment_add_paths(note_id: &str, paths: &[String]) -> Response<AttachReport> {
+    invoke("attachment_add_paths", &AddPaths { note_id, paths }).await
+}
+
+/// Attaches bytes that have no path (a pasted image).
+pub async fn attachment_add_bytes(
+    note_id: &str,
+    name: &str,
+    mime: &str,
+    bytes: &[u8],
+) -> Response<Attachment> {
+    let headers = [("x-note-id", note_id), ("x-name", name), ("x-mime", mime)];
+    invoke_with_bytes("attachment_add_bytes", bytes, &headers).await
+}
+
+/// The bytes of an image attachment, to show as its thumbnail.
+pub async fn attachment_preview(id: &str) -> Response<Vec<u8>> {
+    invoke_for_bytes("attachment_preview", &ById { id }).await
+}
+
+pub async fn attachment_open(id: &str) -> Response<()> {
+    invoke("attachment_open", &ById { id }).await
+}
+
+/// Asks where to save a copy. `None` when the user cancelled.
+pub async fn attachment_save_copy(id: &str) -> Response<Option<String>> {
+    invoke("attachment_save_copy", &ById { id }).await
+}
+
+pub async fn attachment_remove(id: &str) -> Response<()> {
+    invoke("attachment_remove", &ById { id }).await
+}
+
+// ---- inbox and trash -------------------------------------------------------
+
+pub async fn capture_open() -> Response<()> {
+    invoke("capture_open", &NoArgs {}).await
+}
+
+#[derive(Serialize)]
+struct NotesList<'a> {
+    query: &'a NoteQuery,
+}
+
+/// Notes matching `query`, newest first.
+pub async fn notes_list(query: &NoteQuery) -> Response<Vec<Note>> {
+    invoke("notes_list", &NotesList { query }).await
+}
+
+/// How many notes each section holds; `from` and `to` bound today.
+pub async fn notes_counts(from: i64, to: i64) -> Response<Counts> {
+    let args = DayBounds {
+        today_from: from,
+        today_to: to,
+    };
+    invoke("notes_counts", &args).await
+}
+
+/// Moves a note to the trash.
+pub async fn note_delete(id: &str) -> Response<()> {
+    invoke("note_delete", &ById { id }).await
+}
+
+/// Takes a note back out of the trash.
+pub async fn note_undelete(id: &str) -> Response<()> {
+    invoke::<_, IgnoredAny>("note_undelete", &ById { id })
+        .await
+        .map(drop)
+}
+
+pub async fn trash_list() -> Response<Vec<TrashedNote>> {
+    invoke("trash_list", &NoArgs {}).await
+}
+
+/// Erases one trashed note for good.
+pub async fn trash_purge(id: &str) -> Response<()> {
+    invoke("trash_purge", &ById { id }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrashEmpty {
+    up_to: i64,
+}
+
+/// Erases every note trashed at or before `up_to`. Answers how many.
+pub async fn trash_empty(up_to: i64) -> Response<usize> {
+    invoke("trash_empty", &TrashEmpty { up_to }).await
+}
+
+// ---- settings and data -----------------------------------------------------
+
+#[derive(Serialize)]
+struct SettingsUpdate<'a> {
+    settings: &'a Settings,
+}
+
+/// Saves the settings. Answers with what was applied, which may differ
+/// (a shortcut the system refused, for one).
+pub async fn settings_update(settings: &Settings) -> Response<SettingsState> {
+    invoke("settings_update", &SettingsUpdate { settings }).await
+}
+
+pub async fn data_info() -> Response<DataInfo> {
+    invoke("data_info", &NoArgs {}).await
+}
+
+pub async fn data_reveal() -> Response<()> {
+    invoke("data_reveal", &NoArgs {}).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DataExport {
+    utc_offset_minutes: i32,
+}
+
+/// Asks where to export to. Answers how many notes were written, or `None`
+/// when the user cancelled. The offset dates the notes in local time.
+pub async fn data_export(utc_offset_minutes: i32) -> Response<Option<usize>> {
+    invoke("data_export", &DataExport { utc_offset_minutes }).await
+}
+
+pub async fn data_import() -> Response<Option<ImportReport>> {
+    invoke("data_import", &NoArgs {}).await
+}
+
+/// Asks where to put a backup. `None` when the user cancelled.
+pub async fn data_backup() -> Response<Option<String>> {
+    invoke("data_backup", &NoArgs {}).await
+}
+
+#[derive(Serialize)]
+struct DataClear {
+    confirm: &'static str,
+}
+
+/// Deletes every note, draft, look and setting.
+pub async fn data_clear() -> Response<SettingsState> {
+    // The shell refuses the command without this exact word.
+    invoke("data_clear", &DataClear { confirm: "DELETE" }).await
+}
+
+// ---- looks -----------------------------------------------------------------
+
+pub async fn look_list() -> Response<Vec<LookSummary>> {
+    invoke("look_list", &NoArgs {}).await
+}
+
+pub async fn look_doc(id: &str) -> Response<LookDoc> {
+    invoke("look_doc", &ById { id }).await
+}
+
+#[derive(Serialize)]
+struct LookPreview<'a> {
+    doc: &'a LookDoc,
+}
+
+/// Checks a look being edited and answers with its tokens.
+pub async fn look_preview(doc: &LookDoc) -> Response<ResolvedLook> {
+    invoke("look_preview", &LookPreview { doc }).await
+}
+
+#[derive(Serialize)]
+struct LookSave<'a> {
+    doc: &'a LookDoc,
+    id: Option<&'a str>,
+}
+
+/// Saves a look: over the one with `id`, or as a new one.
+pub async fn look_save(doc: &LookDoc, id: Option<&str>) -> Response<LookSummary> {
+    invoke("look_save", &LookSave { doc, id }).await
+}
+
+#[derive(Serialize)]
+struct LookImport<'a> {
+    code: &'a str,
+}
+
+pub async fn look_import(code: &str) -> Response<LookSummary> {
+    invoke("look_import", &LookImport { code }).await
+}
+
+pub async fn look_export_code(id: &str) -> Response<String> {
+    invoke("look_export_code", &ById { id }).await
+}
+
+pub async fn look_delete(id: &str) -> Response<()> {
+    invoke("look_delete", &ById { id }).await
+}
+
+// ---- AI polish -------------------------------------------------------------
+
+pub async fn ai_providers() -> Response<AiOverview> {
+    invoke("ai_providers", &NoArgs {}).await
+}
+
+#[derive(Serialize)]
+struct ForProvider<'a> {
+    provider: &'a str,
+}
+
+#[derive(Serialize)]
+struct KeySet<'a> {
+    provider: &'a str,
+    key: &'a str,
+}
+
+pub async fn ai_key_set(provider: &str, key: &str) -> Response<AiOverview> {
+    invoke("ai_key_set", &KeySet { provider, key }).await
+}
+
+pub async fn ai_key_clear(provider: &str) -> Response<AiOverview> {
+    invoke("ai_key_clear", &ForProvider { provider }).await
+}
+
+/// Opens the provider's page for making a key, in the browser.
+pub async fn ai_key_page(provider: &str) -> Response<()> {
+    invoke("ai_key_page", &ForProvider { provider }).await
+}
+
+/// Polishes a sample note and answers with the result.
+pub async fn ai_test(provider: &str) -> Response<String> {
+    invoke("ai_test", &ForProvider { provider }).await
+}
+
+// ---- updates ---------------------------------------------------------------
+
+/// Looks for a newer release. `None` means the app is current.
+pub async fn update_check() -> Response<Option<UpdateInfo>> {
+    invoke("update_check", &NoArgs {}).await
+}
+
+/// Installs the newest release and restarts. Only answers on failure, or
+/// when there was nothing to install.
+pub async fn update_install() -> Response<()> {
+    invoke("update_install", &NoArgs {}).await
 }

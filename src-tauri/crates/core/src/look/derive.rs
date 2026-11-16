@@ -5,11 +5,9 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
-
 use crate::error::Result;
 use crate::look::color::{contrast, mix, Rgb};
-use crate::look::{Base, FontFace, LookDoc, Shape, TEXT_CONTRAST_MIN};
+use crate::look::{Base, LookDoc, LookDocExt, TEXT_CONTRAST_MIN};
 
 /// Faint text is for hints, so it only has to stay noticeable, not readable.
 const FAINT_CONTRAST_MIN: f64 = 3.0;
@@ -21,16 +19,7 @@ const WHITE: Rgb = Rgb {
     b: 255,
 };
 
-#[derive(Serialize, Clone, PartialEq, Debug)]
-pub struct ResolvedLook {
-    pub id: String,
-    pub name: String,
-    pub author: Option<String>,
-    pub base: Base,
-    pub shape: Shape,
-    pub font: FontFace,
-    pub tokens: BTreeMap<String, String>,
-}
+pub use posthaste_model::ResolvedLook;
 
 pub fn resolve(id: &str, doc: &LookDoc) -> Result<ResolvedLook> {
     doc.validate()?;

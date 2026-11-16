@@ -1,0 +1,37 @@
+{
+  "empty_title": "Trash is empty",
+  "empty_text": "Deleted notes wait here for {days} days before they are erased for good.",
+  "note": "Deleted notes are erased for good after {days} days.",
+  "empty_action": "Empty Trash",
+  "returns": {
+    "inbox": "Inbox",
+    "later": "Later",
+    "archive": "Archive"
+  },
+  "erased_on": "Erased on {date}",
+  "restore": "Restore (R)",
+  "delete_forever": "Delete forever (Del)",
+  "restored": {
+    "inbox": "Restored to Inbox",
+    "later": "Restored to Later",
+    "archive": "Restored to Archive"
+  },
+  "deleted": "Deleted for good",
+  "deleted_many": {
+    "one": "Deleted {count} note for good",
+    "other": "Deleted {count} notes for good"
+  },
+  "confirm_one": {
+    "title": "Delete this note for good?",
+    "text": "It will be deleted with its files and can't be restored.",
+    "action": "Delete forever"
+  },
+  "confirm_all": {
+    "title": "Empty the trash?",
+    "text": {
+      "one": "{count} note will be deleted with its files and can't be restored.",
+      "other": "{count} notes will be deleted with their files and can't be restored."
+    },
+    "action": "Empty Trash"
+  }
+}

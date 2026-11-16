@@ -17,7 +17,11 @@ function glance(patch = {}) {
 /** Opens the Today window and waits for its first answer. */
 async function today(options = {}) {
   const w = await open({ label: "today", now: NOON, ...options });
-  await eventually(() => w.mock.calls("glance_get"), (c) => c.length > 0, "first load");
+  await eventually(
+    () => w.mock.calls("glance_get"),
+    (c) => c.length > 0,
+    "first load",
+  );
   const rows = w.page.getByRole("listitem");
   const selected = w.page.locator('.today__row[aria-current="true"]');
   const key = (k) => w.page.keyboard.press(k);
@@ -37,7 +41,9 @@ describe("today window", () => {
   it("renders carried-over and today groups, the count and the progress", async () => {
     const done = note("done one", { status: "completed", completed_at: at("2026-11-15T10:00:00") });
     const f = three();
-    const w = await today({ glance: glance({ carried: [f.a], today: [f.b, done], done: 1, total: 3 }) });
+    const w = await today({
+      glance: glance({ carried: [f.a], today: [f.b, done], done: 1, total: 3 }),
+    });
     await text(w.page.getByRole("region", { name: "Carried over" }), "pay rent");
     await text(w.page.locator('.today__group[aria-label="Today"]'), "call mum");
     await text(w.page.locator(".today__count"), "1 of 3 done");
@@ -57,7 +63,11 @@ describe("today window", () => {
     const w = await today();
     await w.mock.setNow("2026-11-16T08:00:00+07:00");
     await w.mock.emit("today-shown");
-    await eventually(w.lastBounds, (b) => b.todayFrom === startOf("2026-11-16"), "new day's bounds");
+    await eventually(
+      w.lastBounds,
+      (b) => b.todayFrom === startOf("2026-11-16"),
+      "new day's bounds",
+    );
     await text(w.page.locator(".today__date"), "Monday 16 November");
     await w.close();
   });
@@ -67,14 +77,24 @@ describe("today window", () => {
     const w = await today({ glance: f.glance });
     await w.rows.first().waitFor();
     await w.key("x");
-    const [call] = await eventually(() => w.calls("note_set_status"), (c) => c.length === 1, "status set");
+    const [call] = await eventually(
+      () => w.calls("note_set_status"),
+      (c) => c.length === 1,
+      "status set",
+    );
     assert.deepEqual(call.args, { id: f.a.id, status: "completed" });
 
-    await w.mock.setGlance(glance({ carried: [{ ...f.a, status: "completed", updated_at: 5 }], total: 1, done: 1 }));
+    await w.mock.setGlance(
+      glance({ carried: [{ ...f.a, status: "completed", updated_at: 5 }], total: 1, done: 1 }),
+    );
     await w.mock.emit("notes-changed");
     await text(w.page.locator(".today__count"), "All done");
     await w.key("x");
-    const calls = await eventually(() => w.calls("note_set_status"), (c) => c.length === 2, "status set");
+    const calls = await eventually(
+      () => w.calls("note_set_status"),
+      (c) => c.length === 2,
+      "status set",
+    );
     assert.equal(calls[1].args.status, "inbox");
     await w.close();
   });
@@ -85,7 +105,11 @@ describe("today window", () => {
     await w.rows.first().waitFor();
     await w.mock.setGlance(glance({ today: [f.b, f.c], total: 2 }));
     await w.key("l");
-    const [call] = await eventually(() => w.calls("note_set_later"), (c) => c.length === 1, "sent to later");
+    const [call] = await eventually(
+      () => w.calls("note_set_later"),
+      (c) => c.length === 1,
+      "sent to later",
+    );
     assert.deepEqual(call.args, { id: f.a.id, later: true });
     await text(w.selected, "call mum");
 
@@ -104,10 +128,14 @@ describe("today window", () => {
     await w.key("Control+x");
     await w.key("Control+Enter");
     await w.page.evaluate(() =>
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "l", isComposing: true, bubbles: true })),
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "l", isComposing: true, bubbles: true }),
+      ),
     );
     await w.page.evaluate(() =>
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", isComposing: true, bubbles: true })),
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", isComposing: true, bubbles: true }),
+      ),
     );
     await new Promise((r) => setTimeout(r, 150));
     for (const cmd of ["note_set_later", "note_set_status", "details_open", "today_dismiss"]) {
@@ -119,7 +147,8 @@ describe("today window", () => {
   it("lists the keys in the footer", async () => {
     const w = await today({ glance: three().glance });
     const hints = w.page.locator(".today__hints");
-    for (const hint of ["X done", "L later", "←→ day", "↵ details", "esc close"]) await text(hints, hint);
+    for (const hint of ["X done", "L later", "←→ day", "↵ details", "esc close"])
+      await text(hints, hint);
     await w.close();
   });
 
@@ -141,7 +170,9 @@ describe("today window", () => {
   });
 
   it("keeps the selected row in view while moving with the keyboard", async () => {
-    const many = Array.from({ length: 30 }, (_, i) => note(`note ${i}`, { created_at: at("2026-11-15T08:00:00") }));
+    const many = Array.from({ length: 30 }, (_, i) =>
+      note(`note ${i}`, { created_at: at("2026-11-15T08:00:00") }),
+    );
     const w = await today({ glance: glance({ today: many, total: 30 }) });
     await w.page.setViewportSize({ width: 520, height: 360 });
     await w.rows.first().waitFor();
@@ -163,7 +194,11 @@ describe("today window", () => {
     await text(w.selected, "call mum");
     await w.mock.emit("notes-changed");
     await w.mock.emit("today-returned");
-    await eventually(() => w.calls("glance_get"), (c) => c.length >= 3, "reloaded");
+    await eventually(
+      () => w.calls("glance_get"),
+      (c) => c.length >= 3,
+      "reloaded",
+    );
     await text(w.selected, "call mum");
     await w.mock.emit("today-shown");
     await text(w.selected, "pay rent");
@@ -173,7 +208,11 @@ describe("today window", () => {
   it("closes with Escape", async () => {
     const w = await today({ glance: three().glance });
     await w.key("Escape");
-    await eventually(() => w.calls("today_dismiss"), (c) => c.length === 1, "dismissed");
+    await eventually(
+      () => w.calls("today_dismiss"),
+      (c) => c.length === 1,
+      "dismissed",
+    );
     await w.close();
   });
 
@@ -205,22 +244,40 @@ describe("today window", () => {
     await w.rows.first().waitFor();
     await w.key("ArrowDown");
     await w.key("Enter");
-    const [call] = await eventually(() => w.calls("details_open"), (c) => c.length === 1, "opened");
+    const [call] = await eventually(
+      () => w.calls("details_open"),
+      (c) => c.length === 1,
+      "opened",
+    );
     assert.deepEqual(call.args, { id: f.b.id, from: "today" });
     await w.rows.nth(2).getByRole("button", { name: "Open details (Enter)" }).click();
-    const calls = await eventually(() => w.calls("details_open"), (c) => c.length === 2, "opened");
+    const calls = await eventually(
+      () => w.calls("details_open"),
+      (c) => c.length === 2,
+      "opened",
+    );
     assert.equal(calls[1].args.id, f.c.id);
     await text(w.selected, "book dentist");
     await w.close();
   });
 
   it("marks rows that have a description or files", async () => {
-    const withBoth = note("has both", { has_details: true, attachment_count: 2, created_at: at("2026-11-15T08:00:00") });
-    const oneFile = note("one file", { attachment_count: 1, created_at: at("2026-11-15T08:00:00") });
+    const withBoth = note("has both", {
+      has_details: true,
+      attachment_count: 2,
+      created_at: at("2026-11-15T08:00:00"),
+    });
+    const oneFile = note("one file", {
+      attachment_count: 1,
+      created_at: at("2026-11-15T08:00:00"),
+    });
     const plain = note("plain", { created_at: at("2026-11-15T08:00:00") });
     const w = await today({ glance: glance({ today: [withBoth, oneFile, plain], total: 3 }) });
     await w.rows.first().waitFor();
-    assert.equal(await w.rows.nth(0).locator(".badges").getAttribute("aria-label"), "has details, 2 files");
+    assert.equal(
+      await w.rows.nth(0).locator(".badges").getAttribute("aria-label"),
+      "has details, 2 files",
+    );
     assert.equal(await w.rows.nth(1).locator(".badges").getAttribute("aria-label"), "1 file");
     assert.equal(await w.rows.nth(2).locator(".badges").count(), 0);
     await w.close();
@@ -231,7 +288,11 @@ describe("browsing days", () => {
   it("← shows the previous day, → comes back, and → stops at today", async () => {
     const w = await today({ glance: three().glance });
     await w.key("ArrowLeft");
-    await eventually(w.lastBounds, (b) => b.todayFrom === startOf("2026-11-14"), "yesterday's bounds");
+    await eventually(
+      w.lastBounds,
+      (b) => b.todayFrom === startOf("2026-11-14"),
+      "yesterday's bounds",
+    );
     await text(w.page.locator(".today__date"), "Sat 14 Nov");
     await text(w.page.locator(".today__hints"), "As it was on this day");
     await w.key("ArrowRight");
@@ -259,7 +320,11 @@ describe("browsing days", () => {
     assert.equal(await w.page.getByRole("button", { name: "Back to today" }).count(), 0);
     // With the focused button gone, keys must still reach the window.
     await w.key("Escape");
-    await eventually(() => w.calls("today_dismiss"), (c) => c.length === 1, "dismissed");
+    await eventually(
+      () => w.calls("today_dismiss"),
+      (c) => c.length === 1,
+      "dismissed",
+    );
     await w.close();
   });
 
@@ -272,7 +337,11 @@ describe("browsing days", () => {
     await w.key("x");
     await w.key("l");
     await w.key("Enter");
-    await eventually(() => w.calls("details_open"), (c) => c.length === 1, "opened");
+    await eventually(
+      () => w.calls("details_open"),
+      (c) => c.length === 1,
+      "opened",
+    );
     assert.equal((await w.calls("note_set_status")).length, 0);
     assert.equal((await w.calls("note_set_later")).length, 0);
     assert.equal(await w.rows.first().getByRole("checkbox").isDisabled(), true);
@@ -290,8 +359,15 @@ describe("browsing days", () => {
     await w.rows.first().waitFor();
     assert.equal(await w.rows.first().getAttribute("data-status"), "completed");
     await w.key("ArrowLeft");
-    await eventually(() => w.rows.first().getAttribute("data-status"), (s) => s === "inbox", "not done then");
-    assert.equal(await w.page.getByRole("checkbox", { name: "Not done by the end of this day" }).count(), 1);
+    await eventually(
+      () => w.rows.first().getAttribute("data-status"),
+      (s) => s === "inbox",
+      "not done then",
+    );
+    assert.equal(
+      await w.page.getByRole("checkbox", { name: "Not done by the end of this day" }).count(),
+      1,
+    );
     await w.close();
   });
 
@@ -300,7 +376,11 @@ describe("browsing days", () => {
     await w.key("ArrowLeft");
     await eventually(w.lastBounds, (b) => b.todayFrom === startOf("2026-11-14"), "yesterday");
     await w.mock.emit("notes-changed");
-    await eventually(() => w.calls("glance_get"), (c) => c.length === 3, "reloaded");
+    await eventually(
+      () => w.calls("glance_get"),
+      (c) => c.length === 3,
+      "reloaded",
+    );
     assert.equal((await w.lastBounds()).todayFrom, startOf("2026-11-14"));
     await w.mock.emit("today-shown");
     await eventually(w.lastBounds, (b) => b.todayFrom === startOf("2026-11-15"), "today");
@@ -315,7 +395,11 @@ describe("browsing days", () => {
     const f = three();
     await w.mock.setGlance({ ...f.glance, total: 12 });
     await w.mock.emit("notes-changed");
-    await eventually(() => w.page.locator(".today__more").textContent(), (t) => t === "and 9 more", "capped line");
+    await eventually(
+      () => w.page.locator(".today__more").textContent(),
+      (t) => t === "and 9 more",
+      "capped line",
+    );
     await w.close();
   });
 });
@@ -330,20 +414,35 @@ describe("the calendar", () => {
     await w.key("c");
     const calendar = w.page.getByRole("dialog", { name: "Choose a day" });
     await text(calendar.locator(".calendar__month"), "November 2026");
-    const [marks] = await eventually(() => w.calls("notes_day_marks"), (c) => c.length > 0, "marks asked");
+    const [marks] = await eventually(
+      () => w.calls("notes_day_marks"),
+      (c) => c.length > 0,
+      "marks asked",
+    );
     assert.equal(marks.args.edges.length, 43);
     await eventually(
-      () => calendar.getByRole("gridcell", { name: "Tuesday, 10 November 2026, 2 open" }).getAttribute("data-mark"),
+      () =>
+        calendar
+          .getByRole("gridcell", { name: "Tuesday, 10 November 2026, 2 open" })
+          .getAttribute("data-mark"),
       (m) => m === "open",
       "open mark",
     );
     assert.equal(
-      await calendar.getByRole("gridcell", { name: "Wednesday, 11 November 2026, all done" }).getAttribute("data-mark"),
+      await calendar
+        .getByRole("gridcell", { name: "Wednesday, 11 November 2026, all done" })
+        .getAttribute("data-mark"),
       "done",
     );
     // British English starts the week on Monday.
-    assert.equal(await calendar.locator(".calendar__weekday").first().getAttribute("title"), "Monday");
-    assert.equal(await calendar.getByRole("gridcell", { name: /^Monday, 16 November/ }).isDisabled(), true);
+    assert.equal(
+      await calendar.locator(".calendar__weekday").first().getAttribute("title"),
+      "Monday",
+    );
+    assert.equal(
+      await calendar.getByRole("gridcell", { name: /^Monday, 16 November/ }).isDisabled(),
+      true,
+    );
 
     await calendar.getByRole("gridcell", { name: /^Tuesday, 10 November/ }).click();
     await eventually(w.lastBounds, (b) => b.todayFrom === startOf("2026-11-10"), "picked day");
@@ -381,7 +480,11 @@ describe("the calendar", () => {
     await w.key("x");
     await w.key("l");
     await w.key("Escape");
-    await eventually(() => calendar.count(), (n) => n === 0, "calendar closed");
+    await eventually(
+      () => calendar.count(),
+      (n) => n === 0,
+      "calendar closed",
+    );
     assert.equal((await w.calls("today_dismiss")).length, 0);
     assert.equal((await w.calls("note_set_status")).length, 0);
     assert.equal((await w.calls("note_set_later")).length, 0);
@@ -395,7 +498,11 @@ describe("the calendar", () => {
     const calendar = w.page.getByRole("dialog", { name: "Choose a day" });
     await calendar.waitFor();
     await w.page.locator(".today__hints").click({ force: true });
-    await eventually(() => calendar.count(), (n) => n === 0, "calendar closed");
+    await eventually(
+      () => calendar.count(),
+      (n) => n === 0,
+      "calendar closed",
+    );
     await w.key("c");
     // The calendar takes focus a frame after it opens; its keys work from then.
     await eventually(
@@ -413,9 +520,15 @@ describe("where a carried note came from", () => {
   it("tags carried rows with their day and leaves today's rows bare", async () => {
     const yesterday = note("from yesterday", { created_at: at("2026-11-14T09:00:00") });
     const f = three();
-    const w = await today({ glance: glance({ carried: [yesterday, f.a], today: [f.b], total: 3 }) });
+    const w = await today({
+      glance: glance({ carried: [yesterday, f.a], today: [f.b], total: 3 }),
+    });
     await text(w.rows.nth(0).locator(".today__origin"), "Yesterday");
-    await eventually(() => w.rows.nth(1).locator(".today__origin").textContent(), (t) => t === "Thu 12 Nov · 3 days ago", "origin");
+    await eventually(
+      () => w.rows.nth(1).locator(".today__origin").textContent(),
+      (t) => t === "Thu 12 Nov · 3 days ago",
+      "origin",
+    );
     assert.equal(await w.rows.nth(2).locator(".today__origin").count(), 0);
     await w.close();
   });
@@ -424,7 +537,11 @@ describe("where a carried note came from", () => {
     const f = three();
     const w = await today({ glance: f.glance });
     await w.page.getByRole("button", { name: "Show notes captured Thu 12 Nov" }).click();
-    const [call] = await eventually(() => w.calls("inbox_open_date"), (c) => c.length === 1, "inbox opened");
+    const [call] = await eventually(
+      () => w.calls("inbox_open_date"),
+      (c) => c.length === 1,
+      "inbox opened",
+    );
     assert.deepEqual(call.args, { day: "2026-11-12" });
     assert.equal((await w.calls("details_open")).length, 0);
     await w.close();
@@ -437,7 +554,11 @@ describe("language", () => {
     const w = await today({ glance: f.glance, settings: { language: "vi" } });
     await text(w.page.locator(".today__count"), "Xong 0 trên 3");
     await text(w.page.getByRole("region", { name: "Chuyển từ trước" }), "pay rent");
-    await eventually(() => w.page.locator(".today__date").textContent(), (t) => /Chủ Nhật/i.test(t) && /11/.test(t), "date in Vietnamese");
+    await eventually(
+      () => w.page.locator(".today__date").textContent(),
+      (t) => /Chủ Nhật/i.test(t) && /11/.test(t),
+      "date in Vietnamese",
+    );
     await text(w.page.locator(".today__hints"), "X xong");
     await w.close();
   });

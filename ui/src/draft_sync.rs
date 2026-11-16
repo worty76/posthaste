@@ -15,7 +15,8 @@ use gloo_timers::callback::Timeout;
 use leptos::task::spawn_local;
 use posthaste_model::CommandError;
 
-const DELAY_MS: u32 = 250;
+/// How long typing pauses before a draft is written.
+const DRAFT_DELAY_MS: u32 = 250;
 
 type Boxed<T> = Pin<Box<dyn Future<Output = T>>>;
 /// Every write so far, in order. Cloning it gives a way to wait for them.
@@ -32,6 +33,7 @@ pub struct DraftSync {
 }
 
 struct Inner {
+    delay_ms: u32,
     write: Box<Write>,
     on_error: Box<dyn Fn(CommandError)>,
     state: RefCell<State>,
@@ -49,9 +51,23 @@ impl DraftSync {
         W: Fn(String, Option<String>) -> F + 'static,
         F: Future<Output = Result<(), CommandError>> + 'static,
     {
+        DraftSync::with_delay(DRAFT_DELAY_MS, write, on_error)
+    }
+
+    /// Like `new`, writing after a pause of `delay_ms`.
+    pub fn with_delay<W, F>(
+        delay_ms: u32,
+        write: W,
+        on_error: impl Fn(CommandError) + 'static,
+    ) -> Self
+    where
+        W: Fn(String, Option<String>) -> F + 'static,
+        F: Future<Output = Result<(), CommandError>> + 'static,
+    {
         let settled: Boxed<()> = Box::pin(async {});
         DraftSync {
             inner: Rc::new(Inner {
+                delay_ms,
                 write: Box::new(move |content, category| Box::pin(write(content, category))),
                 on_error: Box::new(on_error),
                 state: RefCell::new(State {
@@ -66,7 +82,7 @@ impl DraftSync {
     /// Remembers the latest text and writes it after a short pause.
     pub fn schedule(&self, content: String, category: Option<String>) {
         let this = self.clone();
-        let timer = Timeout::new(DELAY_MS, move || {
+        let timer = Timeout::new(self.inner.delay_ms, move || {
             // The chain is driven by `flush` itself; nothing to await here.
             drop(this.flush());
         });

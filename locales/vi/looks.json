@@ -1,0 +1,50 @@
+{
+  "theme": "Sáng tối",
+  "theme_help": "Dùng cho giao diện Mộc. Mọi giao diện khác tự có nền sáng hoặc tối.",
+  "system": "Theo hệ thống",
+  "light": "Sáng",
+  "dark": "Tối",
+  "gallery": "Giao diện",
+  "plain": "Mộc",
+  "share": "Sao chép mã chia sẻ",
+  "shared": "Đã sao chép mã chia sẻ",
+  "edit": "Sửa",
+  "delete": "Xóa",
+  "copy": "Tạo bản sao",
+  "add": "Thêm từ mã…",
+  "make": "Tự tạo…",
+  "added": "Đã thêm \"{name}\"",
+  "saved": "Đã lưu \"{name}\"",
+  "copy_name": "{name} bản sao",
+  "import": {
+    "title": "Thêm từ mã",
+    "text": "Dán mã giao diện mà ai đó đã chia sẻ. Mã được kiểm tra trước khi áp dụng bất cứ điều gì.",
+    "field": "Mã giao diện",
+    "action": "Thêm giao diện"
+  },
+  "remove": {
+    "title": "Xóa “{name}”?",
+    "text": "Giao diện sẽ bị gỡ khỏi máy tính này. Các bản bạn đã chia sẻ cho người khác vẫn dùng được."
+  },
+  "editor": {
+    "new": "Giao diện mới",
+    "edit": "Sửa giao diện",
+    "name": "Tên",
+    "base": "Nền",
+    "background": "Màu nền",
+    "surface": "Màu bề mặt",
+    "text": "Màu chữ",
+    "accent": "Màu nhấn",
+    "picker": "Bảng chọn {name}",
+    "shape": "Kiểu bo góc",
+    "sharp": "Vuông",
+    "soft": "Mềm",
+    "round": "Tròn",
+    "font": "Phông chữ",
+    "font_system": "Hệ thống",
+    "font_rounded": "Bo tròn",
+    "font_serif": "Có chân",
+    "font_mono": "Đơn cách",
+    "ok": "Trông ổn"
+  }
+}

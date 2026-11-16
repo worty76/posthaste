@@ -1,0 +1,35 @@
+{
+  "empty_title": "Thùng rác đang trống",
+  "empty_text": "Ghi chú đã xóa chờ ở đây {days} ngày trước khi bị xóa vĩnh viễn.",
+  "note": "Ghi chú đã xóa sẽ bị xóa vĩnh viễn sau {days} ngày.",
+  "empty_action": "Dọn sạch Thùng rác",
+  "returns": {
+    "inbox": "Hộp thư",
+    "later": "Để sau",
+    "archive": "Lưu trữ"
+  },
+  "erased_on": "Xóa vĩnh viễn ngày {date}",
+  "restore": "Khôi phục (R)",
+  "delete_forever": "Xóa vĩnh viễn (Del)",
+  "restored": {
+    "inbox": "Đã khôi phục về Hộp thư",
+    "later": "Đã khôi phục về Để sau",
+    "archive": "Đã khôi phục về Lưu trữ"
+  },
+  "deleted": "Đã xóa vĩnh viễn",
+  "deleted_many": {
+    "other": "Đã xóa vĩnh viễn {count} ghi chú"
+  },
+  "confirm_one": {
+    "title": "Xóa vĩnh viễn ghi chú này?",
+    "text": "Ghi chú sẽ bị xóa cùng các tệp của nó và không thể khôi phục.",
+    "action": "Xóa vĩnh viễn"
+  },
+  "confirm_all": {
+    "title": "Dọn sạch thùng rác?",
+    "text": {
+      "other": "{count} ghi chú sẽ bị xóa cùng các tệp của chúng và không thể khôi phục."
+    },
+    "action": "Dọn sạch Thùng rác"
+  }
+}

@@ -3,17 +3,22 @@
 //! adding one arm here.
 
 mod capture;
+mod details;
+mod fatal;
+mod main;
 mod note_badges;
 mod today;
 
 use leptos::prelude::*;
-use posthaste_model::Os;
+use posthaste_model::{AppInfo, Os};
 
 use crate::ipc::{self, api};
 
 /// Labels the shell gives its windows (`src-tauri/src/windows.rs`).
+const MAIN: &str = "main";
 const CAPTURE: &str = "capture";
 const TODAY: &str = "today";
+const DETAILS: &str = "details";
 
 pub fn mount() {
     let label = ipc::window_label().unwrap_or_default();
@@ -23,17 +28,33 @@ pub fn mount() {
     }
     // Leptos starts its own task runner when it mounts; this runs before.
     wasm_bindgen_futures::spawn_local(async move {
-        let os = match api::app_info().await {
-            Ok(info) => info.os,
-            Err(_) => guess_os(),
-        };
+        let info = api::app_info().await;
+        let os = info.as_ref().map_or_else(|_| guess_os(), |info| info.os);
         match label.as_str() {
             CAPTURE => show(move || view! { <capture::CaptureWindow os=os /> }),
             TODAY => show(move || view! { <today::TodayWindow os=os /> }),
-            // A window that has not moved to Rust yet is never sent here.
+            DETAILS => show(move || view! { <details::DetailsWindow os=os /> }),
+            MAIN => show_main(info),
+            // The shell makes no other window.
             _ => {}
         }
     });
+}
+
+/// The main window needs the database: without it there is nothing to list
+/// and nowhere to save, so it says what went wrong instead.
+fn show_main(info: Result<AppInfo, posthaste_model::CommandError>) {
+    let failure = match &info {
+        Ok(info) => info.startup_error.clone(),
+        Err(error) => Some(error.clone()),
+    };
+    match (info, failure) {
+        (Ok(info), None) => show(move || view! { <main::MainWindow info=info /> }),
+        (_, failure) => {
+            let message = failure.map(|error| error.message).unwrap_or_default();
+            show(move || view! { <fatal::Fatal message=message /> });
+        }
+    }
 }
 
 /// Renders into `#root`, which the stylesheets size to fill the window.

@@ -6,11 +6,11 @@ use std::cell::RefCell;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_model::Theme;
+use posthaste_model::{Base, FontFace, ResolvedLook, Shape, Theme};
 use wasm_bindgen::prelude::*;
 
 use super::SettingsHandle;
-use crate::ipc::{api, api::ActiveLook, events};
+use crate::ipc::{api, events};
 use crate::logic::theme::{resolve_theme, Scheme};
 
 thread_local! {
@@ -23,7 +23,7 @@ fn root() -> Option<web_sys::HtmlElement> {
     document().document_element()?.dyn_into().ok()
 }
 
-fn apply_look(look: Option<&ActiveLook>) {
+fn apply_look(look: Option<&ResolvedLook>) {
     let Some(root) = root() else { return };
     let style = root.style();
     APPLIED.with_borrow_mut(|applied| {
@@ -36,8 +36,8 @@ fn apply_look(look: Option<&ActiveLook>) {
                     let _ = style.set_property(name, value);
                     applied.push(name.clone());
                 }
-                let _ = root.set_attribute("data-shape", &look.shape);
-                let _ = root.set_attribute("data-font", &look.font);
+                let _ = root.set_attribute("data-shape", shape_name(look.shape));
+                let _ = root.set_attribute("data-font", font_name(look.font));
             }
             None => {
                 let _ = root.remove_attribute("data-shape");
@@ -45,6 +45,24 @@ fn apply_look(look: Option<&ActiveLook>) {
             }
         }
     });
+}
+
+/// The names the stylesheets select on.
+fn shape_name(shape: Shape) -> &'static str {
+    match shape {
+        Shape::Sharp => "sharp",
+        Shape::Soft => "soft",
+        Shape::Round => "round",
+    }
+}
+
+fn font_name(font: FontFace) -> &'static str {
+    match font {
+        FontFace::System => "system",
+        FontFace::Rounded => "rounded",
+        FontFace::Serif => "serif",
+        FontFace::Mono => "mono",
+    }
 }
 
 /// Whether the OS prefers dark, kept current while the window lives.
@@ -65,13 +83,34 @@ fn use_system_dark() -> ReadSignal<bool> {
     dark
 }
 
+/// What a window can ask of its appearance.
+#[derive(Clone, Copy)]
+pub struct Appearance {
+    preview: RwSignal<Option<ResolvedLook>>,
+    scheme: Memo<Option<Scheme>>,
+}
+
+impl Appearance {
+    /// Wears `look` instead of the active one until given `None`. For the
+    /// look editor, which shows a look before it is saved.
+    pub fn preview(self, look: Option<ResolvedLook>) {
+        self.preview.set(look);
+    }
+
+    /// Whether the window is drawn dark right now.
+    pub fn is_dark(self) -> bool {
+        self.scheme.get_untracked() == Some(Scheme::Dark)
+    }
+}
+
 /// Keeps the window wearing the active look. While a look is active its
 /// base pins light or dark; with Plain (no look) the theme setting decides.
 /// Nothing is touched until the active look is known: the page paints its
 /// first frame as Ink, and clearing that early would flash the OS theme.
-pub fn use_appearance(settings: SettingsHandle) {
+pub fn use_appearance(settings: SettingsHandle) -> Appearance {
     // `None` = not known yet; `Some(None)` = Plain.
-    let (active, set_active) = signal(None::<Option<ActiveLook>>);
+    let (active, set_active) = signal(None::<Option<ResolvedLook>>);
+    let preview = RwSignal::new(None::<ResolvedLook>);
 
     let reload = move || {
         spawn_local(async move {
@@ -96,16 +135,29 @@ pub fn use_appearance(settings: SettingsHandle) {
             .with(|s| s.as_ref().map_or(Theme::System, |s| s.theme))
     });
     let system_dark = use_system_dark();
+    // The look worn: a preview first, else the active one.
+    let worn = Memo::new(move |_| active.get().map(|active| preview.get().or(active)));
+    let scheme = Memo::new(move |_| {
+        worn.with(|worn| {
+            let look = worn.as_ref()?;
+            Some(match look.as_ref().map(|look| look.base) {
+                Some(Base::Light) => Scheme::Light,
+                Some(Base::Dark) => Scheme::Dark,
+                None => resolve_theme(theme.get(), system_dark.get()),
+            })
+        })
+    });
     Effect::new(move |_| {
-        let Some(look) = active.get() else { return };
-        apply_look(look.as_ref());
-        let scheme = match look.as_ref().map(|l| l.base.as_str()) {
-            Some("light") => Scheme::Light,
-            Some(_) => Scheme::Dark,
-            None => resolve_theme(theme.get(), system_dark.get()),
-        };
-        if let Some(root) = root() {
+        worn.with(|worn| {
+            if let Some(look) = worn {
+                apply_look(look.as_ref());
+            }
+        });
+    });
+    Effect::new(move |_| {
+        if let (Some(scheme), Some(root)) = (scheme.get(), root()) {
             let _ = root.set_attribute("data-theme", scheme.as_str());
         }
     });
+    Appearance { preview, scheme }
 }

@@ -3,6 +3,8 @@
 
 use posthaste_model::{Note, Status};
 
+pub use super::selection::{moved_selection, neighbour, selection_after_load};
+
 use super::dates::Day;
 
 /// What the window is showing when a key arrives.
@@ -74,36 +76,6 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<KeyAction>
 /// later day, because notes have no future.
 pub fn clamp_to_past(requested: Option<Day>, today: Day) -> Option<Day> {
     requested.filter(|day| *day < today)
-}
-
-/// Which row is selected after the list was fetched again. The current one
-/// if it is still listed and `reset` is off; otherwise the first row.
-pub fn selection_after_load(ids: &[&str], current: Option<&str>, reset: bool) -> Option<String> {
-    let kept = current.filter(|id| !reset && ids.contains(id));
-    kept.or(ids.first().copied()).map(str::to_owned)
-}
-
-/// The row `delta` away from the selected one. Stays put at either end, and
-/// starts at the first row when nothing is selected.
-pub fn moved_selection(ids: &[&str], current: Option<&str>, delta: isize) -> Option<String> {
-    let index = current.and_then(|id| ids.iter().position(|row| *row == id));
-    let target = match index {
-        Some(index) => index
-            .checked_add_signed(delta)
-            .filter(|i| *i < ids.len())
-            .unwrap_or(index),
-        None => 0,
-    };
-    ids.get(target).map(|id| (*id).to_owned())
-}
-
-/// The row to select when `id` leaves the list: the next one, else the one
-/// before, so the next key acts on the row the eye is already on.
-pub fn neighbour(ids: &[&str], id: &str) -> Option<String> {
-    let index = ids.iter().position(|row| *row == id)?;
-    let next = ids.get(index + 1);
-    let previous = index.checked_sub(1).and_then(|i| ids.get(i));
-    next.or(previous).map(|id| (*id).to_owned())
 }
 
 /// Whether a note counts as done on the day being viewed. Today that is its

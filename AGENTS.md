@@ -6,9 +6,8 @@ overrides the "Never" list below.
 
 | Working in | Also read |
 |---|---|
-| `src/` (React UI: details, inbox, settings) | `src/AGENTS.md` |
-| `ui/` (Rust UI: capture, Today) | `ui/AGENTS.md` |
-| `src/styles/` (tokens, CSS) | `src/styles/AGENTS.md` |
+| `ui/` (the interface, in Rust) | `ui/AGENTS.md` |
+| `ui/styles/` (tokens, CSS) | `ui/styles/AGENTS.md` |
 | `src-tauri/src/` (desktop shell) | `src-tauri/AGENTS.md` |
 | `src-tauri/crates/core/` (storage) | `src-tauri/crates/core/AGENTS.md` |
 | `src-tauri/crates/model/` (shared data shapes) | `src-tauri/crates/model/AGENTS.md` |
@@ -37,6 +36,11 @@ app, kept 30 days, then erased for good; restoring changes nothing but
 four windows — capture, glance, details, inbox — and every change is judged
 against that loop: it must not get slower, need more keystrokes, or become
 less reliable.
+
+The whole app is Rust: storage, the desktop shell, and the interface, which
+is compiled to WebAssembly and drawn by the system webview. There is no
+TypeScript and no React; `ui/boot.js`, `vite.config.js` and the browser test
+harness are the only JavaScript. Do not add more.
 
 ## Scope: do what was asked, nothing else
 
@@ -73,11 +77,11 @@ less reliable.
 ## Where things go
 
 ```
-Layout, keyboard handling               src/ (React), ui/ (Rust)   (no business rules)
-Interface text, in every language       locales/        (the only place, for ui/)
-Call to the native side                 src/lib/ipc.ts, ui/src/ipc (the only places)
+Layout, keyboard handling               ui/             (no business rules)
+Interface text, in every language       locales/        (the only place)
+Call to the native side                 ui/src/ipc      (the only place)
 Types on the IPC boundary               src-tauri/crates/model
-Colour, type, spacing, motion values    src/styles/tokens.css (the only place)
+Colour, type, spacing, motion values    ui/styles/tokens.css (the only place)
 Validation, persistence, search         src-tauri/crates/core
 Look validation and derivation          src-tauri/crates/core/src/look
 "Which app was focused", per-OS calls   src-tauri/crates/platform
@@ -85,7 +89,7 @@ Windows, shortcuts, tray, commands      src-tauri/src
 ```
 
 If a change seems to need logic in a layer where it does not belong (a rule in
-a React component, SQL in a command, a colour in a component), move the logic
+a window, SQL in a command, a colour in a component), move the logic
 to its layer rather than bending the boundary.
 
 ## Adding a feature end to end
@@ -95,19 +99,20 @@ Follow the existing path; do not invent a parallel one.
 1. Storage: method on `Db` in `crates/core` with tests.
 2. Command: thin adapter in `src-tauri/src/commands.rs`, registered in
    `lib.rs`, returning `AppResult<T>`.
-3. Types: new serde types go in `crates/model`. For a React window, mirror
-   them in `src/lib/types.ts`.
-4. IPC: one typed wrapper. React: `src/lib/ipc.ts`, and the same name in
-   `src/test/mockIpc.ts`. Rust: `ui/src/ipc/api.rs`, and a default answer in
+3. Types: new serde types go in `crates/model`, where the shell and the
+   interface both read them.
+4. IPC: one typed wrapper in `ui/src/ipc/api.rs`, and a default answer in
    `ui/tests/harness.mjs`.
-5. UI: the window uses the wrapper. Test it against the mock or the harness.
+5. Text: every string a person reads goes in `locales/`, in every language.
+6. UI: the window uses the wrapper. Test it against the harness.
 
 ## Done means
 
 ```sh
 npm run check
 (cd src-tauri && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test --workspace)
-npm run build && npm run test:ui   # when ui/, locales/ or crates/model changed
+(cd src-tauri && cargo clippy -p posthaste-ui --target wasm32-unknown-unknown -- -D warnings)
+npm run build && npm run test:ui
 scripts/e2e-linux.sh        # when capture, focus, shortcuts or windows changed (Linux/X11)
 ```
 

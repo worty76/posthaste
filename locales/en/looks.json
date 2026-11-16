@@ -1,0 +1,50 @@
+{
+  "theme": "Appearance",
+  "theme_help": "Used by the Plain look. Every other look is light or dark on its own.",
+  "system": "System",
+  "light": "Light",
+  "dark": "Dark",
+  "gallery": "Look",
+  "plain": "Plain",
+  "share": "Copy share code",
+  "shared": "Copied share code",
+  "edit": "Edit",
+  "delete": "Delete",
+  "copy": "Make a copy",
+  "add": "Add from code…",
+  "make": "Make your own…",
+  "added": "Added \"{name}\"",
+  "saved": "Saved \"{name}\"",
+  "copy_name": "{name} copy",
+  "import": {
+    "title": "Add from code",
+    "text": "Paste a look code someone shared. It is checked before anything is applied.",
+    "field": "Look code",
+    "action": "Add look"
+  },
+  "remove": {
+    "title": "Delete “{name}”?",
+    "text": "The look is removed from this computer. Copies you shared with others keep working."
+  },
+  "editor": {
+    "new": "New look",
+    "edit": "Edit look",
+    "name": "Name",
+    "base": "Base",
+    "background": "Background",
+    "surface": "Surface",
+    "text": "Text",
+    "accent": "Accent",
+    "picker": "{name} picker",
+    "shape": "Corner shape",
+    "sharp": "Sharp",
+    "soft": "Soft",
+    "round": "Round",
+    "font": "Font",
+    "font_system": "System",
+    "font_rounded": "Rounded",
+    "font_serif": "Serif",
+    "font_mono": "Mono",
+    "ok": "Looks good"
+  }
+}

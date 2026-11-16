@@ -61,7 +61,9 @@ pub fn Calendar(
     #[prop(into)]
     on_month_change: Callback<Vec<i64>>,
     #[prop(into)] on_pick: Callback<Day>,
-    #[prop(into, optional)] on_clear: Option<Callback<()>>,
+    /// Offers "Clear" when given.
+    #[prop(optional)]
+    on_clear: Option<Callback<()>>,
     #[prop(into)] on_close: Callback<()>,
 ) -> impl IntoView {
     let today = time::today();

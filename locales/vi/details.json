@@ -1,0 +1,63 @@
+{
+  "title": "Chi tiết ghi chú",
+  "title_field": "Tiêu đề",
+  "text_field": "Chi tiết",
+  "text_placeholder": "Thêm chi tiết…",
+  "close": "Đóng (Esc)",
+  "status": {
+    "done": "Đã xong",
+    "archived": "Đã lưu trữ",
+    "later": "Để sau",
+    "inbox": "Hộp thư",
+    "mark_completed": "Đánh dấu đã xong ({keys})",
+    "mark_not_completed": "Đánh dấu chưa xong ({keys})"
+  },
+  "meta": {
+    "created_today": "Tạo hôm nay, {time}",
+    "created_yesterday": "Tạo hôm qua, {time}",
+    "created_on": "Tạo {date}, {time}",
+    "from": "từ {source}",
+    "carried": {
+      "other": "đã chuyển sang {count} ngày"
+    },
+    "edited_today": "sửa hôm nay, {time}",
+    "edited_yesterday": "sửa hôm qua, {time}",
+    "edited_on": "sửa {date}, {time}"
+  },
+  "files": {
+    "title": "Tệp đính kèm",
+    "add": "Thêm tệp",
+    "drop_now": "Thả để đính kèm",
+    "drop_hint": "Thả tệp vào đây, dán một ảnh, hoặc nhấn {keys}",
+    "full": "Ghi chú này đã có {max} tệp. Hãy gỡ một tệp để thêm tệp khác.",
+    "too_big": "{name}: Tệp này lớn hơn {size} MB. Posthaste chỉ đính kèm tệp tối đa {size} MB.",
+    "failed": "{name}: {reason}",
+    "attached": "Đã đính kèm {name}",
+    "attached_many": {
+      "other": "Đã đính kèm {count} tệp"
+    },
+    "pasted": "Đã đính kèm ảnh vừa dán",
+    "pasted_many": {
+      "other": "Đã đính kèm {count} ảnh"
+    },
+    "removed": "Đã gỡ {name}",
+    "copy_saved": "Đã lưu một bản sao của {name}",
+    "pasted_name": "Ảnh đã dán {stamp}"
+  },
+  "tile": {
+    "tip": "Mở {name} (Enter) · Gỡ (Delete)",
+    "label": "{name}, {size}. Enter để mở, Delete để gỡ.",
+    "open": "Mở {name}",
+    "save_copy": "Lưu một bản sao của {name}",
+    "remove": "Gỡ {name}"
+  },
+  "save": {
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu"
+  },
+  "hint": {
+    "close": "đóng",
+    "done": "xong",
+    "add_file": "thêm tệp"
+  }
+}

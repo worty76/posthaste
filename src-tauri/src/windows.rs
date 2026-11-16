@@ -5,7 +5,6 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use posthaste_core::{CapturePosition, CaptureShown, WindowSize};
-use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
@@ -15,9 +14,9 @@ use crate::panels;
 use crate::state::{lock, AppState};
 
 pub const MAIN: &str = "main";
-/// The page that hosts the Rust (WebAssembly) interface. Windows move here
-/// from `index.html`, the React interface, one at a time.
-const RUST_UI: &str = "ui.html";
+/// The one page every window loads. It starts the interface, which is
+/// written in Rust (`ui/`); the window's label decides what it shows.
+const UI: &str = "index.html";
 
 pub const CAPTURE: &str = "capture";
 pub const TODAY: &str = "today";
@@ -48,34 +47,21 @@ const REFOCUS_DELAY: Duration = Duration::from_millis(120);
 /// not the user leaving.
 const BLUR_GRACE: Duration = Duration::from_millis(300);
 
-/// Where the details window was opened from; Esc goes back there.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum DetailsFrom {
-    Today,
-    Inbox,
-}
+pub use posthaste_core::{DetailsFrom, DetailsTarget};
 
-/// The note the details window shows. Sent with `details-open`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct DetailsTarget {
-    pub id: String,
-    pub from: DetailsFrom,
-}
-
-impl DetailsTarget {
-    pub fn new(id: String, from: &str) -> Self {
-        let from = if from == "today" {
-            DetailsFrom::Today
-        } else {
-            DetailsFrom::Inbox
-        };
-        DetailsTarget { id, from }
-    }
+/// The target for a note opened from the window named `from`. Anything
+/// that is not Today goes back to the inbox.
+pub fn details_target(id: String, from: &str) -> DetailsTarget {
+    let from = if from == "today" {
+        DetailsFrom::Today
+    } else {
+        DetailsFrom::Inbox
+    };
+    DetailsTarget { id, from }
 }
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
-    let main = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
+    let main = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App(UI.into()))
         .title("Posthaste")
         .inner_size(960.0, 660.0)
         .min_inner_size(620.0, 440.0)
@@ -106,7 +92,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
 
     // Created once, hidden, and reused: showing an existing window is what
     // makes the shortcut feel instant.
-    let capture = WebviewWindowBuilder::new(app, CAPTURE, WebviewUrl::App(RUST_UI.into()))
+    let capture = WebviewWindowBuilder::new(app, CAPTURE, WebviewUrl::App(UI.into()))
         .title("Posthaste")
         .inner_size(620.0, CAPTURE_HEIGHT)
         .decorations(false)
@@ -140,7 +126,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         _ => {}
     });
 
-    let today = WebviewWindowBuilder::new(app, TODAY, WebviewUrl::App(RUST_UI.into()))
+    let today = WebviewWindowBuilder::new(app, TODAY, WebviewUrl::App(UI.into()))
         .title("Posthaste Today")
         .inner_size(TODAY_WIDTH, TODAY_HEIGHT)
         .decorations(false)
@@ -176,7 +162,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
 
     // Not always on top and not hidden on blur: picking a file or switching
     // to another app to copy something must not close it.
-    let details = WebviewWindowBuilder::new(app, DETAILS, WebviewUrl::App("index.html".into()))
+    let details = WebviewWindowBuilder::new(app, DETAILS, WebviewUrl::App(UI.into()))
         .title("Posthaste Note")
         .inner_size(DETAILS_WIDTH, DETAILS_HEIGHT)
         .min_inner_size(DETAILS_MIN_WIDTH, DETAILS_MIN_HEIGHT)

@@ -17,39 +17,19 @@ pub mod wire;
 use std::sync::{Arc, Condvar, Mutex};
 
 use posthaste_core::Settings;
-use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use providers::{key_account, KeyNeed, PROVIDERS};
-use secrets::{Backend, Secrets};
+use secrets::Secrets;
 
 const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// What the test button polishes.
 const SAMPLE: &str = "remind me to send teh slides to anna befor thursdays meeting";
 
-/// One provider as Settings shows it. Never carries the key itself.
-#[derive(Debug, Clone, Serialize)]
-pub struct ProviderInfo {
-    pub id: &'static str,
-    pub name: &'static str,
-    pub key: KeyNeed,
-    pub has_key: bool,
-    pub key_url: Option<&'static str>,
-    pub key_help: &'static str,
-    pub default_model: &'static str,
-    pub base_url: &'static str,
-    pub base_url_editable: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AiOverview {
-    /// Where keys are kept on this system.
-    pub backend: Backend,
-    pub providers: Vec<ProviderInfo>,
-}
+pub use posthaste_core::{AiOverview, AiProviderInfo as ProviderInfo};
 
 fn overview(state: &AppState, secrets: &Secrets) -> AppResult<AiOverview> {
     let providers = PROVIDERS
@@ -58,14 +38,14 @@ fn overview(state: &AppState, secrets: &Secrets) -> AppResult<AiOverview> {
             // Never reads the keychain: see `Secrets::has`.
             let has_key = p.key != KeyNeed::None && secrets.has(state, &key_account(p.id));
             ProviderInfo {
-                id: p.id,
-                name: p.name,
+                id: p.id.to_owned(),
+                name: p.name.to_owned(),
                 key: p.key,
                 has_key,
-                key_url: p.key_url,
-                key_help: p.key_help,
-                default_model: p.default_model,
-                base_url: p.base_url,
+                key_url: p.key_url.map(str::to_owned),
+                key_help: p.key_help.to_owned(),
+                default_model: p.default_model.to_owned(),
+                base_url: p.base_url.to_owned(),
                 base_url_editable: p.base_url_editable,
             }
         })
@@ -496,7 +476,7 @@ mod tests {
             .providers
             .iter()
             .filter(|p| p.has_key)
-            .map(|p| p.id)
+            .map(|p| p.id.as_str())
             .collect();
         assert_eq!(has, ["openai", "gemini"]);
 
@@ -569,7 +549,7 @@ mod tests {
                 .unwrap()
                 .has_key
         );
-        assert_eq!(o.backend, Backend::Database);
+        assert_eq!(o.backend, secrets::Backend::Database);
     }
 
     #[test]
@@ -578,7 +558,7 @@ mod tests {
         let (_, secrets) = keychain();
         secrets.set(&state, "ai:openrouter", "or-key-x").unwrap();
         let o = overview(&state, &secrets).unwrap();
-        assert_eq!(o.backend, Backend::Keychain);
+        assert_eq!(o.backend, secrets::Backend::Keychain);
         let router = o.providers.iter().find(|p| p.id == "openrouter").unwrap();
         assert!(router.has_key);
         assert!(

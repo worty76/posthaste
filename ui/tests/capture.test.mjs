@@ -18,7 +18,11 @@ async function capture(options) {
 describe("capture input", () => {
   it("focuses the input without a click and shows the placeholder", async () => {
     const w = await capture();
-    await eventually(() => w.note.evaluate((el) => el === document.activeElement), Boolean, "focus");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus",
+    );
     assert.equal(await w.note.getAttribute("placeholder"), "What's on your mind?");
     assert.deepEqual(w.errors, []);
     await w.close();
@@ -28,7 +32,11 @@ describe("capture input", () => {
     const w = await capture();
     await w.page.getByLabel("Category (optional)").focus();
     await w.mock.emit("capture-shown", { source: "Code" });
-    await eventually(() => w.note.evaluate((el) => el === document.activeElement), Boolean, "focus");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus",
+    );
     await text(w.page.locator(".capture__header"), "from Code");
     await w.close();
   });
@@ -47,7 +55,11 @@ describe("keyboard", () => {
     await w.note.press("Enter");
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
     assert.deepEqual(save.args, { content: "buy milk", category: null, hide: true });
-    await eventually(() => w.note.inputValue(), (v) => v === "", "cleared");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "",
+      "cleared",
+    );
     await w.close();
   });
 
@@ -68,7 +80,11 @@ describe("keyboard", () => {
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
     assert.equal(save.args.hide, false);
     await text(w.status, "Saved");
-    await eventually(() => w.note.evaluate((el) => el === document.activeElement), Boolean, "focus");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus",
+    );
     await w.close();
   });
 
@@ -86,7 +102,11 @@ describe("keyboard", () => {
     const w = await capture();
     await w.note.fill("half a thought");
     await w.note.press("Escape");
-    await eventually(() => w.mock.calls("capture_dismiss"), (c) => c.length === 1, "dismissed");
+    await eventually(
+      () => w.mock.calls("capture_dismiss"),
+      (c) => c.length === 1,
+      "dismissed",
+    );
     assert.equal((await w.mock.draft()).content, "half a thought");
     assert.equal(await w.note.inputValue(), "half a thought");
     const order = (await w.mock.calls()).map((c) => c.cmd);
@@ -99,7 +119,12 @@ describe("keyboard", () => {
     await w.note.fill("viet");
     await w.note.evaluate((el) =>
       el.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true, cancelable: true }),
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          isComposing: true,
+          bubbles: true,
+          cancelable: true,
+        }),
       ),
     );
     await new Promise((r) => setTimeout(r, 150));
@@ -122,7 +147,11 @@ describe("keyboard", () => {
 
   it("with 'Close after saving' off, Enter saves and stays open", async () => {
     const w = await capture({ settings: { hide_after_save: false } });
-    await eventually(() => w.mock.calls("settings_get"), (c) => c.length > 0, "settings read");
+    await eventually(
+      () => w.mock.calls("settings_get"),
+      (c) => c.length > 0,
+      "settings read",
+    );
     await w.note.fill("stay");
     await w.note.press("Enter");
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
@@ -165,7 +194,11 @@ describe("save states", () => {
     await text(w.status, "Saving…");
     await w.note.press("Enter");
     await w.mock.release("capture_save", { id: "n1" });
-    await eventually(() => w.note.inputValue(), (v) => v === "", "cleared");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "",
+      "cleared",
+    );
     assert.equal((await w.saves()).length, 1);
     await w.close();
   });
@@ -186,7 +219,11 @@ describe("save states", () => {
     await w.note.fill("x");
     await category.fill("work");
     await category.press("Enter");
-    await eventually(() => w.note.evaluate((el) => el === document.activeElement), Boolean, "focus");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus",
+    );
     assert.equal((await w.saves()).length, 0);
     await w.close();
   });
@@ -227,11 +264,23 @@ describe("drafts", () => {
 
   it("restores a draft left by a previous session and offers to discard it", async () => {
     const w = await capture({ draft: { content: "from before", category: "work", updated_at: 1 } });
-    await eventually(() => w.note.inputValue(), (v) => v === "from before", "restored");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "from before",
+      "restored",
+    );
     await text(w.status, "Draft restored");
     await w.page.getByRole("button", { name: "Discard" }).click();
-    await eventually(() => w.note.inputValue(), (v) => v === "", "cleared");
-    await eventually(() => w.mock.calls("draft_clear"), (c) => c.length === 1, "draft cleared");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "",
+      "cleared",
+    );
+    await eventually(
+      () => w.mock.calls("draft_clear"),
+      (c) => c.length === 1,
+      "draft cleared",
+    );
     assert.equal(await w.mock.draft(), null);
     await w.close();
   });
@@ -264,7 +313,11 @@ describe("ai polish", () => {
     await w.mock.answer("ai_polish", "Buy milk.");
     await w.note.fill("by milk");
     await w.note.press("Control+i");
-    await eventually(() => w.note.inputValue(), (v) => v === "Buy milk.", "polished");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "Buy milk.",
+      "polished",
+    );
     await text(w.status, "Polished");
     await eventually(w.mock.draft, (d) => d?.content === "Buy milk.", "polished text drafted");
     await w.close();
@@ -298,14 +351,22 @@ describe("ai polish", () => {
     assert.equal(await w.note.evaluate((el) => el.readOnly), true);
     await w.note.press("Control+i");
     await w.mock.release("ai_polish", "Buy milk.");
-    await eventually(() => w.note.inputValue(), (v) => v === "Buy milk.", "polished");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "Buy milk.",
+      "polished",
+    );
     assert.equal((await w.mock.calls("ai_polish")).length, 1);
     await w.close();
   });
 
   it("hides the polish button when AI is off", async () => {
     const w = await capture();
-    await eventually(() => w.mock.calls("settings_get"), (c) => c.length > 0, "settings read");
+    await eventually(
+      () => w.mock.calls("settings_get"),
+      (c) => c.length > 0,
+      "settings read",
+    );
     assert.equal(await w.page.getByRole("button", { name: "Polish note with AI" }).count(), 0);
     await w.close();
   });
@@ -314,7 +375,11 @@ describe("ai polish", () => {
 describe("language", () => {
   it("shows Vietnamese when that is the chosen language", async () => {
     const w = await capture({ settings: { language: "vi" } });
-    await eventually(() => w.note.getAttribute("placeholder"), (p) => p === "Bạn đang nghĩ gì?", "placeholder");
+    await eventually(
+      () => w.note.getAttribute("placeholder"),
+      (p) => p === "Bạn đang nghĩ gì?",
+      "placeholder",
+    );
     assert.equal(await w.page.locator("html").getAttribute("lang"), "vi");
     await w.note.fill("   ");
     await w.note.press("Enter");
@@ -335,7 +400,11 @@ describe("language", () => {
 
   it("falls back to English for a language this build does not have", async () => {
     const w = await capture({ settings: { language: "xx" } });
-    await eventually(() => w.mock.calls("settings_get"), (c) => c.length > 0, "settings read");
+    await eventually(
+      () => w.mock.calls("settings_get"),
+      (c) => c.length > 0,
+      "settings read",
+    );
     await text(w.page.locator(".capture__title"), "Quick Note");
     await w.close();
   });
@@ -345,19 +414,32 @@ describe("appearance", () => {
   it("applies the active look's tokens, shape and font", async () => {
     const w = await open({ label: "capture" });
     await w.mock.answer("look_active", {
-      id: "x", name: "X", author: null, base: "light", shape: "round", font: "serif",
+      id: "x",
+      name: "X",
+      author: null,
+      base: "light",
+      shape: "round",
+      font: "serif",
       tokens: { "--bg": "rgb(1, 2, 3)" },
     });
     await w.mock.emit("looks-changed");
     const html = w.page.locator("html");
-    await eventually(() => html.getAttribute("data-theme"), (t) => t === "light", "theme");
+    await eventually(
+      () => html.getAttribute("data-theme"),
+      (t) => t === "light",
+      "theme",
+    );
     assert.equal(await html.getAttribute("data-shape"), "round");
     assert.equal(await html.getAttribute("data-font"), "serif");
     assert.equal(await html.evaluate((el) => el.style.getPropertyValue("--bg")), "rgb(1, 2, 3)");
     // Back to Plain: the look's token must not be left behind.
     await w.mock.answer("look_active", null);
     await w.mock.emit("looks-changed");
-    await eventually(() => html.evaluate((el) => el.style.getPropertyValue("--bg")), (v) => v === "", "token removed");
+    await eventually(
+      () => html.evaluate((el) => el.style.getPropertyValue("--bg")),
+      (v) => v === "",
+      "token removed",
+    );
     assert.equal(await html.getAttribute("data-shape"), null);
     await w.close();
   });

@@ -149,3 +149,44 @@ pub fn format_day(day: Day, locale: &str, style: DateStyle) -> String {
         .and_then(|text| text.as_string())
         .unwrap_or_else(|| day.key())
 }
+
+/// Writes the time of day of the instant `ms` the way `locale` does:
+/// "3:40 PM", "15:40".
+pub fn format_time(ms: i64, locale: &str) -> String {
+    let options = Object::new();
+    let _ = Reflect::set(&options, &"hour".into(), &"numeric".into());
+    let _ = Reflect::set(&options, &"minute".into(), &"2-digit".into());
+    let formatter = Intl::DateTimeFormat::new(&Array::of1(&locale.into()), &options);
+    formatter
+        .format()
+        .call1(&JsValue::NULL, &Date::new(&JsValue::from_f64(ms as f64)))
+        .ok()
+        .and_then(|text| text.as_string())
+        .unwrap_or_default()
+}
+
+/// The instant `ms` in the machine-readable form `<time datetime>` takes.
+pub fn iso(ms: i64) -> String {
+    Date::new(&JsValue::from_f64(ms as f64))
+        .to_iso_string()
+        .into()
+}
+
+/// The local date and time of the instant `ms`, written so it can be part
+/// of a file name on every system: "2026-11-15 15.40".
+pub fn file_stamp(ms: i64) -> String {
+    let date = Date::new(&JsValue::from_f64(ms as f64));
+    format!(
+        "{}-{:02}-{:02} {:02}.{:02}",
+        date.get_full_year(),
+        date.get_month() + 1,
+        date.get_date(),
+        date.get_hours(),
+        date.get_minutes()
+    )
+}
+
+/// How far local time is ahead of UTC right now, in minutes.
+pub fn utc_offset_minutes() -> i32 {
+    -(Date::new_0().get_timezone_offset() as i32)
+}

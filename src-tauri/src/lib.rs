@@ -8,6 +8,7 @@ mod panels;
 mod shortcuts;
 mod state;
 mod tray;
+mod updates;
 mod windows;
 
 use std::sync::atomic::Ordering;
@@ -99,7 +100,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::capture_save,
@@ -157,6 +157,8 @@ pub fn run() {
             ai::ai_key_clear,
             ai::ai_test,
             ai::ai_key_page,
+            updates::update_check,
+            updates::update_install,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -178,8 +180,11 @@ pub fn run() {
                 let _ = std::fs::remove_dir_all(dir);
             }
 
-            match tray::create(&handle) {
-                Ok(()) => state.tray_available.store(true, Ordering::Relaxed),
+            match tray::create(&handle, state.translator()) {
+                Ok(menu) => {
+                    handle.manage(menu);
+                    state.tray_available.store(true, Ordering::Relaxed);
+                }
                 Err(e) => log::warn!("system tray unavailable, continuing without it: {e}"),
             }
 

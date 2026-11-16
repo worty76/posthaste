@@ -13,7 +13,6 @@ drift apart.
   must build for `wasm32-unknown-unknown`.
 - Every type derives both `Serialize` and `Deserialize`: each crosses the
   boundary in one direction and is read back on the other side.
-- While some windows are still React, `src/lib/types.ts` mirrors these types
-  by hand. Change both in the same change.
+- `look.rs`: the look document and what the shell sends about looks.
 - Settings must keep loading: a new field needs a default, and a value this
   version does not know must not reset the others.

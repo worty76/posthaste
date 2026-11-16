@@ -1,0 +1,117 @@
+{
+  "sections": "Sections",
+  "nav": {
+    "inbox": "Inbox",
+    "today": "Today",
+    "later": "Later",
+    "archive": "Archive",
+    "trash": "Trash",
+    "settings": "Settings"
+  },
+  "new_note": "New note",
+  "search": {
+    "title": "Search",
+    "label": "Search all notes",
+    "clear": "Clear search"
+  },
+  "filter": {
+    "toggle": "Filter by status or date",
+    "status": "Status",
+    "all": "All",
+    "open": "Open",
+    "completed": "Completed",
+    "archived": "Archived",
+    "captured_on": "Captured on",
+    "captured_on_day": "Captured on {date}",
+    "captured_tip": "Show notes captured on a day",
+    "no_matches": "No matches",
+    "count": {
+      "one": "{count} note",
+      "other": "{count} notes"
+    },
+    "count_more": {
+      "one": "{count}+ note",
+      "other": "{count}+ notes"
+    }
+  },
+  "banner": {
+    "shortcut_title": "The capture shortcut isn't active.",
+    "shortcut_action": "Change shortcut",
+    "update_title": "Posthaste {version} is available.",
+    "update_text": "It installs right here and the app restarts.",
+    "update_action": "Update"
+  },
+  "more": "Show older notes",
+  "empty": {
+    "search_title": "No notes match",
+    "search_text": "Nothing contains “{text}”. Search looks through every note, including the archive.",
+    "search_text_filtered": "Nothing contains “{text}” with these filters. Search looks through every note, including the archive.",
+    "search_date": "Nothing was captured on that date.",
+    "today_title": "Nothing captured today",
+    "today_text": "Notes you capture today show up here.",
+    "later_title": "Nothing parked",
+    "later_text": "Press {key} on a note to keep it here, out of Today and the inbox, until you want it back.",
+    "archive_title": "The archive is empty",
+    "archive_text": "Notes you complete or archive move here, out of the way but still searchable.",
+    "inbox_title": "Your inbox is clear",
+    "inbox_text_shortcut": "Press {keys} in any application to capture a thought. It will be waiting here.",
+    "inbox_text_plain": "Use New note to capture a thought. It will be waiting here."
+  },
+  "note": {
+    "mark_completed": "Mark as completed",
+    "mark_not_completed": "Mark as not completed",
+    "show_more": "Show more",
+    "show_less": "Show less",
+    "from": "from {source}",
+    "later": "Later",
+    "archived": "Archived",
+    "completed": "Completed",
+    "edit": "Edit (E)",
+    "open_details": "Open details (O)",
+    "copy": "Copy (C)",
+    "to_later": "Later (L)",
+    "to_inbox": "Move to Inbox (L)",
+    "restore": "Move back to Inbox (R)",
+    "archive": "Archive (A)",
+    "delete": "Delete (Delete)"
+  },
+  "edit": {
+    "label": "Edit note",
+    "category_label": "Category (optional)",
+    "category_placeholder": "Category",
+    "hint": "Enter saves, Shift+Enter adds a line"
+  },
+  "toast": {
+    "undo": "Undo",
+    "completed": "Completed",
+    "not_completed": "Marked as not completed",
+    "archived": "Archived",
+    "to_inbox": "Moved back to Inbox",
+    "to_later": "Moved to Later",
+    "trashed": "Moved to Trash",
+    "copied": "Copied",
+    "copy_failed": "Could not copy to the clipboard"
+  },
+  "help": {
+    "title": "Keyboard shortcuts",
+    "move": "Move through notes",
+    "edit": "Edit",
+    "details": "Open details",
+    "complete": "Complete",
+    "archive": "Archive",
+    "restore": "Move back to Inbox",
+    "later": "Later, or back to Inbox",
+    "copy": "Copy",
+    "delete": "Delete",
+    "search": "Search",
+    "sections": "Inbox, Today, Later, Archive, Trash",
+    "trash_restore": "Restore (in Trash)",
+    "trash_delete": "Delete forever (in Trash)",
+    "new_note": "New note",
+    "settings": "Settings"
+  },
+  "fatal": {
+    "title": "Posthaste can't open its database",
+    "text": "Nothing has been deleted. Your notes file was left exactly as it was. Fix the problem above (for example free some disk space, or check the file's permissions), then start Posthaste again."
+  }
+}

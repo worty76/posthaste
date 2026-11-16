@@ -11,6 +11,7 @@ use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key, Translator};
 use posthaste_model::{CommandError, Os};
 
+use crate::browser::bind_text;
 use crate::components::Kbd;
 use crate::draft_sync::DraftSync;
 use crate::ipc::{self, api, events};
@@ -375,7 +376,7 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                     class="capture__input"
                     aria-label=i18n.text(key::CAPTURE_NOTE_LABEL)
                     placeholder=i18n.text(key::CAPTURE_PLACEHOLDER)
-                    prop:value=move || capture.content.get()
+                    use:bind_text=Signal::derive(move || capture.content.get())
                     on:input=move |event| {
                         capture.edit(event_target_value(&event), capture.category.get_untracked())
                     }
@@ -412,7 +413,7 @@ fn StatusBar(
                 placeholder=i18n.text(key::CAPTURE_CATEGORY_PLACEHOLDER)
                 list="capture-categories"
                 maxlength="40"
-                prop:value=move || capture.category.get()
+                use:bind_text=Signal::derive(move || capture.category.get())
                 on:input=move |event| {
                     capture.edit(capture.content.get_untracked(), event_target_value(&event))
                 }

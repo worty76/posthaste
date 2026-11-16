@@ -220,7 +220,7 @@ impl Today {
         let id = note.id.clone();
         self.selected.set(Some(id.clone()));
         spawn_local(async move {
-            if let Err(error) = api::details_open(&id, api::DetailsFrom::Today).await {
+            if let Err(error) = api::details_open(&id, posthaste_model::DetailsFrom::Today).await {
                 self.fail(error);
             }
         });

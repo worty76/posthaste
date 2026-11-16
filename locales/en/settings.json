@@ -1,0 +1,108 @@
+{
+  "general": {
+    "heading": "General",
+    "language": "Language",
+    "language_help": "The language Posthaste's windows are written in.",
+    "launch": "Launch at login",
+    "launch_help": "Start Posthaste when you sign in, so the shortcut is always ready.",
+    "minimized": "Start minimized",
+    "minimized_help": "Open in the background, without showing this window.",
+    "minimized_help_no_tray": "Open in the background. No system tray was found, so launch Posthaste again to bring this window back."
+  },
+  "keyboard": {
+    "heading": "Keyboard",
+    "capture": "Capture shortcut",
+    "capture_help": "Opens the Posthaste window from any application.",
+    "inbox": "Inbox shortcut",
+    "inbox_help": "Opens this window on the Inbox.",
+    "today": "Today shortcut",
+    "today_help": "Opens a small window with today's notes and how many are done.",
+    "restore_default": "Restore default",
+    "none": "No shortcut set.",
+    "inactive": "Not active. {reason}",
+    "limited": "Registered, with a limitation. {reason}",
+    "active": "Registered and active.",
+    "record": "{name}: press the new shortcut",
+    "change": "{name}: change",
+    "recording": "Press shortcut…",
+    "set": "Set shortcut"
+  },
+  "capture": {
+    "heading": "Capture",
+    "position": "Window position",
+    "position_help": "Where each window opens on the display you're working on.",
+    "position_help_wayland": "On Wayland the compositor decides where windows appear, so this may have no effect.",
+    "position_capture": "Capture window position",
+    "position_today": "Today window position",
+    "caption_capture": "Capture",
+    "caption_today": "Today",
+    "size": "Window size",
+    "size_help": "How big the capture, Today and details windows open, from the next time they do. Text keeps its size.",
+    "size_small": "Compact",
+    "size_medium": "Standard",
+    "size_large": "Roomy",
+    "enter": "Enter key",
+    "enter_help": "The other action is always on Shift+Enter or Ctrl/⌘+Enter.",
+    "enter_save": "Saves",
+    "enter_newline": "Adds a line",
+    "close_after_save": "Close after saving",
+    "close_after_save_help": "Turn off to capture several notes in a row.",
+    "close_on_blur": "Close when clicking elsewhere",
+    "close_on_blur_help": "What you typed is kept as a draft either way.",
+    "drafts": "Keep unsaved drafts",
+    "drafts_help": "How long an unfinished note waits for you.",
+    "drafts_day": "1 day",
+    "drafts_week": "7 days",
+    "drafts_forever": "Until saved"
+  },
+  "data": {
+    "heading": "Data",
+    "database": "Database",
+    "database_help": "Your notes live in one file on this computer and are never sent anywhere.",
+    "database_size": {
+      "one": "{count} note, {size}.",
+      "other": "{count} notes, {size}."
+    },
+    "unavailable": "Unavailable",
+    "reveal": "Show in folder",
+    "export": "Export notes",
+    "export_help": "A Markdown file with every note as a checklist, readable in any editor. Choose JSON in the save dialog for tools. Attached files are not included; the backup below has them.",
+    "export_action": "Export…",
+    "exported": {
+      "one": "Exported {count} note",
+      "other": "Exported {count} notes"
+    },
+    "import": "Import notes",
+    "import_help": "Adds notes from a Posthaste export (Markdown or JSON) or any Markdown checklist. Existing notes are never overwritten.",
+    "import_action": "Import…",
+    "imported": {
+      "one": "Imported {count} note",
+      "other": "Imported {count} notes"
+    },
+    "imported_skipped": {
+      "one": "Imported {count} note, skipped {skipped}",
+      "other": "Imported {count} notes, skipped {skipped}"
+    },
+    "backup": "Back up database",
+    "backup_help": "A complete copy, including settings and attached files.",
+    "backup_action": "Back up…",
+    "backed_up": "Backup created",
+    "clear": "Clear all data",
+    "clear_help": "Deletes every note, draft, look and setting. This can't be undone.",
+    "clear_action": "Clear data…",
+    "cleared": "All data cleared",
+    "clear_title": "Delete all notes?",
+    "clear_text": "This permanently deletes every note, the current draft, your looks and your settings from this computer. Export or back up first if you might want them again.",
+    "clear_confirm": "Type {word} to confirm",
+    "clear_everything": "Delete everything"
+  },
+  "updates": {
+    "heading": "Updates",
+    "version": "Posthaste {version}",
+    "help": "The app checks for updates at most every 6 hours. An update installs in place and Posthaste restarts.",
+    "update_to": "Update to {version}",
+    "check": "Check for updates",
+    "ready": "Posthaste {version} is ready to install.",
+    "latest": "You're on the latest version."
+  }
+}

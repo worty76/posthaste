@@ -9,11 +9,14 @@
 //! | `ipc` | every command and event | the only module that touches Tauri |
 //! | `time` | the clock, the time zone, date formatting | the only module that reads them from the browser |
 //! | `state` | settings, language, look, shared by windows | the only writer of `<html>` attributes |
+//! | `browser` | the clipboard, focus, what a key landed on | small helpers; no notes, no Tauri |
 //! | `components` | controls that know nothing about notes | no `ipc` imports |
 //! | `windows` | one module per window | composes the layers above |
 
 pub mod logic;
 
+#[cfg(target_arch = "wasm32")]
+mod browser;
 #[cfg(target_arch = "wasm32")]
 mod components;
 #[cfg(target_arch = "wasm32")]

@@ -6,9 +6,11 @@
 //! the desktop targets.
 
 mod domain;
+mod look;
 mod wire;
 
 pub use domain::*;
+pub use look::*;
 pub use wire::*;
 
 /// The look every install wears out of the box.

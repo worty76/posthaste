@@ -1,0 +1,115 @@
+{
+  "sections": "Các mục",
+  "nav": {
+    "inbox": "Hộp thư",
+    "today": "Hôm nay",
+    "later": "Để sau",
+    "archive": "Lưu trữ",
+    "trash": "Thùng rác",
+    "settings": "Cài đặt"
+  },
+  "new_note": "Ghi chú mới",
+  "search": {
+    "title": "Tìm kiếm",
+    "label": "Tìm trong mọi ghi chú",
+    "clear": "Xóa tìm kiếm"
+  },
+  "filter": {
+    "toggle": "Lọc theo trạng thái hoặc ngày",
+    "status": "Trạng thái",
+    "all": "Tất cả",
+    "open": "Còn mở",
+    "completed": "Đã xong",
+    "archived": "Đã lưu trữ",
+    "captured_on": "Ngày ghi",
+    "captured_on_day": "Ghi ngày {date}",
+    "captured_tip": "Hiện các ghi chú được ghi trong một ngày",
+    "no_matches": "Không có kết quả",
+    "count": {
+      "other": "{count} ghi chú"
+    },
+    "count_more": {
+      "other": "{count}+ ghi chú"
+    }
+  },
+  "banner": {
+    "shortcut_title": "Phím tắt ghi nhanh chưa hoạt động.",
+    "shortcut_action": "Đổi phím tắt",
+    "update_title": "Đã có Posthaste {version}.",
+    "update_text": "Bản cập nhật được cài ngay tại đây và ứng dụng sẽ khởi động lại.",
+    "update_action": "Cập nhật"
+  },
+  "more": "Hiện ghi chú cũ hơn",
+  "empty": {
+    "search_title": "Không có ghi chú nào khớp",
+    "search_text": "Không có ghi chú nào chứa “{text}”. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
+    "search_text_filtered": "Không có ghi chú nào chứa “{text}” với các bộ lọc này. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
+    "search_date": "Không có ghi chú nào được ghi vào ngày đó.",
+    "today_title": "Hôm nay chưa ghi gì",
+    "today_text": "Ghi chú bạn ghi hôm nay sẽ hiện ở đây.",
+    "later_title": "Chưa để gì lại sau",
+    "later_text": "Nhấn {key} trên một ghi chú để giữ nó ở đây, ngoài Hôm nay và hộp thư, cho đến khi bạn cần lại.",
+    "archive_title": "Phần lưu trữ đang trống",
+    "archive_text": "Ghi chú bạn làm xong hoặc lưu trữ sẽ chuyển về đây, gọn gàng nhưng vẫn tìm được.",
+    "inbox_title": "Hộp thư đã trống",
+    "inbox_text_shortcut": "Nhấn {keys} trong bất kỳ ứng dụng nào để ghi lại một ý nghĩ. Nó sẽ chờ bạn ở đây.",
+    "inbox_text_plain": "Dùng Ghi chú mới để ghi lại một ý nghĩ. Nó sẽ chờ bạn ở đây."
+  },
+  "note": {
+    "mark_completed": "Đánh dấu đã xong",
+    "mark_not_completed": "Đánh dấu chưa xong",
+    "show_more": "Xem thêm",
+    "show_less": "Thu gọn",
+    "from": "từ {source}",
+    "later": "Để sau",
+    "archived": "Đã lưu trữ",
+    "completed": "Đã xong",
+    "edit": "Sửa (E)",
+    "open_details": "Mở chi tiết (O)",
+    "copy": "Sao chép (C)",
+    "to_later": "Để sau (L)",
+    "to_inbox": "Chuyển về Hộp thư (L)",
+    "restore": "Chuyển lại về Hộp thư (R)",
+    "archive": "Lưu trữ (A)",
+    "delete": "Xóa (Delete)"
+  },
+  "edit": {
+    "label": "Sửa ghi chú",
+    "category_label": "Danh mục (không bắt buộc)",
+    "category_placeholder": "Danh mục",
+    "hint": "Enter để lưu, Shift+Enter để xuống dòng"
+  },
+  "toast": {
+    "undo": "Hoàn tác",
+    "completed": "Đã xong",
+    "not_completed": "Đã đánh dấu chưa xong",
+    "archived": "Đã lưu trữ",
+    "to_inbox": "Đã chuyển lại về Hộp thư",
+    "to_later": "Đã chuyển sang Để sau",
+    "trashed": "Đã chuyển vào Thùng rác",
+    "copied": "Đã sao chép",
+    "copy_failed": "Không sao chép được vào bộ nhớ tạm"
+  },
+  "help": {
+    "title": "Phím tắt",
+    "move": "Di chuyển giữa các ghi chú",
+    "edit": "Sửa",
+    "details": "Mở chi tiết",
+    "complete": "Đánh dấu xong",
+    "archive": "Lưu trữ",
+    "restore": "Chuyển lại về Hộp thư",
+    "later": "Để sau, hoặc về lại Hộp thư",
+    "copy": "Sao chép",
+    "delete": "Xóa",
+    "search": "Tìm kiếm",
+    "sections": "Hộp thư, Hôm nay, Để sau, Lưu trữ, Thùng rác",
+    "trash_restore": "Khôi phục (trong Thùng rác)",
+    "trash_delete": "Xóa vĩnh viễn (trong Thùng rác)",
+    "new_note": "Ghi chú mới",
+    "settings": "Cài đặt"
+  },
+  "fatal": {
+    "title": "Posthaste không mở được cơ sở dữ liệu",
+    "text": "Chưa có gì bị xóa. Tệp ghi chú của bạn vẫn được giữ nguyên. Hãy khắc phục vấn đề ở trên (ví dụ giải phóng dung lượng đĩa, hoặc kiểm tra quyền của tệp), rồi mở lại Posthaste."
+  }
+}

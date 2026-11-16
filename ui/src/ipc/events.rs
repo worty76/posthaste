@@ -4,12 +4,12 @@
 
 use leptos::prelude::on_cleanup;
 use leptos::task::spawn_local;
-use posthaste_model::{CaptureShown as CaptureShownPayload, Settings};
+use posthaste_model::{CaptureShown as CaptureShownPayload, DetailsTarget, Settings};
 use send_wrapper::SendWrapper;
 use serde::{de::DeserializeOwned, Deserialize};
 use wasm_bindgen::prelude::*;
 
-use super::tauri::tauri_listen;
+use super::tauri::{tauri_listen, tauri_on_drag_drop};
 
 pub trait Event {
     const NAME: &'static str;
@@ -57,6 +57,23 @@ event!(
     TodayReturned, "today-returned", ()
 );
 
+event!(
+    /// The details window should show this note.
+    DetailsOpen, "details-open", DetailsTarget
+);
+event!(
+    /// The details window is about to be hidden: store what was typed.
+    DetailsCloseRequested, "details-close-requested", ()
+);
+event!(
+    /// The inbox should show the notes captured on this day (`YYYY-MM-DD`).
+    InboxShowDate, "inbox-show-date", String
+);
+event!(
+    /// The main window should show this section ("inbox", "settings", …).
+    Navigate, "navigate", String
+);
+
 #[derive(Deserialize)]
 struct Envelope<T> {
     payload: T,
@@ -64,11 +81,62 @@ struct Envelope<T> {
 
 /// Listens for `E` for as long as the calling component lives.
 pub fn on<E: Event>(mut handler: impl FnMut(E::Payload) + 'static) {
-    let closure = Closure::<dyn FnMut(JsValue)>::new(move |event: JsValue| {
-        if let Ok(envelope) = serde_wasm_bindgen::from_value::<Envelope<E::Payload>>(event) {
-            handler(envelope.payload);
-        }
-    });
+    subscribe(
+        move |event| {
+            if let Ok(envelope) = serde_wasm_bindgen::from_value::<Envelope<E::Payload>>(event) {
+                handler(envelope.payload);
+            }
+        },
+        |closure| tauri_listen(E::NAME, closure),
+    );
+}
+
+/// What files dragged over this window are doing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileDrop {
+    /// Being held over the window.
+    Over,
+    /// Taken away again.
+    Left,
+    /// Let go: the paths of the files on this computer.
+    Dropped(Vec<String>),
+}
+
+#[derive(Deserialize)]
+struct DragDrop {
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(default)]
+    paths: Vec<String>,
+}
+
+/// Follows files dragged over this window for as long as the calling
+/// component lives.
+pub fn on_file_drop(mut handler: impl FnMut(FileDrop) + 'static) {
+    subscribe(
+        move |event| {
+            let Ok(Envelope { payload }) =
+                serde_wasm_bindgen::from_value::<Envelope<DragDrop>>(event)
+            else {
+                return;
+            };
+            handler(match payload.kind.as_str() {
+                "drop" => FileDrop::Dropped(payload.paths),
+                "leave" => FileDrop::Left,
+                _ => FileDrop::Over,
+            });
+        },
+        tauri_on_drag_drop,
+    );
+}
+
+/// Registers `handler` with the shell through `register` and removes it
+/// when the calling component goes away.
+fn subscribe(
+    handler: impl FnMut(JsValue) + 'static,
+    register: impl FnOnce(&Closure<dyn FnMut(JsValue)>) -> Result<js_sys::Promise, JsValue> + 'static,
+) {
+    let closure = Closure::<dyn FnMut(JsValue)>::new(handler);
     // Shared between the pending registration and the cleanup, whichever
     // comes first. Single-threaded: the wrapper only satisfies `Send`.
     let state = std::rc::Rc::new(std::cell::RefCell::new(Listener {
@@ -82,7 +150,7 @@ pub fn on<E: Event>(mut handler: impl FnMut(E::Payload) + 'static) {
         // Registering is a plain call; only its answer is awaited, so the
         // borrow is released before anything else can run.
         let registered = match registering.borrow().closure.as_ref() {
-            Some(closure) => tauri_listen(E::NAME, closure),
+            Some(closure) => register(closure),
             None => return,
         };
         let Ok(promise) = registered else {

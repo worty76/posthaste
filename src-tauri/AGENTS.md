@@ -28,7 +28,10 @@ are in `crates/platform`).
   emit `settings-changed`. Windows refetch on these.
 - Commands that open a file dialog or block are `async`. Others are sync.
 - A new command is added in four places in the same change: `commands.rs`, the
-  `generate_handler!` list in `lib.rs`, `src/lib/ipc.ts`, `src/test/mockIpc.ts`.
+  `generate_handler!` list in `lib.rs`, `ui/src/ipc/api.rs`, and a default
+  answer in `ui/tests/harness.mjs`.
+- Text the shell itself shows (tray menu, file dialog titles) comes from
+  `locales/*/desktop.json` through `state.translator()`.
 
 ## Errors and panics
 

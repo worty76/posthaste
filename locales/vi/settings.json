@@ -1,0 +1,104 @@
+{
+  "general": {
+    "heading": "Chung",
+    "language": "Ngôn ngữ",
+    "language_help": "Ngôn ngữ hiển thị trong các cửa sổ của Posthaste.",
+    "launch": "Mở khi đăng nhập",
+    "launch_help": "Khởi động Posthaste khi bạn đăng nhập, để phím tắt luôn sẵn sàng.",
+    "minimized": "Khởi động thu nhỏ",
+    "minimized_help": "Mở ở chế độ nền, không hiện cửa sổ này.",
+    "minimized_help_no_tray": "Mở ở chế độ nền. Không tìm thấy khay hệ thống, nên hãy mở Posthaste lần nữa để hiện lại cửa sổ này."
+  },
+  "keyboard": {
+    "heading": "Bàn phím",
+    "capture": "Phím tắt ghi nhanh",
+    "capture_help": "Mở cửa sổ Posthaste từ bất kỳ ứng dụng nào.",
+    "inbox": "Phím tắt Hộp thư",
+    "inbox_help": "Mở cửa sổ này ở mục Hộp thư.",
+    "today": "Phím tắt Hôm nay",
+    "today_help": "Mở một cửa sổ nhỏ với các ghi chú hôm nay và số việc đã xong.",
+    "restore_default": "Khôi phục mặc định",
+    "none": "Chưa đặt phím tắt.",
+    "inactive": "Chưa hoạt động. {reason}",
+    "limited": "Đã đăng ký, nhưng có hạn chế. {reason}",
+    "active": "Đã đăng ký và đang hoạt động.",
+    "record": "{name}: nhấn phím tắt mới",
+    "change": "{name}: thay đổi",
+    "recording": "Nhấn phím tắt…",
+    "set": "Đặt phím tắt"
+  },
+  "capture": {
+    "heading": "Ghi nhanh",
+    "position": "Vị trí cửa sổ",
+    "position_help": "Nơi mỗi cửa sổ mở ra trên màn hình bạn đang làm việc.",
+    "position_help_wayland": "Trên Wayland, trình quản lý cửa sổ quyết định vị trí, nên thiết lập này có thể không có tác dụng.",
+    "position_capture": "Vị trí cửa sổ ghi nhanh",
+    "position_today": "Vị trí cửa sổ Hôm nay",
+    "caption_capture": "Ghi nhanh",
+    "caption_today": "Hôm nay",
+    "size": "Kích thước cửa sổ",
+    "size_help": "Độ lớn của cửa sổ ghi nhanh, Hôm nay và chi tiết, tính từ lần mở tiếp theo. Cỡ chữ giữ nguyên.",
+    "size_small": "Gọn",
+    "size_medium": "Chuẩn",
+    "size_large": "Rộng",
+    "enter": "Phím Enter",
+    "enter_help": "Thao tác còn lại luôn nằm ở Shift+Enter hoặc Ctrl/⌘+Enter.",
+    "enter_save": "Lưu",
+    "enter_newline": "Xuống dòng",
+    "close_after_save": "Đóng sau khi lưu",
+    "close_after_save_help": "Tắt đi để ghi liên tiếp nhiều ghi chú.",
+    "close_on_blur": "Đóng khi bấm ra ngoài",
+    "close_on_blur_help": "Dù thế nào, những gì bạn đã gõ vẫn được giữ làm bản nháp.",
+    "drafts": "Giữ bản nháp chưa lưu",
+    "drafts_help": "Một ghi chú dang dở sẽ chờ bạn trong bao lâu.",
+    "drafts_day": "1 ngày",
+    "drafts_week": "7 ngày",
+    "drafts_forever": "Đến khi lưu"
+  },
+  "data": {
+    "heading": "Dữ liệu",
+    "database": "Cơ sở dữ liệu",
+    "database_help": "Ghi chú của bạn nằm trong một tệp trên máy tính này và không bao giờ được gửi đi đâu.",
+    "database_size": {
+      "other": "{count} ghi chú, {size}."
+    },
+    "unavailable": "Không có",
+    "reveal": "Hiện trong thư mục",
+    "export": "Xuất ghi chú",
+    "export_help": "Một tệp Markdown với mỗi ghi chú là một mục trong danh sách việc, đọc được bằng mọi trình soạn thảo. Chọn JSON trong hộp thoại lưu nếu dùng cho công cụ khác. Tệp đính kèm không được xuất kèm; bản sao lưu bên dưới có chúng.",
+    "export_action": "Xuất…",
+    "exported": {
+      "other": "Đã xuất {count} ghi chú"
+    },
+    "import": "Nhập ghi chú",
+    "import_help": "Thêm ghi chú từ một bản xuất của Posthaste (Markdown hoặc JSON) hoặc bất kỳ danh sách việc Markdown nào. Ghi chú hiện có không bao giờ bị ghi đè.",
+    "import_action": "Nhập…",
+    "imported": {
+      "other": "Đã nhập {count} ghi chú"
+    },
+    "imported_skipped": {
+      "other": "Đã nhập {count} ghi chú, bỏ qua {skipped}"
+    },
+    "backup": "Sao lưu cơ sở dữ liệu",
+    "backup_help": "Một bản sao đầy đủ, gồm cả cài đặt và tệp đính kèm.",
+    "backup_action": "Sao lưu…",
+    "backed_up": "Đã tạo bản sao lưu",
+    "clear": "Xóa toàn bộ dữ liệu",
+    "clear_help": "Xóa mọi ghi chú, bản nháp, giao diện và cài đặt. Không thể hoàn tác.",
+    "clear_action": "Xóa dữ liệu…",
+    "cleared": "Đã xóa toàn bộ dữ liệu",
+    "clear_title": "Xóa mọi ghi chú?",
+    "clear_text": "Thao tác này xóa vĩnh viễn mọi ghi chú, bản nháp hiện tại, các giao diện và cài đặt của bạn khỏi máy tính này. Hãy xuất hoặc sao lưu trước nếu sau này bạn có thể cần lại.",
+    "clear_confirm": "Gõ {word} để xác nhận",
+    "clear_everything": "Xóa tất cả"
+  },
+  "updates": {
+    "heading": "Cập nhật",
+    "version": "Posthaste {version}",
+    "help": "Ứng dụng kiểm tra bản cập nhật nhiều nhất 6 giờ một lần. Bản cập nhật được cài tại chỗ và Posthaste khởi động lại.",
+    "update_to": "Cập nhật lên {version}",
+    "check": "Kiểm tra cập nhật",
+    "ready": "Posthaste {version} đã sẵn sàng để cài.",
+    "latest": "Bạn đang dùng phiên bản mới nhất."
+  }
+}

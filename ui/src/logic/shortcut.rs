@@ -73,6 +73,104 @@ pub fn has_mod(meta: bool, ctrl: bool, os: Os) -> bool {
     }
 }
 
+/// The modifier keys held during a key press.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Modifiers {
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool,
+    pub meta: bool,
+}
+
+/// The name an accelerator uses for the physical key `code`, when it can be
+/// part of a global shortcut.
+fn key_name(code: &str) -> Option<&str> {
+    const NAMED: [&str; 20] = [
+        "Space",
+        "Enter",
+        "Tab",
+        "Backquote",
+        "Minus",
+        "Equal",
+        "BracketLeft",
+        "BracketRight",
+        "Backslash",
+        "Semicolon",
+        "Quote",
+        "Comma",
+        "Period",
+        "Slash",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Insert",
+        "Delete",
+    ];
+    let all =
+        |rest: &str, test: fn(&u8) -> bool| !rest.is_empty() && rest.bytes().all(|b| test(&b));
+    if let Some(letter) = code.strip_prefix("Key") {
+        return (letter.len() == 1 && all(letter, u8::is_ascii_uppercase)).then_some(letter);
+    }
+    if let Some(digit) = code.strip_prefix("Digit") {
+        return (digit.len() == 1 && all(digit, u8::is_ascii_digit)).then_some(digit);
+    }
+    if is_function_key(code) || matches!(code, "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight")
+    {
+        return Some(code);
+    }
+    NAMED.contains(&code).then_some(code)
+}
+
+fn is_function_key(name: &str) -> bool {
+    name.strip_prefix('F')
+        .is_some_and(|n| (1..=2).contains(&n.len()) && n.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// Turns a key press into an accelerator such as `Ctrl+Shift+Space`. `None`
+/// while only modifiers are held, and for a combination that would not make
+/// a usable global shortcut: no modifier, or Shift alone, unless the key is
+/// a function key.
+pub fn accelerator_from_press(code: &str, held: Modifiers, os: Os) -> Option<String> {
+    let key = key_name(code)?;
+    if !held.ctrl && !held.alt && !held.meta && !is_function_key(key) {
+        return None;
+    }
+    let mut parts = Vec::with_capacity(5);
+    if held.meta {
+        parts.push(if os == Os::Macos { "Cmd" } else { "Super" });
+    }
+    if held.ctrl {
+        parts.push("Ctrl");
+    }
+    if held.alt {
+        parts.push("Alt");
+    }
+    if held.shift {
+        parts.push("Shift");
+    }
+    parts.push(key);
+    Some(parts.join("+"))
+}
+
+/// The inbox shortcut a fresh install has on `os`.
+pub fn default_inbox_shortcut(os: Os) -> &'static str {
+    if os == Os::Macos {
+        "Cmd+Ctrl+N"
+    } else {
+        "Ctrl+Alt+N"
+    }
+}
+
+/// The Today shortcut a fresh install has on `os`.
+pub fn default_today_shortcut(os: Os) -> &'static str {
+    if os == Os::Macos {
+        "Cmd+Ctrl+G"
+    } else {
+        "Ctrl+Alt+G"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,5 +208,60 @@ mod tests {
         assert!(!has_mod(false, true, Os::Macos));
         assert!(has_mod(false, true, Os::Windows));
         assert!(!has_mod(true, false, Os::Linux));
+    }
+
+    #[test]
+    fn a_key_press_becomes_an_accelerator() {
+        let held = |ctrl, alt, shift, meta| Modifiers {
+            ctrl,
+            alt,
+            shift,
+            meta,
+        };
+        assert_eq!(
+            accelerator_from_press("Space", held(true, false, true, false), Os::Linux).as_deref(),
+            Some("Ctrl+Shift+Space")
+        );
+        assert_eq!(
+            accelerator_from_press("KeyN", held(true, false, false, true), Os::Macos).as_deref(),
+            Some("Cmd+Ctrl+N")
+        );
+        assert_eq!(
+            accelerator_from_press("Digit4", held(false, true, false, true), Os::Windows)
+                .as_deref(),
+            Some("Super+Alt+4")
+        );
+        assert_eq!(
+            accelerator_from_press("F5", Modifiers::default(), Os::Linux).as_deref(),
+            Some("F5")
+        );
+    }
+
+    #[test]
+    fn unusable_combinations_are_refused() {
+        let none = Modifiers::default();
+        let shift = Modifiers {
+            shift: true,
+            ..none
+        };
+        let ctrl = Modifiers { ctrl: true, ..none };
+        // No modifier, or Shift alone, would swallow ordinary typing.
+        assert_eq!(accelerator_from_press("KeyA", none, Os::Linux), None);
+        assert_eq!(accelerator_from_press("KeyA", shift, Os::Linux), None);
+        // A modifier on its own is not a key yet.
+        assert_eq!(accelerator_from_press("ControlLeft", ctrl, Os::Linux), None);
+        assert_eq!(accelerator_from_press("MetaRight", ctrl, Os::Linux), None);
+        // Keys an accelerator has no name for.
+        assert_eq!(accelerator_from_press("NumpadAdd", ctrl, Os::Linux), None);
+        assert_eq!(accelerator_from_press("Keyboard", ctrl, Os::Linux), None);
+        assert_eq!(accelerator_from_press("F123", ctrl, Os::Linux), None);
+    }
+
+    #[test]
+    fn default_shortcuts_follow_the_platform() {
+        assert_eq!(default_inbox_shortcut(Os::Macos), "Cmd+Ctrl+N");
+        assert_eq!(default_inbox_shortcut(Os::Windows), "Ctrl+Alt+N");
+        assert_eq!(default_today_shortcut(Os::Macos), "Cmd+Ctrl+G");
+        assert_eq!(default_today_shortcut(Os::Linux), "Ctrl+Alt+G");
     }
 }
