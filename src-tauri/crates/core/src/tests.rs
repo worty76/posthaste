@@ -1198,7 +1198,7 @@ fn attachments_are_stored_listed_counted_and_served() {
 
     let listed = db.get_note(&n.id).unwrap();
     assert_eq!(listed.attachment_count, 3);
-    assert_eq!(listed.updated_at >= 7_000, true);
+    assert!(listed.updated_at >= 7_000);
     let in_list = search(&db, "files");
     assert_eq!(in_list[0].attachment_count, 3);
 
