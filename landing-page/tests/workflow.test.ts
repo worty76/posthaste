@@ -33,14 +33,14 @@ describe("inbox search", () => {
 
 describe("trash", () => {
   const start: TrashNote[] = [{ id: 1, text: "a", deletedAt: null }];
-  it("undo restores a deleted note within 24 hours", () => {
+  it("undo restores a deleted note within 30 days", () => {
     const del = trashReducer(start, { type: "delete", id: 1, now: 1000 });
     expect(del[0]?.deletedAt).toBe(1000);
     expect(
       trashReducer(del, { type: "undo", id: 1, now: 1000 + TRASH_MS - 1 })[0]?.deletedAt,
     ).toBeNull();
   });
-  it("after 24 hours undo does nothing and purge removes it", () => {
+  it("after 30 days undo does nothing and purge removes it", () => {
     const del = trashReducer(start, { type: "delete", id: 1, now: 0 });
     expect(trashReducer(del, { type: "undo", id: 1, now: TRASH_MS })[0]?.deletedAt).toBe(0);
     expect(trashReducer(del, { type: "purge", now: TRASH_MS })).toHaveLength(0);

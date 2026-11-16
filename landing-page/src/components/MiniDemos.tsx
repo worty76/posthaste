@@ -97,7 +97,7 @@ export function UndoDemo() {
           </li>
         ) : (
           <li key={n.id} className="mini__deleted">
-            <span>In the trash for 24 hours.</span>
+            <span>In the Trash for 30 days.</span>
             <button
               type="button"
               className="link-button"

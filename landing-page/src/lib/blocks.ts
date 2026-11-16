@@ -28,12 +28,12 @@ export const BLOCKS: Block[] = [
   {
     id: "undo",
     title: "Delete without fear",
-    fact: "A deleted note waits 24 hours in the trash, so Undo always works.",
+    fact: "A deleted note waits 30 days in the Trash, so you can always bring it back.",
   },
   {
     id: "ai",
     title: "AI polish, when you want it",
-    fact: "Off until you add your own key for Anthropic, OpenAI or Gemini. Then only the note you polish is sent.",
+    fact: "Off until you add your own key for Claude, OpenAI, Gemini or OpenRouter, or point it at Ollama on your computer. Then only the note you polish is sent.",
   },
   {
     id: "looks",

@@ -1,7 +1,7 @@
-// The inbox's trash, for the undo demo. A deleted note waits 24 hours and
+// The inbox's trash, for the undo demo. A deleted note waits 30 days and
 // Undo brings it back, as in the app. Pure, so it is tested without a browser.
 
-export const TRASH_MS = 24 * 60 * 60 * 1000;
+export const TRASH_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface TrashNote {
   id: number;

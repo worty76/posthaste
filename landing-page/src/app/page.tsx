@@ -200,7 +200,8 @@ export default async function Page() {
               <h3 className="h3">Stays on your computer</h3>
               <ul className="ledger">
                 <li>
-                  Your notes, drafts and looks, in one file. Export and backup make copies you keep.
+                  Your notes, drafts and looks, in one file. Export gives you a Markdown checklist;
+                  backup copies everything.
                 </li>
                 <li>No account. No analytics. No telemetry.</li>
                 <li>The app&apos;s logs never include what you wrote.</li>

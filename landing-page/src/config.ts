@@ -23,8 +23,8 @@ export const PRODUCT = {
   /** The canonical home; canonical and share URLs use it. */
   siteUrl: "https://posthaste.ink" as string | null,
   /**
-   * The v0.3.2 installers, checked against the published release on
-   * 15 Nov 2026. The build replaces these with the latest release's assets
+   * The v0.3.2 installers, named the way the release workflow names them.
+   * The build replaces these with the latest release's assets
    * when it can reach the GitHub API (see getDownloads in app/page.tsx);
    * null would mean "not released for this platform".
    */
@@ -50,6 +50,14 @@ export const DEMO_VIDEO = {
 /** Release notes written for people, by version. They replace the automatic
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {
+  "0.3.2": [
+    "Choose where the capture and Today windows open, from nine spots on the screen, each set separately.",
+    "Export your notes as a Markdown checklist that opens in any editor, and import it back. JSON is still there if you want it.",
+    "AI polish works with Claude, OpenAI, Gemini, OpenRouter, Ollama or any OpenAI-compatible server. Keys are kept in your system keychain.",
+    "On a Mac, the capture and Today windows no longer pull the app you are working in behind them.",
+    "The note window opens on the desktop and display you are using.",
+    "Today follows the selected note when you move with the keyboard, and rows show a clear hover in the light theme.",
+  ],
   "0.3.1": [
     "Later: set a note aside without archiving it, and bring it back when you are ready.",
     "A calendar to pick a day, with a dot on every day that has notes. Browse earlier days in the Today window.",
@@ -74,6 +82,7 @@ export const RELEASE_NOTES: Record<string, string[]> = {
 export const FALLBACK_RELEASES: { version: string; date: string; url: string; notes: string[] }[] =
   (
     [
+      ["0.3.2", "2026-11-16"],
       ["0.3.1", "2026-11-15"],
       ["0.3.0", "2026-11-15"],
       ["0.2.2", "2026-11-14"],
