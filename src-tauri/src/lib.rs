@@ -100,7 +100,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![
+        .on_page_load(|webview, page| {
+            if tracing() {
+                log::info!(
+                    "trace: {} page {:?} {}",
+                    webview.label(),
+                    page.event(),
+                    page.url()
+                );
+            }
+        })
+        .invoke_handler(traced(tauri::generate_handler![
             commands::app_info,
             commands::capture_save,
             commands::capture_dismiss,
@@ -159,7 +169,7 @@ pub fn run() {
             ai::ai_key_page,
             updates::update_check,
             updates::update_install,
-        ])
+        ]))
         .setup(|app| {
             let handle = app.handle().clone();
 
@@ -218,6 +228,29 @@ pub fn run() {
         #[cfg(not(target_os = "macos"))]
         let _ = (app, event);
     });
+}
+
+/// Whether `PH_TRACE` is set: then every command a window runs and every
+/// page load is logged, to see what a window did and in which order.
+fn tracing() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("PH_TRACE").is_some())
+}
+
+/// Wraps the command handler so `PH_TRACE` can log each call.
+fn traced(
+    handler: impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static,
+) -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    move |invoke| {
+        if tracing() {
+            log::info!(
+                "trace: {} ran {}",
+                invoke.message.webview().label(),
+                invoke.message.command()
+            );
+        }
+        handler(invoke)
+    }
 }
 
 #[cfg(test)]

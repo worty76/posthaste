@@ -29,49 +29,71 @@ macro_rules! event {
 
 event!(
     /// Settings were saved, in this window or another.
-    SettingsChanged, "settings-changed", Settings
+    SettingsChanged,
+    "settings-changed",
+    Settings
 );
 event!(
     /// A look was added, edited or removed.
-    LooksChanged, "looks-changed", ()
+    LooksChanged,
+    "looks-changed",
+    ()
 );
 event!(
     /// The capture window was just shown.
-    CaptureShown, "capture-shown", CaptureShownPayload
+    CaptureShown,
+    "capture-shown",
+    CaptureShownPayload
 );
 event!(
     /// The capture window was hidden by something other than its own keys.
-    CaptureHidden, "capture-hidden", ()
+    CaptureHidden,
+    "capture-hidden",
+    ()
 );
 
 event!(
     /// A note was added, changed or removed, in any window.
-    NotesChanged, "notes-changed", ()
+    NotesChanged,
+    "notes-changed",
+    ()
 );
 event!(
     /// The Today window was just shown by its shortcut.
-    TodayShown, "today-shown", ()
+    TodayShown,
+    "today-shown",
+    ()
 );
 event!(
     /// Note details closed and gave the Today window back.
-    TodayReturned, "today-returned", ()
+    TodayReturned,
+    "today-returned",
+    ()
 );
 
 event!(
     /// The details window should show this note.
-    DetailsOpen, "details-open", DetailsTarget
+    DetailsOpen,
+    "details-open",
+    DetailsTarget
 );
 event!(
     /// The details window is about to be hidden: store what was typed.
-    DetailsCloseRequested, "details-close-requested", ()
+    DetailsCloseRequested,
+    "details-close-requested",
+    ()
 );
 event!(
     /// The inbox should show the notes captured on this day (`YYYY-MM-DD`).
-    InboxShowDate, "inbox-show-date", String
+    InboxShowDate,
+    "inbox-show-date",
+    String
 );
 event!(
     /// The main window should show this section ("inbox", "settings", …).
-    Navigate, "navigate", String
+    Navigate,
+    "navigate",
+    String
 );
 
 #[derive(Deserialize)]

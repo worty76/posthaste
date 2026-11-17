@@ -64,6 +64,9 @@ rule "The wasm-bindgen version must be the same in ui/Cargo.toml, scripts/build-
      grep -q "WASM_BINDGEN_VERSION=\"$V\"" scripts/build-ui.sh || echo "scripts/build-ui.sh does not pin $V"; \
      grep -q "wasm-bindgen-cli --version $V " .github/workflows/release.yml || echo ".github/workflows/release.yml does not install $V")"
 
+rule "Read a reactive value with .with(|_| ()) instead of .track(): a Memo that is only tracked is never computed and never updates (ui/AGENTS.md)" \
+  "$(grep -rn '\.track()' ui/src --include='*.rs')"
+
 rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.md)" \
   "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src ui/src --include='*.rs' \
       | grep -v '/tests.rs:' | grep -v 'could not start' \

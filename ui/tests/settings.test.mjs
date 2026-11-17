@@ -195,6 +195,23 @@ describe("AI polish settings", () => {
     await w.close();
   });
 
+  it("asks the shell about keys again whenever the provider changes", async () => {
+    const w = await settings({ store: ai() });
+    await eventually(
+      () => w.calls("ai_providers"),
+      (c) => c.length >= 1,
+      "first load",
+    );
+    const before = (await w.calls("ai_providers")).length;
+    await w.mock.changeSettings({ ai_provider: "openai" });
+    await eventually(
+      () => w.calls("ai_providers"),
+      (c) => c.length > before,
+      "providers asked for again after the change",
+    );
+    await w.close();
+  });
+
   it("removes a saved key and shows a failed test in the shell's words", async () => {
     const w = await settings({ store: ai({ has_key: true }), settings: { ai_provider: "openai" } });
     await w.mock.fail("ai_test", "The key was refused.");
