@@ -53,6 +53,10 @@ pub struct EmojiLayer {
 impl EmojiLayer {
     /// The layer kind name in a v2 document.
     pub const KIND: &str = "emoji";
+    /// Stickers are not shipped yet: documents keep them untouched and
+    /// storage still checks them, but nothing draws them and the editor
+    /// does not offer them. Flip to true to ship.
+    pub const SHIPPED: bool = false;
     /// The config version; a higher `v` means a reader this build predates.
     pub const VERSION: u32 = 1;
     /// Stickers are margin layers only; they never sit behind the text.

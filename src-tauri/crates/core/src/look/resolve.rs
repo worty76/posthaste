@@ -5,9 +5,41 @@
 use posthaste_model::{AssetRef, EmojiLayer, LookDocV2, Scene, WindowScene};
 use posthaste_model::{Known, Read, ResolvedLayer, ResolvedScene, SceneEdit, Window};
 
-/// Resolves the scene of a validated v2 document.
+/// Resolves the scene of a validated v2 document as this build draws
+/// it: stickers are not shipped yet, so emoji layers are left out
+/// quietly. They stay in the document and storage still checks them.
 pub fn resolve_scene(doc: &LookDocV2) -> ResolvedScene {
-    resolve_parts(&doc.scene, &doc.assets)
+    resolve_live(&doc.scene, &doc.assets)
+}
+
+/// Resolves a scene plus its asset list the way the app will draw it.
+pub fn resolve_live(scene: &Scene, assets: &[AssetRef]) -> ResolvedScene {
+    resolve_parts(&without_unshipped_stickers(scene), assets)
+}
+
+/// A copy of `scene` without emoji layers, while stickers are unshipped.
+/// Silently left out, not counted as skipped: this build knows the kind,
+/// it just does not draw it yet.
+fn without_unshipped_stickers(scene: &Scene) -> Scene {
+    if EmojiLayer::SHIPPED {
+        return scene.clone();
+    }
+    let mut scene = scene.clone();
+    for entry in [
+        &mut scene.all,
+        &mut scene.main,
+        &mut scene.capture,
+        &mut scene.today,
+        &mut scene.details,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        entry
+            .margin
+            .retain(|layer| !matches!(layer.known(), Some(Known::Emoji(_))));
+    }
+    scene
 }
 
 /// Resolves a scene plus its asset list — what the editor's live preview

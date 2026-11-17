@@ -214,43 +214,24 @@ mod bundled_tests {
     }
 
     #[test]
-    fn the_demo_looks_resolve_a_scene_with_stickers() {
+    fn the_demo_looks_keep_their_stickers_until_stickers_ship() {
+        // Stickers are not shipped yet: the demo looks carry theirs in
+        // the document, and nothing draws them.
         let looks = bundled();
-        let sakura = looks
-            .iter()
-            .find(|(id, _)| id == "builtin:sakura-night")
-            .map(|(_, d)| d)
-            .expect("sakura night ships with the app");
-        let LookDocument::V2(sakura) = sakura else {
-            panic!("sakura night is a v2 look");
-        };
-        let resolved = crate::look::resolve::resolve_scene(sakura);
-        assert!(
-            !resolved.capture.margin.is_empty(),
-            "capture has its own sticker"
-        );
-        assert!(
-            resolved.today.margin.len() >= 2,
-            "today inherits the all-stickers"
-        );
-
-        let paper = looks
-            .iter()
-            .find(|(id, _)| id == "builtin:paper")
-            .map(|(_, d)| d)
-            .expect("paper ships with the app");
-        let LookDocument::V2(paper) = paper else {
-            panic!("paper is a v2 look");
-        };
-        let resolved = crate::look::resolve::resolve_scene(paper);
-        assert_eq!(
-            resolved.details.margin.len(),
-            1,
-            "paper stickers every window"
-        );
-        assert!(
-            resolved.details.backdrop.is_empty(),
-            "paper ships no images"
-        );
+        for (id, doc) in &looks {
+            let LookDocument::V2(doc) = doc else {
+                continue;
+            };
+            if !id.contains("sakura") && !id.contains("paper") {
+                continue;
+            }
+            assert!(doc.scene.layer_count() > 0, "{id} keeps its stickers");
+            let resolved = crate::look::resolve::resolve_scene(doc);
+            assert!(resolved.main.margin.is_empty(), "{id}");
+            assert!(resolved.capture.margin.is_empty(), "{id}");
+            assert!(resolved.today.margin.is_empty(), "{id}");
+            assert!(resolved.details.margin.is_empty(), "{id}");
+            assert!(resolved.details.backdrop.is_empty(), "{id} ships no images");
+        }
     }
 }

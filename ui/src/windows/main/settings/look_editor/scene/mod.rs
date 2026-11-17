@@ -7,7 +7,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key};
-use posthaste_model::{SceneEdit, Window, WindowScene};
+use posthaste_model::{EmojiLayer, SceneEdit, Window, WindowScene};
 
 use crate::ipc::api;
 use crate::state::I18n;
@@ -173,7 +173,9 @@ pub(super) fn ScenePanel(i18n: I18n, state: SceneState) -> impl IntoView {
             </div>
 
             <backdrop::Section i18n edit target />
-            <stickers::Section i18n edit target />
+            // Stickers are not shipped yet: the section stays out, and
+            // any stickers a look already carries ride through untouched.
+            {(EmojiLayer::SHIPPED).then(|| view! { <stickers::Section i18n edit target /> })}
         </div>
     }
 }

@@ -7,7 +7,7 @@ use posthaste_core::look::code::{b64_encode_std, encode_document};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::package::{read_package, write_package};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve_parts, validate_scene_parts, LookDocV2Ext};
+use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocV2Ext};
 use posthaste_core::look::{AssetRef, LookDoc, LookDocument, ResolvedScene, SceneEdit};
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
@@ -802,7 +802,7 @@ pub fn look_scene(state: State<'_, AppState>, id: String) -> AppResult<SceneEdit
 #[tauri::command]
 pub fn look_scene_preview(edit: SceneEdit) -> AppResult<ResolvedScene> {
     validate_scene_parts(&edit.scene, &edit.assets)?;
-    Ok(resolve_parts(&edit.scene, &edit.assets))
+    Ok(resolve_live(&edit.scene, &edit.assets))
 }
 
 /// One look image as a `data:` URL, for `<img>` sources.
@@ -993,7 +993,7 @@ pub async fn look_file_open(
         preview: posthaste_core::look::LookDocExt::preview(&doc.v1_view()),
     };
     let tokens = resolve("file:preview", &doc.v1_view())?;
-    let scene = resolve_parts(&doc.scene, &doc.assets);
+    let scene = resolve_live(&doc.scene, &doc.assets);
     let asset_urls = pending
         .assets
         .iter()

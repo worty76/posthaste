@@ -6,7 +6,7 @@ mod resolve_tests {
     use serde_json::{json, Map};
 
     use super::{asset_id, listed_asset, v2doc};
-    use crate::look::resolve::resolve_scene;
+    use crate::look::resolve::resolve_parts;
     #[allow(unused_imports)]
     use crate::look::LookDocV2Ext as _;
     use crate::look::{LayerRecord, LookDocument};
@@ -45,7 +45,9 @@ mod resolve_tests {
         let mut d = v2doc();
         d.scene.all = Some(margin_scene(vec![emoji("🌸", "top-right")]));
         d.scene.capture = Some(margin_scene(vec![emoji("✨", "bottom-left")]));
-        let resolved = resolve_scene(&d);
+        // The mechanics are resolve_parts’ job; the live gate is
+        // tested separately, where stickers are left out unshipped.
+        let resolved = resolve_parts(&d.scene, &d.assets);
         let ResolvedLayer::Emoji { char, .. } = &resolved.capture.margin[0] else {
             panic!("expected a sticker");
         };
@@ -86,7 +88,9 @@ mod resolve_tests {
             failing,
             emoji("✨", "bottom-right"),
         ]));
-        let resolved = resolve_scene(&d);
+        // The mechanics are resolve_parts’ job; the live gate is
+        // tested separately, where stickers are left out unshipped.
+        let resolved = resolve_parts(&d.scene, &d.assets);
         assert_eq!(resolved.capture.margin.len(), 1, "only the good sticker");
         assert_eq!(resolved.skipped, 4);
     }
@@ -104,7 +108,9 @@ mod resolve_tests {
             margin: Vec::new(),
             extra: Map::new(),
         });
-        let resolved = resolve_scene(&d);
+        // The mechanics are resolve_parts’ job; the live gate is
+        // tested separately, where stickers are left out unshipped.
+        let resolved = resolve_parts(&d.scene, &d.assets);
         let ResolvedLayer::Image { dim_tenths, .. } = &resolved.capture.backdrop[0] else {
             panic!("expected an image");
         };
@@ -140,14 +146,21 @@ mod resolve_tests {
     fn without_simple_looks_the_active_scene_draws() {
         let mut db = Db::open_in_memory().unwrap();
         let mut d = v2doc();
-        d.scene.capture = Some(margin_scene(vec![emoji("🌸", "top-left")]));
+        let listed = listed_asset(&asset_id());
+        let id = listed.id.clone();
+        d.assets = vec![listed];
+        d.scene.capture = Some(WindowScene {
+            backdrop: vec![image(0.4, &id)],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
         let saved = db.save_look_document(LookDocument::V2(d), None).unwrap();
         db.save_settings(&Settings {
             look_id: Some(saved.id),
             ..Settings::default()
         })
         .unwrap();
-        assert_eq!(db.active_scene().unwrap().capture.margin.len(), 1);
+        assert_eq!(db.active_scene().unwrap().capture.backdrop.len(), 1);
     }
 
     #[test]
@@ -219,7 +232,9 @@ mod resolve_tests {
             emoji("🌼", "bottom-left"),
             emoji("🌺", "bottom-right"),
         ]));
-        let resolved = resolve_scene(&d);
+        // The mechanics are resolve_parts’ job; the live gate is
+        // tested separately, where stickers are left out unshipped.
+        let resolved = resolve_parts(&d.scene, &d.assets);
         // Six drawn: the window's own four first, then the first two of
         // all. The other two are counted, not drawn.
         assert_eq!(resolved.capture.margin.len(), 6);
@@ -236,6 +251,20 @@ mod resolve_tests {
         assert_eq!(resolved.skipped, 2);
         // A window with no entry of its own still sees all four of all.
         assert_eq!(resolved.main.margin.len(), 4);
+    }
+
+    #[test]
+    fn resolve_scene_leaves_stickers_out_while_they_are_unshipped() {
+        let mut d = v2doc();
+        d.scene.all = Some(margin_scene(vec![emoji("🌸", "top-right")]));
+        // The live entry (what the app draws) leaves them out quietly.
+        let resolved = crate::look::resolve::resolve_scene(&d);
+        assert!(resolved.main.margin.is_empty());
+        assert!(resolved.capture.margin.is_empty());
+        // The mechanics underneath stay honest: resolve_parts itself
+        // still places stickers, which is what ships them later.
+        let ungated = crate::look::resolve::resolve_parts(&d.scene, &d.assets);
+        assert_eq!(ungated.main.margin.len(), 1);
     }
 
     #[test]
