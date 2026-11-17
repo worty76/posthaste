@@ -615,7 +615,9 @@ mod derive_tests {
 
 mod code_tests {
     use super::doc;
-    use crate::look::code::{b64_decode, b64_encode, decode_code, encode_code, CODE_PREFIX};
+    use crate::look::code::{
+        b64_decode, b64_encode, decode_code, encode_code, encode_document, CODE_PREFIX,
+    };
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
     use crate::look::LookDocument;
@@ -721,25 +723,19 @@ mod code_tests {
     #[test]
     fn every_bundled_look_round_trips_through_its_code() {
         for (id, d) in crate::look::bundled::bundled() {
-            assert_eq!(
-                decode_code(&encode_code(&d)).unwrap(),
-                LookDocument::V1(d),
-                "{id}"
-            );
+            assert_eq!(decode_code(&encode_document(&d)).unwrap(), d, "{id}");
         }
     }
 }
 
 mod bundled_tests {
     use crate::look::bundled::bundled;
-    use crate::look::code::{decode_code, encode_code};
+    use crate::look::code::{decode_code, encode_document};
     use crate::look::derive::resolve;
-    #[allow(unused_imports)]
-    use crate::look::LookDocExt as _;
     use crate::look::LookDocument;
 
     #[test]
-    fn the_six_bundled_looks_ship_in_gallery_order() {
+    fn the_bundled_looks_ship_in_gallery_order() {
         let looks = bundled();
         let ids: Vec<&str> = looks.iter().map(|(id, _)| id.as_str()).collect();
         assert_eq!(
@@ -751,6 +747,8 @@ mod bundled_tests {
                 "builtin:lavender-haze",
                 "builtin:midnight-grape",
                 "builtin:blueberry",
+                "builtin:sakura-night",
+                "builtin:paper",
             ]
         );
     }
@@ -762,11 +760,11 @@ mod bundled_tests {
             if let Err(e) = d.validate() {
                 panic!("{id} fails validation: {e}");
             }
-            if let Err(e) = resolve(id, d) {
+            if let Err(e) = resolve(id, &d.v1_view()) {
                 panic!("{id} fails to resolve: {e}");
             }
         }
-        let mut names: Vec<&str> = looks.iter().map(|(_, d)| d.name.as_str()).collect();
+        let mut names: Vec<String> = looks.iter().map(|(_, d)| d.v1_view().name).collect();
         names.sort();
         let unique = names.len() == names.iter().len() && names.windows(2).all(|w| w[0] != w[1]);
         assert!(unique, "names are unique: {names:?}");
@@ -779,19 +777,56 @@ mod bundled_tests {
             .find(|(id, _)| id == "builtin:ink")
             .map(|(_, d)| d)
             .expect("ink ships with the app");
-        let tokens = resolve("builtin:ink", &ink).unwrap().tokens;
+        let tokens = resolve("builtin:ink", &ink.v1_view()).unwrap().tokens;
         assert_eq!(tokens.get("--on-accent").unwrap(), "#0f0f0f");
     }
 
     #[test]
     fn every_bundled_look_survives_its_share_code() {
         for (id, d) in bundled() {
-            assert_eq!(
-                decode_code(&encode_code(&d)).unwrap(),
-                LookDocument::V1(d),
-                "{id}"
-            );
+            assert_eq!(decode_code(&encode_document(&d)).unwrap(), d, "{id}");
         }
+    }
+
+    #[test]
+    fn the_demo_looks_resolve_a_scene_with_stickers() {
+        let looks = bundled();
+        let sakura = looks
+            .iter()
+            .find(|(id, _)| id == "builtin:sakura-night")
+            .map(|(_, d)| d)
+            .expect("sakura night ships with the app");
+        let LookDocument::V2(sakura) = sakura else {
+            panic!("sakura night is a v2 look");
+        };
+        let resolved = crate::look::resolve::resolve_scene(sakura);
+        assert!(
+            !resolved.capture.margin.is_empty(),
+            "capture has its own sticker"
+        );
+        assert!(
+            resolved.today.margin.len() >= 2,
+            "today inherits the all-stickers"
+        );
+
+        let paper = looks
+            .iter()
+            .find(|(id, _)| id == "builtin:paper")
+            .map(|(_, d)| d)
+            .expect("paper ships with the app");
+        let LookDocument::V2(paper) = paper else {
+            panic!("paper is a v2 look");
+        };
+        let resolved = crate::look::resolve::resolve_scene(paper);
+        assert_eq!(
+            resolved.details.margin.len(),
+            1,
+            "paper stickers every window"
+        );
+        assert!(
+            resolved.details.backdrop.is_empty(),
+            "paper ships no images"
+        );
     }
 }
 
@@ -812,10 +847,10 @@ mod store_tests {
     }
 
     #[test]
-    fn a_fresh_database_lists_the_six_bundled_looks() {
+    fn a_fresh_database_lists_the_eight_bundled_looks() {
         let db = Db::open_in_memory().unwrap();
         let looks = db.list_looks().unwrap();
-        assert_eq!(looks.len(), 6);
+        assert_eq!(looks.len(), 8);
         assert!(looks.iter().all(|l| l.builtin));
         // Ink, the factory default, leads the gallery.
         assert_eq!(looks[0].id, crate::look::DEFAULT_LOOK_ID);
@@ -832,9 +867,9 @@ mod store_tests {
         assert_ne!(a.id, b.id);
 
         let ids: Vec<String> = db.list_looks().unwrap().into_iter().map(|l| l.id).collect();
-        assert_eq!(ids.len(), 8);
-        assert_eq!(ids[6], b.id);
-        assert_eq!(ids[7], a.id);
+        assert_eq!(ids.len(), 10);
+        assert_eq!(ids[8], b.id);
+        assert_eq!(ids[9], a.id);
     }
 
     #[test]
@@ -865,7 +900,7 @@ mod store_tests {
             )
             .unwrap();
         assert_eq!((created, updated_at), (1_000, 2_000));
-        assert_eq!(db.list_looks().unwrap().len(), 7);
+        assert_eq!(db.list_looks().unwrap().len(), 9);
     }
 
     #[test]
@@ -912,7 +947,7 @@ mod store_tests {
             db.save_look(d, None),
             Err(CoreError::InvalidLook(_))
         ));
-        assert_eq!(db.list_looks().unwrap().len(), 6);
+        assert_eq!(db.list_looks().unwrap().len(), 8);
     }
 
     #[test]
@@ -930,7 +965,7 @@ mod store_tests {
             Err(CoreError::TooManyLooks)
         ));
         db.save_look_at(named("Renamed"), Some(&last), 200).unwrap();
-        assert_eq!(db.list_looks().unwrap().len(), 56);
+        assert_eq!(db.list_looks().unwrap().len(), 58);
     }
 
     #[test]
@@ -1001,7 +1036,7 @@ mod store_tests {
             )
             .unwrap();
         let looks = db.list_looks().unwrap();
-        assert_eq!(looks.len(), 7);
+        assert_eq!(looks.len(), 9);
         assert!(looks.iter().all(|l| l.id != "user:broken"));
 
         db.save_settings(&Settings {
@@ -1025,7 +1060,7 @@ mod store_tests {
             db.import_look("hello"),
             Err(CoreError::InvalidLook(_))
         ));
-        assert_eq!(db.list_looks().unwrap().len(), 7);
+        assert_eq!(db.list_looks().unwrap().len(), 9);
     }
 
     #[test]
@@ -1033,7 +1068,7 @@ mod store_tests {
         let mut db = Db::open_in_memory().unwrap();
         db.save_look(named("Mine"), None).unwrap();
         db.clear_all().unwrap();
-        assert_eq!(db.list_looks().unwrap().len(), 6);
+        assert_eq!(db.list_looks().unwrap().len(), 8);
     }
 
     #[test]
@@ -1074,10 +1109,16 @@ mod migrate_tests {
     use crate::look::migrate::v1_to_v2;
     #[allow(unused_imports)]
     use crate::look::LookDocV2Ext as _;
+    use crate::look::LookDocument;
 
     #[test]
     fn every_bundled_look_migrates_to_v2_and_resolves_identically() {
-        for (id, v1) in bundled() {
+        for (id, doc) in bundled() {
+            // The colour looks are v1 documents; migrating them must not
+            // move a single token. The demo looks are already v2.
+            let LookDocument::V1(v1) = doc else {
+                continue;
+            };
             let before = resolve(&id, &v1).unwrap();
             let v2 = v1_to_v2(&v1);
             if let Err(e) = v2.validate() {

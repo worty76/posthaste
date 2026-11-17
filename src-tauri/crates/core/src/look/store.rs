@@ -44,7 +44,7 @@ impl Db {
     pub fn list_looks(&self) -> Result<Vec<LookSummary>> {
         let mut out: Vec<LookSummary> = bundled()
             .into_iter()
-            .map(|(id, doc)| summary(id, &LookDocument::V1(doc), true))
+            .map(|(id, doc)| summary(id, &doc, true))
             .collect();
         let mut stmt = self
             .conn()
@@ -77,7 +77,7 @@ impl Db {
             return bundled()
                 .into_iter()
                 .find(|(bid, _)| bid == id)
-                .map(|(_, doc)| LookDocument::V1(doc))
+                .map(|(_, doc)| doc)
                 .ok_or(CoreError::NotFound);
         }
         self.stored_document(id)?.ok_or(CoreError::NotFound)
