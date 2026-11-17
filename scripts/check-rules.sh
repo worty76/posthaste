@@ -69,7 +69,7 @@ rule "Read a reactive value with .with(|_| ()) instead of .track(): a Memo that 
 
 rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.md)" \
   "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src ui/src --include='*.rs' \
-      | grep -v '/tests.rs:' | grep -v 'could not start' \
+      | grep -v '/tests.rs:' | grep -v '/tests/' | grep -v 'could not start' \
       | awk -F: '{ if (system("awk \"NR<" $2 " && /#\\[cfg\\(test\\)\\]/ {f=1} END {exit !f}\" " $1) != 0) print }')"
 
 rule "The version lives only in src-tauri/Cargo.toml [workspace.package] (src-tauri/AGENTS.md)" \
@@ -77,6 +77,11 @@ rule "The version lives only in src-tauri/Cargo.toml [workspace.package] (src-ta
 
 rule "CLAUDE.md copies are out of date; run: npm run sync:rules (AGENTS.md)" \
   "$(bash scripts/sync-rules.sh --check)"
+
+# A match on Known must handle every layer kind explicitly: a wildcard arm
+# would let a new kind be silently skipped by the checker or the renderer.
+rule "No match on Known may have a _ => arm (crates/core/AGENTS.md)" \
+  "$(grep -rn '_ =>' src-tauri/crates/core/src/look/scene.rs src-tauri/crates/core/src/look/resolve.rs ui/src/components/scene 2>/dev/null)"
 
 if [ "$FAIL" -eq 0 ]; then echo "rules: ok"; fi
 exit "$FAIL"

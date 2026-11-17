@@ -159,3 +159,15 @@ pub struct UpdateInfo {
     pub current_version: String,
     pub notes: Option<String>,
 }
+
+/// A look file that passed every check, as the interface shows it before
+/// the user decides. The images travel as `data:` URLs, so the preview
+/// needs nothing stored.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct LookFilePreview {
+    pub summary: crate::look::LookSummary,
+    pub tokens: crate::look::ResolvedLook,
+    pub scene: crate::look::ResolvedScene,
+    /// `(asset id, data: URL)` pairs, in the look's asset order.
+    pub asset_urls: Vec<(String, String)>,
+}

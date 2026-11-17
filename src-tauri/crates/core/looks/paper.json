@@ -1,0 +1,19 @@
+{
+  "format": "posthaste-look",
+  "version": 2,
+  "name": "Paper",
+  "author": "Posthaste",
+  "theme": {
+    "base": "light",
+    "colors": { "bg": "#f7f1e5", "surface": "#fffbf3", "text": "#43382a", "accent": "#6f8f5e" },
+    "shape": "soft",
+    "font": "serif"
+  },
+  "scene": {
+    "all": {
+      "margin": [
+        { "kind": "emoji", "v": 1, "config": { "char": "🌿", "anchor": "bottom-right", "tilt": -15 } }
+      ]
+    }
+  }
+}

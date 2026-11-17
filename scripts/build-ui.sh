@@ -18,6 +18,11 @@ PROFILE_FLAG=--release
 if [ "${1:-}" = "--dev" ]; then
   PROFILE_DIR=debug
   PROFILE_FLAG=
+  # wasm-bindgen re-encodes the module and inflates it several-fold: left
+  # unoptimised, every window loaded a 117 MB module. One optimisation pass
+  # keeps it around 23 MB. Overflow checks stay on, as dev expects.
+  export CARGO_PROFILE_DEV_OPT_LEVEL=1
+  export CARGO_PROFILE_DEV_OVERFLOW_CHECKS=true
 fi
 
 if ! command -v wasm-bindgen >/dev/null; then

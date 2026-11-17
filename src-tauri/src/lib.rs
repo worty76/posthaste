@@ -72,6 +72,11 @@ fn open_database(app: &AppHandle) -> Result<Db, AppError> {
         Ok(n) => log::info!("emptied {n} old note(s) from the trash"),
         Err(e) => log::warn!("trash could not be emptied: {e}"),
     }
+    match db.purge_unused_look_assets(posthaste_core::now_ms()) {
+        Ok(0) => {}
+        Ok(n) => log::info!("purged {n} unused look image(s)"),
+        Err(e) => log::warn!("look images could not be purged: {e}"),
+    }
     Ok(db)
 }
 
@@ -158,7 +163,16 @@ pub fn run() {
             commands::look_doc,
             commands::look_preview,
             commands::look_save,
+            commands::look_active_scene,
+            commands::look_scene,
+            commands::look_scene_preview,
+            commands::look_asset,
+            commands::look_asset_pick,
             commands::look_import,
+            commands::look_file_export,
+            commands::look_file_open,
+            commands::look_file_install,
+            commands::look_file_discard,
             commands::look_export_code,
             commands::look_delete,
             ai::ai_polish,

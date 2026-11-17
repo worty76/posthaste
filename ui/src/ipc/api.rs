@@ -3,9 +3,10 @@
 //! `src-tauri/src/commands.rs`.
 
 use posthaste_model::{
-    AiOverview, AppInfo, AttachReport, Attachment, CommandError, Counts, DataInfo, DayMark,
-    DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookSummary, Note,
-    NoteDetail, NoteQuery, ResolvedLook, Settings, SettingsState, Status, TrashedNote, UpdateInfo,
+    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
+    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookFilePreview,
+    LookSummary, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings,
+    SettingsState, Status, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -393,14 +394,21 @@ pub async fn look_preview(doc: &LookDoc) -> Response<ResolvedLook> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct LookSave<'a> {
     doc: &'a LookDoc,
+    scene: Option<&'a SceneEdit>,
     id: Option<&'a str>,
 }
 
-/// Saves a look: over the one with `id`, or as a new one.
-pub async fn look_save(doc: &LookDoc, id: Option<&str>) -> Response<LookSummary> {
-    invoke("look_save", &LookSave { doc, id }).await
+/// Saves a look: over the one with `id`, or as a new one. The scene edit
+/// replaces the look's scene and assets; `None` leaves them as they are.
+pub async fn look_save(
+    doc: &LookDoc,
+    scene: Option<&SceneEdit>,
+    id: Option<&str>,
+) -> Response<LookSummary> {
+    invoke("look_save", &LookSave { doc, scene, id }).await
 }
 
 #[derive(Serialize)]
@@ -414,6 +422,62 @@ pub async fn look_import(code: &str) -> Response<LookSummary> {
 
 pub async fn look_export_code(id: &str) -> Response<String> {
     invoke("look_export_code", &ById { id }).await
+}
+
+/// The scene of the look the user wears, ready to draw. Empty under
+/// Simple looks, for Plain and for colour-only looks.
+// The scene host draws from these; they are wired in its commit.
+pub async fn look_active_scene() -> Response<ResolvedScene> {
+    invoke("look_active_scene", &NoArgs {}).await
+}
+
+/// A look's scene and assets, as the editor edits them.
+pub async fn look_scene(id: &str) -> Response<SceneEdit> {
+    invoke("look_scene", &ById { id }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScenePreview<'a> {
+    edit: &'a SceneEdit,
+}
+
+/// Checks a scene edit and resolves it for the editor's live preview.
+pub async fn look_scene_preview(edit: &SceneEdit) -> Response<ResolvedScene> {
+    invoke("look_scene_preview", &ScenePreview { edit }).await
+}
+
+/// One look image as a `data:` URL, for `<img>` sources.
+pub async fn look_asset(id: &str) -> Response<String> {
+    invoke("look_asset", &ById { id }).await
+}
+
+/// Asks for an image file and stores it. `None` means the dialog was
+/// cancelled.
+pub async fn look_asset_pick() -> Response<Option<AssetRef>> {
+    invoke("look_asset_pick", &NoArgs {}).await
+}
+
+/// Asks where to save, then writes the look and its images as one
+/// `.phlook` file. `None` means the dialog was cancelled.
+pub async fn look_file_export(id: &str) -> Response<Option<String>> {
+    invoke("look_file_export", &ById { id }).await
+}
+
+/// Asks for a look file, checks it, and holds it for the user's OK.
+/// `None` means the dialog was cancelled.
+pub async fn look_file_open() -> Response<Option<LookFilePreview>> {
+    invoke("look_file_open", &NoArgs {}).await
+}
+
+/// Installs the held look file.
+pub async fn look_file_install() -> Response<LookSummary> {
+    invoke("look_file_install", &NoArgs {}).await
+}
+
+/// Throws the held look file away.
+pub async fn look_file_discard() -> Response<()> {
+    invoke("look_file_discard", &NoArgs {}).await
 }
 
 pub async fn look_delete(id: &str) -> Response<()> {

@@ -52,4 +52,30 @@ mod tests {
         let read: SettingsState = serde_json::from_value(wire).unwrap();
         assert_eq!(read, state);
     }
+
+    #[test]
+    fn a_v2_look_keeps_fields_it_does_not_model_through_serde() {
+        let raw = r##"{"format":"posthaste-look","version":2,"name":"N","author":"A",
+            "theme":{"base":"light","colors":{"bg":"#ffffff","surface":"#f2f2f2",
+            "text":"#111111","accent":"#3366cc"},"shape":"round","laterTheme":7},
+            "scene":{"all":{"backdrop":[{"kind":"shader","v":9,"config":{"src":"x"},
+            "custom":"keep"}]}},"assets":[{"id":"sha256:ab12","type":"image/png",
+            "bytes":1,"width":2,"height":3,"future":true}],"futureTop":{"a":1}}"##;
+        let doc: LookDocV2 = serde_json::from_str(raw).unwrap();
+        assert_eq!(
+            doc.extra.get("futureTop"),
+            Some(&serde_json::json!({"a":1}))
+        );
+        assert_eq!(doc.theme.extra.get("laterTheme"), Some(&7.into()));
+        let layer = &doc.scene.all.as_ref().unwrap().backdrop[0];
+        assert_eq!(layer.extra.get("custom"), Some(&"keep".into()));
+        let asset = &doc.assets[0];
+        assert_eq!(asset.extra.get("future"), Some(&true.into()));
+        // The kept fields come back out the way they went in.
+        let back = serde_json::to_value(&doc).unwrap();
+        assert_eq!(back["futureTop"], serde_json::json!({"a":1}));
+        assert_eq!(back["theme"]["laterTheme"], 7);
+        assert_eq!(back["scene"]["all"]["backdrop"][0]["custom"], "keep");
+        assert_eq!(back["assets"][0]["future"], true);
+    }
 }

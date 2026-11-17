@@ -11,10 +11,16 @@
     "save_copy": "Save a copy",
     "export": "Export notes",
     "import": "Import notes",
-    "backup": "Back up database"
+    "backup": "Back up database",
+    "pick_image": "Choose a look image",
+    "export_look": "Export a look file",
+    "open_look": "Open a look file"
   },
   "filter": {
     "export": "Posthaste export",
-    "database": "SQLite database"
-  }
+    "database": "SQLite database",
+    "images": "Images",
+    "looks": "Posthaste look files"
+  },
+  "error_image_too_big": "That image is {size} MB. Look images are up to 2 MB."
 }

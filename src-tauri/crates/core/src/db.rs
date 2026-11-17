@@ -658,12 +658,13 @@ impl Db {
         Ok(())
     }
 
-    /// Deletes every note, draft, look and setting, then compacts the file so
-    /// the removed text does not linger on disk.
+    /// Deletes every note, draft, look, look asset and setting, then compacts
+    /// the file so the removed text does not linger on disk.
     pub fn clear_all(&mut self) -> Result<()> {
         let tx = self.conn.transaction()?;
         tx.execute_batch(
-            "DELETE FROM notes; DELETE FROM drafts; DELETE FROM settings; DELETE FROM looks;",
+            "DELETE FROM notes; DELETE FROM drafts; DELETE FROM settings; DELETE FROM looks;
+             DELETE FROM look_assets;",
         )?;
         tx.commit()?;
         self.conn.execute_batch("VACUUM;")?;
