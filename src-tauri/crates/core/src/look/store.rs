@@ -67,7 +67,8 @@ impl Db {
 
     /// The document behind an id in the format it is stored in. A stored
     /// v2 look keeps every field this build does not model, so export can
-    /// carry them; the v1 view is only a projection.
+    /// carry them; the v1 view is only a projection. `NotFound` when the
+    /// id is unknown or the stored row is unreadable.
     pub fn look_document(&self, id: &str) -> Result<LookDocument> {
         if is_builtin(id) {
             return bundled()
@@ -76,12 +77,21 @@ impl Db {
                 .map(|(_, doc)| LookDocument::V1(doc))
                 .ok_or(CoreError::NotFound);
         }
+        self.stored_document(id)?.ok_or(CoreError::NotFound)
+    }
+
+    /// The stored document behind a user id, keeping "missing" (`None`)
+    /// separate from "unreadable" (an error), so a save can refuse to
+    /// overwrite a row it cannot read instead of replacing it blindly.
+    fn stored_document(&self, id: &str) -> Result<Option<LookDocument>> {
         let json: Option<String> = self
             .conn()
             .query_row("SELECT doc FROM looks WHERE id = ?1", [id], |r| r.get(0))
             .optional()?;
-        let json = json.ok_or(CoreError::NotFound)?;
-        LookDocument::parse_stored(&json).map_err(|_| CoreError::NotFound)
+        match json {
+            None => Ok(None),
+            Some(json) => LookDocument::parse_stored(&json).map(Some),
+        }
     }
 
     /// The look's full token map, validated and derived.
@@ -125,9 +135,11 @@ impl Db {
     ) -> Result<LookSummary> {
         doc.validate()?;
         // The editor only edits identity and theme. Keep the rest by
-        // editing the stored document instead of rebuilding one.
+        // editing the stored document instead of rebuilding one — and if
+        // the row exists but this build cannot read it, stop: writing a
+        // fresh document over it would silently drop whatever it holds.
         let stored = match id {
-            Some(id) if !is_builtin(id) => self.look_document(id).ok(),
+            Some(id) if !is_builtin(id) => self.stored_document(id)?,
             _ => None,
         };
         let to_store = match stored {

@@ -852,6 +852,27 @@ mod store_tests {
     }
 
     #[test]
+    fn saving_over_an_unreadable_stored_look_fails_and_keeps_the_row() {
+        let mut db = Db::open_in_memory().unwrap();
+        let broken = r#"{"version":2,"garbage":"#;
+        db.conn()
+            .execute(
+                "INSERT INTO looks (id, doc, created_at, updated_at) VALUES ('user:broken', ?1, 1, 1)",
+                [broken],
+            )
+            .unwrap();
+        let result = db.save_look(named("New"), Some("user:broken"));
+        assert!(result.is_err(), "the save must be refused");
+        let doc: String = db
+            .conn()
+            .query_row("SELECT doc FROM looks WHERE id = 'user:broken'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(doc, broken, "the row must be left untouched");
+    }
+
+    #[test]
     fn updating_an_unknown_or_builtin_look_is_refused() {
         let mut db = Db::open_in_memory().unwrap();
         let d = named("X");
