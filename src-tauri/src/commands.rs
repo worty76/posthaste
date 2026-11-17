@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 
 use posthaste_core::look::derive::ResolvedLook;
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{code::encode_code, derive::resolve, LookDoc};
+use posthaste_core::look::{code::encode_document, derive::resolve, LookDoc};
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
@@ -792,8 +792,10 @@ pub fn look_import(
 
 #[tauri::command]
 pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<String> {
-    let doc = state.with_db(|db| db.look_doc(&id))?;
-    Ok(encode_code(&doc))
+    // The document as stored, not the v1 view: a shared look keeps its
+    // scene and every field this build does not model.
+    let doc = state.with_db(|db| db.look_document(&id))?;
+    Ok(encode_document(&doc))
 }
 
 #[tauri::command]

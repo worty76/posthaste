@@ -1,6 +1,9 @@
 //! Look storage: the user's looks in SQLite, the bundled ones from data.
 //! Follows the `transfer.rs` pattern of keeping `impl Db` beside the feature
-//! and using the connection accessors from `db.rs`.
+//! and using the connection accessors from `db.rs`. Documents are stored as
+//! JSON text in the format they were saved in; since this build, saves write
+//! v2, and a save never rebuilds a stored document from typed structs, so
+//! fields this build does not model survive every edit.
 
 use rusqlite::{params, OptionalExtension};
 use uuid::Uuid;
@@ -10,18 +13,20 @@ use crate::error::{CoreError, Result};
 use crate::look::bundled::bundled;
 use crate::look::code::decode_code;
 use crate::look::derive::{resolve, ResolvedLook};
-use crate::look::{LookDoc, LookDocExt, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
+use crate::look::migrate::v1_to_v2;
+use crate::look::{LookDocExt as _, LookDocument, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
 
 pub use posthaste_model::LookSummary;
 
-fn summary(id: String, doc: LookDoc, builtin: bool) -> LookSummary {
+fn summary(id: String, doc: &LookDocument, builtin: bool) -> LookSummary {
+    let theme = doc.v1_view();
     LookSummary {
         id,
-        name: doc.name.clone(),
-        author: doc.author.clone(),
+        name: theme.name.clone(),
+        author: theme.author.clone(),
         builtin,
-        base: doc.base,
-        preview: doc.preview(),
+        base: theme.base,
+        preview: theme.preview(),
     }
 }
 
@@ -36,7 +41,7 @@ impl Db {
     pub fn list_looks(&self) -> Result<Vec<LookSummary>> {
         let mut out: Vec<LookSummary> = bundled()
             .into_iter()
-            .map(|(id, doc)| summary(id, doc, true))
+            .map(|(id, doc)| summary(id, &LookDocument::V1(doc), true))
             .collect();
         let mut stmt = self
             .conn()
@@ -44,8 +49,8 @@ impl Db {
         let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
         for row in rows {
             let (id, json): (String, String) = row?;
-            match serde_json::from_str::<LookDoc>(&json) {
-                Ok(doc) if doc.validate().is_ok() => out.push(summary(id, doc, false)),
+            match LookDocument::parse_stored(&json) {
+                Ok(doc) if doc.validate().is_ok() => out.push(summary(id, &doc, false)),
                 Err(e) => log::warn!("stored look {id} unreadable, skipping: {e}"),
                 Ok(_) => log::warn!("stored look {id} invalid, skipping"),
             }
@@ -53,14 +58,22 @@ impl Db {
         Ok(out)
     }
 
-    /// The look document behind an id, bundled or stored. `NotFound` when
-    /// the id is unknown or the stored row is unreadable.
-    pub fn look_doc(&self, id: &str) -> Result<LookDoc> {
+    /// The look document behind an id, bundled or stored, as the v1 view
+    /// the editor edits. `NotFound` when the id is unknown or the stored
+    /// row is unreadable.
+    pub fn look_doc(&self, id: &str) -> Result<posthaste_model::LookDoc> {
+        Ok(self.look_document(id)?.v1_view())
+    }
+
+    /// The document behind an id in the format it is stored in. A stored
+    /// v2 look keeps every field this build does not model, so export can
+    /// carry them; the v1 view is only a projection.
+    pub fn look_document(&self, id: &str) -> Result<LookDocument> {
         if is_builtin(id) {
             return bundled()
                 .into_iter()
                 .find(|(bid, _)| bid == id)
-                .map(|(_, doc)| doc)
+                .map(|(_, doc)| LookDocument::V1(doc))
                 .ok_or(CoreError::NotFound);
         }
         let json: Option<String> = self
@@ -68,7 +81,7 @@ impl Db {
             .query_row("SELECT doc FROM looks WHERE id = ?1", [id], |r| r.get(0))
             .optional()?;
         let json = json.ok_or(CoreError::NotFound)?;
-        serde_json::from_str::<LookDoc>(&json).map_err(|_| CoreError::NotFound)
+        LookDocument::parse_stored(&json).map_err(|_| CoreError::NotFound)
     }
 
     /// The look's full token map, validated and derived.
@@ -92,18 +105,60 @@ impl Db {
     }
 
     /// Saves a new user look, or updates one by id. The document is
-    /// validated again here, so nothing reaches SQLite unchecked.
-    pub fn save_look(&mut self, doc: LookDoc, id: Option<&str>) -> Result<LookSummary> {
+    /// validated again here, so nothing reaches SQLite unchecked. The
+    /// stored format is v2: a v1 document migrates on this save, and an
+    /// update over a stored v2 look keeps the parts the v1 editor does
+    /// not model.
+    pub fn save_look(
+        &mut self,
+        doc: posthaste_model::LookDoc,
+        id: Option<&str>,
+    ) -> Result<LookSummary> {
         self.save_look_at(doc, id, now_ms())
     }
 
     pub fn save_look_at(
         &mut self,
-        doc: LookDoc,
+        doc: posthaste_model::LookDoc,
         id: Option<&str>,
         now: i64,
     ) -> Result<LookSummary> {
         doc.validate()?;
+        // The editor only edits identity and theme. Keep the rest by
+        // editing the stored document instead of rebuilding one.
+        let stored = match id {
+            Some(id) if !is_builtin(id) => self.look_document(id).ok(),
+            _ => None,
+        };
+        let to_store = match stored {
+            Some(LookDocument::V2(mut v2)) => {
+                v2.set_theme_from(&doc);
+                LookDocument::V2(v2)
+            }
+            _ => LookDocument::V2(v1_to_v2(&doc)),
+        };
+        self.save_look_document_at(to_store, id, now)
+    }
+
+    /// Saves a parsed document of either format as (or over) a user look,
+    /// keeping every part this build does not model. Import and the
+    /// compatibility tests use this path; the editor uses `save_look`.
+    pub fn save_look_document(
+        &mut self,
+        doc: LookDocument,
+        id: Option<&str>,
+    ) -> Result<LookSummary> {
+        self.save_look_document_at(doc, id, now_ms())
+    }
+
+    fn save_look_document_at(
+        &mut self,
+        doc: LookDocument,
+        id: Option<&str>,
+        now: i64,
+    ) -> Result<LookSummary> {
+        doc.validate()?;
+        let json = doc.to_json();
         match id {
             None => {
                 let tx = self.conn_mut().transaction()?;
@@ -116,10 +171,10 @@ impl Db {
                 let new_id = format!("user:{}", Uuid::now_v7());
                 tx.execute(
                     "INSERT INTO looks (id, doc, created_at, updated_at) VALUES (?1, ?2, ?3, ?3)",
-                    params![new_id, doc.to_json(), now],
+                    params![new_id, json, now],
                 )?;
                 tx.commit()?;
-                Ok(summary(new_id, doc, false))
+                Ok(summary(new_id, &doc, false))
             }
             Some(id) => {
                 if is_builtin(id) {
@@ -128,21 +183,25 @@ impl Db {
                 let tx = self.conn_mut().transaction()?;
                 let changed = tx.execute(
                     "UPDATE looks SET doc = ?1, updated_at = ?2 WHERE id = ?3",
-                    params![doc.to_json(), now, id],
+                    params![json, now, id],
                 )?;
                 if changed == 0 {
                     return Err(CoreError::NotFound);
                 }
                 tx.commit()?;
-                Ok(summary(id.to_string(), doc, false))
+                Ok(summary(id.to_string(), &doc, false))
             }
         }
     }
 
-    /// Stores the look behind a share code as a new user look.
+    /// Stores the look behind a share code as a new user look. A v1 code
+    /// migrates to v2 here, so the stored copy is v2 from the first save.
     pub fn import_look(&mut self, code: &str) -> Result<LookSummary> {
-        let doc = decode_code(code)?;
-        self.save_look(doc, None)
+        let doc = match decode_code(code)? {
+            LookDocument::V1(v1) => LookDocument::V2(v1_to_v2(&v1)),
+            v2 => v2,
+        };
+        self.save_look_document(doc, None)
     }
 
     /// Deletes a user look. Built-in looks are data, not rows, and stay.

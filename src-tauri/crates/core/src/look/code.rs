@@ -1,16 +1,22 @@
-//! Share codes: a look as one line of text, `posthaste-look:1:` plus
-//! unpadded base64url of the compact JSON. Decoding tolerates what chat apps
-//! do to pasted text; base64 is hand-written because new dependencies need
+//! Share codes: a look as one line of text, `posthaste-look:1:` or
+//! `posthaste-look:2:` plus unpadded base64url of the compact JSON. A
+//! `:1:` code keeps its meaning; a `:2:` code carries the scene and every
+//! field this build does not model. Decoding tolerates what chat apps do
+//! to pasted text; base64 is hand-written because new dependencies need
 //! approval and the alphabet is twenty lines.
 
 use crate::error::{CoreError, Result};
-use crate::look::{LookDoc, LookDocExt};
+use crate::look::{
+    incomplete_code, v2_parse, LookDoc, LookDocExt, LookDocV2, LookDocV2Ext, LookDocument,
+};
 
 pub const CODE_PREFIX: &str = "posthaste-look:1:";
+pub const CODE_PREFIX_V2: &str = "posthaste-look:2:";
 
-/// Bound on the whole pasted line, so a huge paste is refused before any of
-/// it is decoded.
-const MAX_CODE_BYTES: usize = 8192;
+/// Bound on the whole pasted line, so a huge paste is refused before any
+/// of it is decoded. A v2 document may be four times a v1 one, so the
+/// line bound grew with it.
+const MAX_CODE_BYTES: usize = 24 * 1024;
 
 const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -73,19 +79,45 @@ pub(super) fn b64_decode(s: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// The share code for a look.
+/// The share code for a v1 look. Bundled looks keep producing this form.
 pub fn encode_code(doc: &LookDoc) -> String {
     format!("{CODE_PREFIX}{}", b64_encode(doc.to_json().as_bytes()))
 }
 
-/// Reads a share code, or a raw JSON document, into a validated look.
+/// The share code for a v2 look document.
+pub fn encode_code_v2(doc: &LookDocV2) -> String {
+    format!("{CODE_PREFIX_V2}{}", b64_encode(doc.to_json().as_bytes()))
+}
+
+/// The share code for a document of either format.
+pub fn encode_document(doc: &LookDocument) -> String {
+    match doc {
+        LookDocument::V1(d) => encode_code(d),
+        LookDocument::V2(d) => encode_code_v2(d),
+    }
+}
+
+/// Reads a share code, or a raw JSON document, into a validated look of
+/// either format.
 fn incomplete() -> CoreError {
+    incomplete_code()
+}
+
+fn missing_prefix() -> CoreError {
     CoreError::InvalidLook(
-        "That code looks incomplete, or it changed when it was copied. Ask for it again.".into(),
+        "That doesn't look like a look code. It should start with \"posthaste-look:1:\".".into(),
     )
 }
 
-pub fn decode_code(input: &str) -> Result<LookDoc> {
+/// Rebuilds the compact JSON from a code payload: strip what chat apps
+/// wrapped around it, decode, expect UTF-8.
+fn decoded_json(payload: &str) -> Result<String> {
+    let compact: String = payload.chars().filter(|c| !c.is_whitespace()).collect();
+    let bytes = b64_decode(&compact).ok_or_else(incomplete)?;
+    String::from_utf8(bytes).map_err(|_| incomplete())
+}
+
+pub fn decode_code(input: &str) -> Result<LookDocument> {
     if input.len() > MAX_CODE_BYTES {
         return Err(CoreError::InvalidLook(
             "That code is too large to be a look.".into(),
@@ -93,27 +125,27 @@ pub fn decode_code(input: &str) -> Result<LookDoc> {
     }
     let s = strip_wrapping(input.trim());
     if s.starts_with('{') {
-        return LookDoc::from_json(s);
+        return LookDocument::from_json(s);
     }
     // A different version is a different, clearer message than "malformed".
-    if s.starts_with("posthaste-look:") && !s.starts_with(CODE_PREFIX) {
+    if s.starts_with("posthaste-look:")
+        && !s.starts_with(CODE_PREFIX)
+        && !s.starts_with(CODE_PREFIX_V2)
+    {
         return Err(CoreError::InvalidLook(
             "This look was made with a newer version of Posthaste. Update the app to use it."
                 .into(),
         ));
     }
-    let Some(payload) = s.strip_prefix(CODE_PREFIX) else {
-        return Err(CoreError::InvalidLook(
-            "That doesn't look like a look code. It should start with \"posthaste-look:1:\"."
-                .into(),
-        ));
-    };
-    let compact: String = payload.chars().filter(|c| !c.is_whitespace()).collect();
-    let bytes = b64_decode(&compact).ok_or_else(incomplete)?;
-    let json = String::from_utf8(bytes).map_err(|_| incomplete())?;
-    let doc: LookDoc = serde_json::from_str(&json).map_err(|_| incomplete())?;
-    doc.validate()?;
-    Ok(doc)
+    if let Some(payload) = s.strip_prefix(CODE_PREFIX) {
+        let json = decoded_json(payload)?;
+        let doc: LookDoc = serde_json::from_str(&json).map_err(|_| incomplete())?;
+        doc.validate()?;
+        return Ok(LookDocument::V1(doc));
+    }
+    let payload = s.strip_prefix(CODE_PREFIX_V2).ok_or_else(missing_prefix)?;
+    let json = decoded_json(payload)?;
+    Ok(LookDocument::V2(v2_parse(&json, true)?))
 }
 
 /// Chat apps wrap pasted text in quotes or backticks; take one layer off.

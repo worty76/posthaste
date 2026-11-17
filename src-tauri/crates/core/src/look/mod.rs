@@ -221,23 +221,7 @@ impl LookDocV2Ext for LookDocV2 {
     }
 
     fn from_json(json: &str) -> Result<LookDocV2> {
-        if json.len() > MAX_DOC_BYTES_V2 {
-            return Err(CoreError::InvalidLook(format!(
-                "That look file is too large. The limit is {MAX_DOC_BYTES_V2} bytes."
-            )));
-        }
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| CoreError::InvalidLook(format!("That isn't a valid look: {e}")))?;
-        let depth = json_depth(&value);
-        if depth > MAX_DEPTH {
-            return Err(CoreError::InvalidLook(format!(
-                "That look nests {depth} levels deep. The limit is {MAX_DEPTH}."
-            )));
-        }
-        let doc: LookDocV2 = serde_json::from_value(value)
-            .map_err(|e| CoreError::InvalidLook(format!("That isn't a valid look: {e}")))?;
-        doc.validate()?;
-        Ok(doc)
+        v2_parse(json, false)
     }
 
     fn to_json(&self) -> String {
@@ -247,6 +231,43 @@ impl LookDocV2Ext for LookDocV2 {
     fn preview(&self) -> LookPreview {
         preview_of(&self.theme.colors)
     }
+}
+
+/// The message for a payload that arrived broken: the code changed when it
+/// was copied.
+pub(crate) fn incomplete_code() -> CoreError {
+    CoreError::InvalidLook(
+        "That code looks incomplete, or it changed when it was copied. Ask for it again.".into(),
+    )
+}
+
+/// Parses a v2 document with the shared gates: size first, then shape,
+/// then depth, then every check. `from_code` reports a payload that
+/// cannot be parsed as a code that changed in transit; the file path
+/// reports it as an invalid look.
+pub(crate) fn v2_parse(json: &str, from_code: bool) -> Result<LookDocV2> {
+    if json.len() > MAX_DOC_BYTES_V2 {
+        return Err(CoreError::InvalidLook(format!(
+            "That look file is too large. The limit is {MAX_DOC_BYTES_V2} bytes."
+        )));
+    }
+    let mangled = |e| {
+        if from_code {
+            incomplete_code()
+        } else {
+            CoreError::InvalidLook(format!("That isn't a valid look: {e}"))
+        }
+    };
+    let value: serde_json::Value = serde_json::from_str(json).map_err(mangled)?;
+    let depth = json_depth(&value);
+    if depth > MAX_DEPTH {
+        return Err(CoreError::InvalidLook(format!(
+            "That look nests {depth} levels deep. The limit is {MAX_DEPTH}."
+        )));
+    }
+    let doc: LookDocV2 = serde_json::from_value(value).map_err(mangled)?;
+    doc.validate()?;
+    Ok(doc)
 }
 
 /// A look document of either format. Reading dispatches on the version; a

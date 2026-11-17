@@ -1,7 +1,9 @@
 //! Tests for the look module: colour maths, validation, derivation, share
-//! codes, bundled looks and storage.
+//! codes, bundled looks, storage and the v2 format layer.
 
 use crate::look::{Base, Colors, FontFace, LookDoc, Shape};
+#[allow(unused_imports)]
+use crate::look::{LookDocV2, LookTheme};
 
 /// The Strawberry Milk look from the design spec, as a document.
 fn doc() -> LookDoc {
@@ -23,6 +25,35 @@ fn doc() -> LookDoc {
         },
         shape: Shape::Round,
         font: FontFace::Rounded,
+    }
+}
+
+/// The same theme in a v2 wrapper: no scene, no assets, no extra fields.
+fn v2doc() -> LookDocV2 {
+    LookDocV2 {
+        format: "posthaste-look".into(),
+        version: 2,
+        name: "Strawberry Milk".into(),
+        author: Some("Posthaste".into()),
+        theme: LookTheme {
+            base: Base::Light,
+            colors: crate::look::Colors {
+                bg: "#fff5f7".into(),
+                surface: "#ffffff".into(),
+                text: "#4a2c3a".into(),
+                accent: "#ff8fb1".into(),
+                bg_sunken: None,
+                surface_raised: None,
+                danger: None,
+                ok: None,
+            },
+            shape: Shape::Round,
+            font: FontFace::Rounded,
+            extra: Default::default(),
+        },
+        scene: Default::default(),
+        assets: Vec::new(),
+        extra: Default::default(),
     }
 }
 
@@ -564,9 +595,15 @@ mod code_tests {
     use crate::look::code::{b64_decode, b64_encode, decode_code, encode_code, CODE_PREFIX};
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
+    use crate::look::LookDocument;
 
     fn coded() -> String {
         encode_code(&doc())
+    }
+
+    /// A v1 code decodes to the v1 document it names.
+    fn decoded_v1(code: &str) -> LookDocument {
+        decode_code(code).unwrap()
     }
 
     #[test]
@@ -593,7 +630,7 @@ mod code_tests {
     fn a_code_encodes_and_decodes_back_to_the_same_document() {
         let code = coded();
         assert!(code.starts_with(CODE_PREFIX));
-        assert_eq!(decode_code(&code).unwrap(), doc());
+        assert_eq!(decoded_v1(&code), LookDocument::V1(doc()));
     }
 
     #[test]
@@ -609,11 +646,15 @@ mod code_tests {
                 wrapped.push('\n');
             }
         }
-        assert_eq!(decode_code(&wrapped).unwrap(), doc());
-        assert_eq!(decode_code(&format!("\"{code}\"")).unwrap(), doc());
-        assert_eq!(decode_code(&format!("`{code}`")).unwrap(), doc());
-        assert_eq!(decode_code(&format!("  \n{code}  \n")).unwrap(), doc());
-        assert_eq!(decode_code(&doc().to_json()).unwrap(), doc());
+        assert_eq!(decoded_v1(&wrapped), LookDocument::V1(doc()));
+        assert_eq!(decoded_v1(&format!("\"{code}\"")), LookDocument::V1(doc()));
+        assert_eq!(decoded_v1(&format!("`{code}`")), LookDocument::V1(doc()));
+        assert_eq!(
+            decoded_v1(&format!("  \n{code}  \n")),
+            LookDocument::V1(doc())
+        );
+        // A raw document pasted as JSON reads the same way.
+        assert_eq!(decoded_v1(&doc().to_json()), LookDocument::V1(doc()));
     }
 
     #[test]
@@ -631,7 +672,8 @@ mod code_tests {
 
     #[test]
     fn a_code_from_a_newer_version_reports_just_that() {
-        let err = decode_code("posthaste-look:2:AAAA")
+        // Version 2 is this build's own format; version 3 is not.
+        let err = decode_code("posthaste-look:3:AAAA")
             .unwrap_err()
             .to_string();
         assert!(err.contains("newer version"), "got: {err}");
@@ -639,7 +681,7 @@ mod code_tests {
 
     #[test]
     fn an_oversized_input_is_too_large() {
-        let big = format!("{CODE_PREFIX}{}", "A".repeat(9000));
+        let big = format!("{CODE_PREFIX}{}", "A".repeat(30_000));
         let err = decode_code(&big).unwrap_err().to_string();
         assert!(err.contains("too large"), "got: {err}");
     }
@@ -656,7 +698,11 @@ mod code_tests {
     #[test]
     fn every_bundled_look_round_trips_through_its_code() {
         for (id, d) in crate::look::bundled::bundled() {
-            assert_eq!(decode_code(&encode_code(&d)).unwrap(), d, "{id}");
+            assert_eq!(
+                decode_code(&encode_code(&d)).unwrap(),
+                LookDocument::V1(d),
+                "{id}"
+            );
         }
     }
 }
@@ -667,6 +713,7 @@ mod bundled_tests {
     use crate::look::derive::resolve;
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
+    use crate::look::LookDocument;
 
     #[test]
     fn the_six_bundled_looks_ship_in_gallery_order() {
@@ -716,7 +763,11 @@ mod bundled_tests {
     #[test]
     fn every_bundled_look_survives_its_share_code() {
         for (id, d) in bundled() {
-            assert_eq!(decode_code(&encode_code(&d)).unwrap(), d, "{id}");
+            assert_eq!(
+                decode_code(&encode_code(&d)).unwrap(),
+                LookDocument::V1(d),
+                "{id}"
+            );
         }
     }
 }
@@ -1018,38 +1069,9 @@ mod v2_validation_tests {
     use crate::error::CoreError;
     #[allow(unused_imports)]
     use crate::look::LookDocV2Ext as _;
-    use crate::look::{
-        Base, Colors, FontFace, LayerRecord, LookDocV2, LookTheme, Scene, Shape, WindowScene,
-    };
+    use crate::look::{LayerRecord, LookDocV2, WindowScene};
 
-    /// The Strawberry Milk theme in a v2 wrapper.
-    fn v2doc() -> LookDocV2 {
-        LookDocV2 {
-            format: "posthaste-look".into(),
-            version: 2,
-            name: "Strawberry Milk".into(),
-            author: Some("Posthaste".into()),
-            theme: LookTheme {
-                base: Base::Light,
-                colors: Colors {
-                    bg: "#fff5f7".into(),
-                    surface: "#ffffff".into(),
-                    text: "#4a2c3a".into(),
-                    accent: "#ff8fb1".into(),
-                    bg_sunken: None,
-                    surface_raised: None,
-                    danger: None,
-                    ok: None,
-                },
-                shape: Shape::Round,
-                font: FontFace::Rounded,
-                extra: Map::new(),
-            },
-            scene: Scene::default(),
-            assets: Vec::new(),
-            extra: Map::new(),
-        }
-    }
+    use super::v2doc;
 
     fn image_layer(dim: f64) -> LayerRecord {
         LayerRecord {
@@ -1270,5 +1292,242 @@ mod document_tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("isn't a valid look"), "got: {err}");
+    }
+}
+
+mod v2_code_tests {
+    use serde_json::{json, Map};
+
+    use super::{doc, v2doc};
+    use crate::look::code::{decode_code, encode_code, encode_document, CODE_PREFIX_V2};
+    #[allow(unused_imports)]
+    use crate::look::LookDocV2Ext as _;
+    use crate::look::{LayerRecord, LookDocument, WindowScene};
+
+    #[test]
+    fn a_v1_code_still_decodes_to_a_v1_document() {
+        assert_eq!(
+            decode_code(&encode_code(&doc())).unwrap(),
+            LookDocument::V1(doc())
+        );
+    }
+
+    #[test]
+    fn a_v2_code_round_trips_the_whole_document() {
+        let mut d = v2doc();
+        d.scene.all = Some(WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 1,
+                on: true,
+                config: json!({"asset": "sha256:ab12", "dim": 0.45}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        let code = encode_document(&LookDocument::V2(d.clone()));
+        assert!(code.starts_with(CODE_PREFIX_V2));
+        assert_eq!(decode_code(&code).unwrap(), LookDocument::V2(d));
+    }
+}
+
+mod v2_store_tests {
+    use serde_json::{json, Map};
+
+    use super::{doc, v2doc};
+    use crate::look::code::{decode_code, encode_code, encode_code_v2, encode_document};
+    use crate::look::derive::resolve;
+    use crate::look::{LayerRecord, LookDocV2, LookDocument, WindowScene};
+    #[allow(unused_imports)]
+    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
+    use crate::Db;
+
+    /// A look written as if by a future build: an unknown top-level field,
+    /// an unknown layer kind, and an unknown key inside a known layer.
+    const FUTURE_LOOK: &str = r##"{
+      "format": "posthaste-look",
+      "version": 2,
+      "name": "Future build",
+      "author": "Someone newer",
+      "theme": {
+        "base": "light",
+        "colors": { "bg": "#fff5f7", "surface": "#ffffff", "text": "#4a2c3a", "accent": "#ff8fb1" },
+        "shape": "round",
+        "font": "rounded",
+        "futureTheme": { "that": "stays" }
+      },
+      "scene": {
+        "all": { "backdrop": [ { "kind": "image", "v": 1, "config": { "asset": "sha256:ab12", "fit": "cover", "dim": 0.45, "futureKey": "keep" } } ] },
+        "capture": { "margin": [ { "kind": "shader", "v": 9, "on": false, "config": { "source": "spiral" }, "custom": "keep" } ] },
+        "laterWindow": { "backdrop": [ { "kind": "mystery", "v": 1 } ] }
+      },
+      "assets": [ { "id": "sha256:ab12", "type": "image/png", "bytes": 412000, "width": 1920, "height": 1080, "future": true } ],
+      "futureTop": { "still": "here" }
+    }"##;
+
+    fn scene_with_layers() -> WindowScene {
+        WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 1,
+                on: true,
+                config: json!({"asset": "sha256:ab12", "dim": 0.45}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        }
+    }
+
+    #[test]
+    fn a_future_look_survives_parse_edit_save_export_and_reimport() {
+        let mut db = Db::open_in_memory().unwrap();
+        let mut parsed = LookDocV2::from_json(FUTURE_LOOK).unwrap();
+        // The edit an editor makes: one colour.
+        parsed.theme.colors.bg = "#eef2f7".into();
+        parsed.validate().unwrap();
+
+        // Save, export, and import into a fresh database.
+        let saved = db
+            .save_look_document(LookDocument::V2(parsed.clone()), None)
+            .unwrap();
+        let code = encode_document(&db.look_document(&saved.id).unwrap());
+        let mut other = Db::open_in_memory().unwrap();
+        let imported = other.import_look(&code).unwrap();
+        let back = match other.look_document(&imported.id).unwrap() {
+            LookDocument::V2(d) => d,
+            _ => panic!("expected a v2 document"),
+        };
+
+        // The edited colour came through, and the whole document is
+        // otherwise identical: every unknown part, byte for byte.
+        assert_eq!(back, parsed);
+        assert_eq!(back.theme.colors.bg, "#eef2f7");
+        assert_eq!(back.extra.get("futureTop"), Some(&json!({"still": "here"})));
+        assert_eq!(
+            back.theme.extra.get("futureTheme"),
+            Some(&json!({"that": "stays"}))
+        );
+        let shader = &back.scene.capture.as_ref().unwrap().margin[0];
+        assert_eq!(shader.kind, "shader");
+        assert!(!shader.on);
+        assert_eq!(shader.extra.get("custom"), Some(&json!("keep")));
+        let image = &back.scene.all.as_ref().unwrap().backdrop[0];
+        assert_eq!(image.config.get("futureKey"), Some(&json!("keep")));
+        assert_eq!(back.assets[0].extra.get("future"), Some(&true.into()));
+    }
+
+    #[test]
+    fn saving_a_v1_look_stores_a_v2_document_that_resolves_identically() {
+        let mut db = Db::open_in_memory().unwrap();
+        let s = db.save_look(doc(), None).unwrap();
+        let stored = match db.look_document(&s.id).unwrap() {
+            LookDocument::V2(d) => d,
+            _ => panic!("expected the stored copy to be v2"),
+        };
+        assert_eq!(
+            resolve(&s.id, &doc()).unwrap(),
+            resolve(&s.id, &stored.v1_view()).unwrap()
+        );
+    }
+
+    #[test]
+    fn editing_an_imported_v2_look_from_the_editor_keeps_its_scene() {
+        let mut d = v2doc();
+        d.scene.all = Some(scene_with_layers());
+        let mut db = Db::open_in_memory().unwrap();
+        let imported = db.import_look(&encode_code_v2(&d)).unwrap();
+
+        // The editor only knows the v1 view: it renames and saves back.
+        let mut edited = db.look_doc(&imported.id).unwrap();
+        edited.name = "Renamed".into();
+        db.save_look(edited, Some(&imported.id)).unwrap();
+
+        let back = match db.look_document(&imported.id).unwrap() {
+            LookDocument::V2(d) => d,
+            _ => panic!("expected v2"),
+        };
+        assert_eq!(back.name, "Renamed");
+        assert_eq!(back.scene.all.as_ref().unwrap().backdrop[0].kind, "image");
+    }
+
+    #[test]
+    fn updating_a_stored_v1_look_migrates_it_to_v2() {
+        let mut db = Db::open_in_memory().unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO looks (id, doc, created_at, updated_at) VALUES ('user:v1', ?1, 1, 1)",
+                [doc().to_json()],
+            )
+            .unwrap();
+        let mut edited = doc();
+        edited.name = "Updated".into();
+        db.save_look_at(edited, Some("user:v1"), 2).unwrap();
+        match db.look_document("user:v1").unwrap() {
+            LookDocument::V2(d) => assert_eq!(d.name, "Updated"),
+            _ => panic!("expected the save to migrate the row to v2"),
+        }
+    }
+
+    #[test]
+    fn a_stored_v1_row_still_lists_and_resolves_until_its_next_save() {
+        let db = Db::open_in_memory().unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO looks (id, doc, created_at, updated_at) VALUES ('user:v1', ?1, 1, 1)",
+                [doc().to_json()],
+            )
+            .unwrap();
+        let looks = db.list_looks().unwrap();
+        assert!(looks.iter().any(|l| l.id == "user:v1"));
+        assert!(matches!(
+            db.look_document("user:v1").unwrap(),
+            LookDocument::V1(_)
+        ));
+        assert_eq!(
+            resolve("user:v1", &db.look_doc("user:v1").unwrap()).unwrap(),
+            resolve("user:v1", &doc()).unwrap()
+        );
+    }
+
+    #[test]
+    fn importing_a_v1_code_stores_v2_and_a_v2_code_stays_v2() {
+        let mut db = Db::open_in_memory().unwrap();
+        let from_v1 = db.import_look(&encode_code(&doc())).unwrap();
+        assert!(matches!(
+            db.look_document(&from_v1.id).unwrap(),
+            LookDocument::V2(_)
+        ));
+        let mut d = v2doc();
+        d.scene.all = Some(scene_with_layers());
+        let from_v2 = db.import_look(&encode_code_v2(&d)).unwrap();
+        match db.look_document(&from_v2.id).unwrap() {
+            LookDocument::V2(stored) => assert!(stored.scene.all.is_some()),
+            _ => panic!("expected v2"),
+        }
+        // Both resolve to the same tokens as the v1 original.
+        assert_eq!(
+            resolve(&from_v1.id, &doc()).unwrap().tokens,
+            resolve(&from_v2.id, &v2doc().v1_view()).unwrap().tokens
+        );
+    }
+
+    #[test]
+    fn a_cut_v2_code_reports_incomplete() {
+        let mut d = v2doc();
+        d.scene.all = Some(scene_with_layers());
+        let code = encode_code_v2(&d);
+        let cut = &code[..code.len() - 10];
+        let err = decode_code(cut).unwrap_err().to_string();
+        assert!(err.contains("incomplete"), "got: {err}");
+    }
+
+    #[test]
+    fn a_document_with_a_v2_scene_survives_a_decode_cycle_verbatim() {
+        let raw =
+            decode_code(&encode_code_v2(&LookDocV2::from_json(FUTURE_LOOK).unwrap())).unwrap();
+        let original = LookDocument::V2(LookDocV2::from_json(FUTURE_LOOK).unwrap());
+        assert_eq!(raw, original);
     }
 }
