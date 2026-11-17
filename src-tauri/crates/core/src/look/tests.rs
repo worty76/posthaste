@@ -2038,6 +2038,35 @@ mod asset_tests {
     }
 
     #[test]
+    fn storing_an_image_whose_record_disagrees_with_its_bytes_is_refused() {
+        let mut db = Db::open_in_memory().unwrap();
+        let asset = db.store_look_asset_at(&png(2, 3), 1_000).unwrap();
+        // The record is corrupted: same bytes, wrong claims.
+        db.conn()
+            .execute(
+                "UPDATE look_assets SET width = 999 WHERE id = ?1",
+                [&asset.id],
+            )
+            .unwrap();
+        let err = db
+            .store_look_asset_at(&png(2, 3), 2_000)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("different details"), "got: {err}");
+        // And the row keeps the claims it had, wrong as they are: the
+        // store never rewrites a record it disagrees with.
+        let width: i64 = db
+            .conn()
+            .query_row(
+                "SELECT width FROM look_assets WHERE id = ?1",
+                [&asset.id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(width, 999);
+    }
+
+    #[test]
     fn clear_all_removes_look_assets() {
         let mut db = Db::open_in_memory().unwrap();
         db.store_look_asset(&png(2, 3)).unwrap();

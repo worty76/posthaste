@@ -3,6 +3,7 @@
 //! check out. Storing the same bytes twice is free: the second store
 //! finds the first row and inserts nothing.
 
+use rusqlite::OptionalExtension;
 use sha2::{Digest, Sha256};
 
 use crate::db::{now_ms, Db};
@@ -173,8 +174,40 @@ impl Db {
             )));
         }
         let id = asset_id(bytes);
+        // If the bytes are already stored, their record must agree with
+        // what the header just said: a mismatch means a corrupted row,
+        // and the claims are what the document trusts.
+        let existing = self
+            .conn()
+            .query_row(
+                "SELECT mime, size, width, height FROM look_assets WHERE id = ?1",
+                [&id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, i64>(3)?,
+                    ))
+                },
+            )
+            .optional()?;
+        if let Some((mime, size, width, height)) = existing {
+            let agrees = mime == info.mime
+                && size == bytes.len() as i64
+                && width == i64::from(info.width)
+                && height == i64::from(info.height);
+            if !agrees {
+                return Err(CoreError::InvalidAsset(
+                    "That image is already stored with different details. \
+                     Restart Posthaste and try again."
+                        .into(),
+                ));
+            }
+            return Ok(asset_ref(id, &info, bytes.len()));
+        }
         self.conn().execute(
-            "INSERT OR IGNORE INTO look_assets (id, mime, size, width, height, data, created_at)
+            "INSERT INTO look_assets (id, mime, size, width, height, data, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![
                 id,
