@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "keyring",
  "log",
@@ -3772,7 +3772,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-core"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "log",
  "posthaste-model",
@@ -3788,14 +3788,14 @@ dependencies = [
 
 [[package]]
 name = "posthaste-i18n"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "posthaste-model"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-platform"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "log",
  "objc2",
@@ -3815,7 +3815,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-ui"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "console_error_panic_hook",
  "futures",
