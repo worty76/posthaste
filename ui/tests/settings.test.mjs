@@ -41,6 +41,17 @@ async function settings(options = {}) {
 }
 
 describe("settings", () => {
+  it("turns Simple looks on and saves the setting", async () => {
+    const w = await settings();
+    await w.page.getByRole("switch", { name: "Simple looks" }).click();
+    await eventually(
+      () => w.saved().simple_looks,
+      (on) => on === true,
+      "Simple looks to be saved on",
+    );
+    await w.close();
+  });
+
   it("changes the language at once, in every part of the window", async () => {
     const w = await settings();
     const picker = w.page.getByLabel("Language");

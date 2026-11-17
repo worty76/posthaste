@@ -15,6 +15,9 @@ use crate::ipc::{api, events};
 thread_local! {
     /// The page's scene, loaded once and refreshed on the shell's events.
     static SCENE: RefCell<Option<RwSignal<ResolvedScene>>> = const { RefCell::new(None) };
+    /// The look editor's live scene, while it is open. `None` otherwise.
+    static PREVIEW: RefCell<Option<RwSignal<Option<ResolvedScene>>>> =
+        const { RefCell::new(None) };
     /// `data:` URLs by asset id. An empty string is a fetch in flight or
     /// one that failed: both draw nothing and fetch no more.
     static ASSETS: RefCell<Option<RwSignal<HashMap<String, String>>>> =
@@ -45,6 +48,12 @@ pub fn use_scene() -> RwSignal<ResolvedScene> {
             scene
         })
     })
+}
+
+/// The editor's scene preview. While it holds a scene, every window
+/// draws it instead of the active one, exactly as it would look.
+pub fn use_scene_preview() -> RwSignal<Option<ResolvedScene>> {
+    PREVIEW.with_borrow_mut(|slot| *slot.get_or_insert_with(|| RwSignal::new(None)))
 }
 
 /// The page's cache of asset `data:` URLs, shared by every scene layer.

@@ -8,7 +8,7 @@ mod image;
 use leptos::prelude::*;
 use posthaste_model::{ResolvedLayer, Window};
 
-use crate::state::{fetch_asset, use_asset_urls, use_scene};
+use crate::state::{fetch_asset, use_asset_urls, use_scene, use_scene_preview};
 
 /// Wraps a window's content in its scene: the backdrop layers are
 /// absolutely positioned below the content, the stickers above it in the
@@ -17,8 +17,16 @@ use crate::state::{fetch_asset, use_asset_urls, use_scene};
 #[component]
 pub fn SceneHost(window: Window, children: Children) -> impl IntoView {
     let scene = use_scene();
+    let preview = use_scene_preview();
     let urls = use_asset_urls();
-    let layers = Memo::new(move |_| scene.with(|s| s.window(window).clone()));
+    let layers = Memo::new(move |_| {
+        // While the look editor previews a scene, every window draws it.
+        preview.with(|p| {
+            p.as_ref()
+                .map(|scene| scene.window(window).clone())
+                .unwrap_or_else(|| scene.with(|s| s.window(window).clone()))
+        })
+    });
     let has_backdrop = Memo::new(move |_| layers.with(|w| !w.backdrop.is_empty()));
 
     // Warm the URL cache for every image this window draws.

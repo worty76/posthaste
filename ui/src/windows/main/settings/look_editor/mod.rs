@@ -1,63 +1,24 @@
+mod colors;
+mod scene;
+
 use std::time::Duration;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::{key, Key};
+use posthaste_i18n::key;
 use posthaste_model::{Base, CommandError, FontFace, LookDoc, LookSummary, Shape};
 
 use crate::browser::bind_text;
 use crate::components::{Button, Dialog, Segmented, Variant};
 use crate::ipc::{self, api};
-use crate::logic::look::{picker_value, MAX_NAME_CHARS};
-use crate::state::{Appearance, I18n};
+use crate::logic::look::MAX_NAME_CHARS;
+use crate::state::{use_scene_preview, Appearance, I18n};
+
+use colors::{Color, ColorRow};
+use scene::{ScenePanel, SceneState};
 
 /// How long typing pauses before the draft goes to the shell for a preview.
 const PREVIEW_PAUSE: Duration = Duration::from_millis(120);
-
-/// One of the four colours a look sets.
-#[derive(Clone, Copy)]
-enum Color {
-    Background,
-    Surface,
-    Text,
-    Accent,
-}
-
-impl Color {
-    const ALL: [Color; 4] = [
-        Color::Background,
-        Color::Surface,
-        Color::Text,
-        Color::Accent,
-    ];
-
-    fn name(self) -> Key {
-        match self {
-            Color::Background => key::LOOKS_EDITOR_BACKGROUND,
-            Color::Surface => key::LOOKS_EDITOR_SURFACE,
-            Color::Text => key::LOOKS_EDITOR_TEXT,
-            Color::Accent => key::LOOKS_EDITOR_ACCENT,
-        }
-    }
-
-    fn of(self, doc: &LookDoc) -> &String {
-        match self {
-            Color::Background => &doc.colors.bg,
-            Color::Surface => &doc.colors.surface,
-            Color::Text => &doc.colors.text,
-            Color::Accent => &doc.colors.accent,
-        }
-    }
-
-    fn set(self, doc: &mut LookDoc, value: String) {
-        match self {
-            Color::Background => doc.colors.bg = value,
-            Color::Surface => doc.colors.surface = value,
-            Color::Text => doc.colors.text = value,
-            Color::Accent => doc.colors.accent = value,
-        }
-    }
-}
 
 /// Makes or changes a look. Every pause in typing sends the draft to the
 /// shell, which is the only judge of whether a look is valid: its answer is
@@ -78,6 +39,9 @@ pub(super) fn LookEditor(
     let open = RwSignal::new(true);
     // Counts drafts, so only the newest one is checked and shown.
     let draft = StoredValue::new(0u32);
+    let scene_preview_runs = StoredValue::new(0u32);
+    let scene = SceneState::new(editing_id.clone());
+    let scene_preview = use_scene_preview();
     let title = if editing_id.is_some() {
         key::LOOKS_EDITOR_EDIT
     } else {
@@ -115,10 +79,33 @@ pub(super) fn LookEditor(
         );
     });
 
+    // The scene edit is checked live, the same way the colours are; its
+    // answer is what the windows draw until the editor closes.
+    Effect::new(move |_| {
+        let edit = scene.edit.get();
+        let number = scene_preview_runs.get_value().wrapping_add(1);
+        scene_preview_runs.set_value(number);
+        set_timeout(
+            move || {
+                if scene_preview_runs.try_get_value() != Some(number) || !open.get_untracked() {
+                    return;
+                }
+                spawn_local(async move {
+                    if let Ok(resolved) = api::look_scene_preview(&edit).await {
+                        scene.skipped.set(resolved.skipped);
+                        scene_preview.set(Some(resolved));
+                    }
+                });
+            },
+            PREVIEW_PAUSE,
+        );
+    });
+
     let close = move |()| {
         if open.get_untracked() {
             open.set(false);
             appearance.preview(None);
+            scene_preview.set(None);
             on_close.run(());
         }
     };
@@ -126,7 +113,8 @@ pub(super) fn LookEditor(
         busy.set(true);
         spawn_local(async move {
             let id = editing_id.get_value();
-            match api::look_save(&doc.get_untracked(), id.as_deref()).await {
+            let scene_edit = scene.edit.get_untracked();
+            match api::look_save(&doc.get_untracked(), Some(&scene_edit), id.as_deref()).await {
                 Ok(saved) => {
                     on_saved.run(saved);
                     close(());
@@ -203,6 +191,12 @@ pub(super) fn LookEditor(
                     ]
                     on_change=move |font| doc.update(|doc| doc.font = font)
                 />
+                <ScenePanel i18n=i18n state=scene />
+                {move || (scene.skipped.get() > 0).then(|| view! {
+                    <p class="dialog__status" role="status">
+                        {i18n.text(key::LOOKS_EDITOR_NEEDS_NEWER)}
+                    </p>
+                })}
                 {move || match error.get() {
                     Some(refused) => view! {
                         <p class="dialog__alert" role="alert">
@@ -217,33 +211,5 @@ pub(super) fn LookEditor(
                 }}
             </div>
         </Dialog>
-    }
-}
-
-/// One colour: a hex field and the system's colour picker beside it.
-#[component]
-fn ColorRow(i18n: I18n, doc: RwSignal<LookDoc>, color: Color) -> impl IntoView {
-    let value = Signal::derive(move || doc.with(|doc| color.of(doc).clone()));
-    let set = move |event| doc.update(|doc| color.set(doc, event_target_value(&event)));
-    let picker_name = move || {
-        let t = i18n.translator();
-        t.format(key::LOOKS_EDITOR_PICKER, &[("name", t.text(color.name()))])
-    };
-    view! {
-        <div class="look-editor__color">
-            <input
-                class="field"
-                aria-label=i18n.text(color.name())
-                spellcheck="false"
-                use:bind_text=value
-                on:input=set
-            />
-            <input
-                type="color"
-                aria-label=picker_name
-                prop:value=move || picker_value(&value.get())
-                on:input=set
-            />
-        </div>
     }
 }

@@ -394,14 +394,21 @@ pub async fn look_preview(doc: &LookDoc) -> Response<ResolvedLook> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct LookSave<'a> {
     doc: &'a LookDoc,
+    scene: Option<&'a SceneEdit>,
     id: Option<&'a str>,
 }
 
-/// Saves a look: over the one with `id`, or as a new one.
-pub async fn look_save(doc: &LookDoc, id: Option<&str>) -> Response<LookSummary> {
-    invoke("look_save", &LookSave { doc, id }).await
+/// Saves a look: over the one with `id`, or as a new one. The scene edit
+/// replaces the look's scene and assets; `None` leaves them as they are.
+pub async fn look_save(
+    doc: &LookDoc,
+    scene: Option<&SceneEdit>,
+    id: Option<&str>,
+) -> Response<LookSummary> {
+    invoke("look_save", &LookSave { doc, scene, id }).await
 }
 
 #[derive(Serialize)]
@@ -420,39 +427,33 @@ pub async fn look_export_code(id: &str) -> Response<String> {
 /// The scene of the look the user wears, ready to draw. Empty under
 /// Simple looks, for Plain and for colour-only looks.
 // The scene host draws from these; they are wired in its commit.
-#[allow(dead_code)]
 pub async fn look_active_scene() -> Response<ResolvedScene> {
     invoke("look_active_scene", &NoArgs {}).await
 }
 
 /// A look's scene and assets, as the editor edits them.
-#[allow(dead_code)]
 pub async fn look_scene(id: &str) -> Response<SceneEdit> {
     invoke("look_scene", &ById { id }).await
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 struct ScenePreview<'a> {
     edit: &'a SceneEdit,
 }
 
 /// Checks a scene edit and resolves it for the editor's live preview.
-#[allow(dead_code)]
 pub async fn look_scene_preview(edit: &SceneEdit) -> Response<ResolvedScene> {
     invoke("look_scene_preview", &ScenePreview { edit }).await
 }
 
 /// One look image as a `data:` URL, for `<img>` sources.
-#[allow(dead_code)]
 pub async fn look_asset(id: &str) -> Response<String> {
     invoke("look_asset", &ById { id }).await
 }
 
 /// Asks for an image file and stores it. `None` means the dialog was
 /// cancelled.
-#[allow(dead_code)]
 pub async fn look_asset_pick() -> Response<Option<AssetRef>> {
     invoke("look_asset_pick", &NoArgs {}).await
 }

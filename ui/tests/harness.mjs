@@ -58,6 +58,10 @@ export function emptyStore() {
     looks: [],
     /** The resolved scene `look_active_scene` answers, or null for Plain. */
     scene: null,
+    /** The scene edit `look_scene` answers per look id. */
+    sceneEdits: {},
+    /** The resolved scene `look_scene_preview` answers, or null for empty. */
+    previewScene: null,
     ai: { backend: "keychain", providers: [] },
     /** The newer release `update_check` finds, or null. */
     update: null,
@@ -175,6 +179,10 @@ export async function open({
         }),
         settings_get: () => ({ settings: mock.settings, shortcuts }),
         look_active: () => null,
+        look_scene: ({ id }) => store.sceneEdits[id] ?? { scene: {}, assets: [] },
+        look_scene_preview: () =>
+          store.previewScene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
+        look_asset_pick: () => store.pick,
         look_active_scene: () =>
           store.scene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset: ({ id }) =>

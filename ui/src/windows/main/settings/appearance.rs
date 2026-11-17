@@ -10,7 +10,7 @@ use posthaste_model::{CommandError, LookDoc, LookPreview, LookSummary, Theme};
 use super::look_editor::LookEditor;
 use super::Context;
 use crate::browser::{self, bind_text};
-use crate::components::{Button, Dialog, Segmented, Variant};
+use crate::components::{Button, Dialog, Segmented, Switch, Variant};
 use crate::ipc::{self, api, events};
 use crate::logic::look::fit_name;
 use crate::state::{Appearance, Message};
@@ -193,6 +193,19 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                         (Theme::Dark, key::LOOKS_DARK),
                     ]
                     on_change=move |theme| context.set(move |s| s.theme = theme)
+                />
+            </div>
+        </div>
+        <div class="row">
+            <div class="row__text">
+                <div class="row__label">{i18n.text(key::LOOKS_SIMPLE)}</div>
+                <div class="row__help">{i18n.text(key::LOOKS_SIMPLE_HELP)}</div>
+            </div>
+            <div class="row__control">
+                <Switch
+                    label=i18n.label(key::LOOKS_SIMPLE)
+                    checked=context.read(|s| s.simple_looks)
+                    on_change=move |on| context.set(move |s| s.simple_looks = on)
                 />
             </div>
         </div>
