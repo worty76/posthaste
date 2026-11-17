@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::look::kinds::image::{self, ImageLayer};
+use crate::look::kinds::image::ImageLayer;
 
 /// The envelope every scene layer is written in. It never fails to parse
 /// because of a new kind: unknown kinds and unknown fields land in
@@ -41,7 +41,7 @@ impl LayerRecord {
     /// draw. Adding a kind means a new `Known` variant and an arm here,
     /// which the compiler then requires in every check and renderer.
     pub fn known(&self) -> Option<Known> {
-        if self.kind == image::KIND && self.v <= image::VERSION {
+        if self.kind == ImageLayer::KIND && self.v <= ImageLayer::VERSION {
             serde_json::from_value(self.config.clone())
                 .ok()
                 .map(Known::Image)

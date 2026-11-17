@@ -6,16 +6,6 @@ use serde_json::{Map, Value};
 
 use crate::look::scene::Region;
 
-/// The layer kind name in a v2 document.
-pub const KIND: &str = "image";
-/// The config version; a higher `v` means a reader this build predates.
-pub const VERSION: u32 = 1;
-/// Images are backdrop layers only; margin images are a later request.
-pub const REGIONS: &[Region] = &[Region::Backdrop];
-/// How strongly the backdrop dims the image, from not at all to fully.
-pub const MIN_DIM: f64 = 0.0;
-pub const MAX_DIM: f64 = 1.0;
-
 /// How the image fills the window, as CSS `object-fit` spellings.
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
 #[serde(rename_all = "lowercase")]
@@ -38,4 +28,16 @@ pub struct ImageLayer {
     /// Fields a newer Posthaste may have added: kept, never drawn.
     #[serde(flatten)]
     pub extra: Map<String, Value>,
+}
+
+impl ImageLayer {
+    /// The layer kind name in a v2 document.
+    pub const KIND: &str = "image";
+    /// The config version; a higher `v` means a reader this build predates.
+    pub const VERSION: u32 = 1;
+    /// Images are backdrop layers only; margin images are a later request.
+    pub const REGIONS: &[Region] = &[Region::Backdrop];
+    /// How strongly the backdrop may dim the image.
+    pub const MIN_DIM: f64 = 0.0;
+    pub const MAX_DIM: f64 = 1.0;
 }

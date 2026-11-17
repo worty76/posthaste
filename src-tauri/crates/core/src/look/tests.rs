@@ -969,3 +969,306 @@ mod store_tests {
         assert_eq!(db.load_settings().unwrap().look_id, None);
     }
 }
+
+// ---- format v2 -------------------------------------------------------------
+
+mod migrate_tests {
+    use super::doc;
+    use crate::look::bundled::bundled;
+    use crate::look::derive::resolve;
+    use crate::look::migrate::v1_to_v2;
+    #[allow(unused_imports)]
+    use crate::look::LookDocV2Ext as _;
+
+    #[test]
+    fn every_bundled_look_migrates_to_v2_and_resolves_identically() {
+        for (id, v1) in bundled() {
+            let before = resolve(&id, &v1).unwrap();
+            let v2 = v1_to_v2(&v1);
+            if let Err(e) = v2.validate() {
+                panic!("{id} fails v2 validation: {e}");
+            }
+            let after = resolve(&id, &v2.v1_view()).unwrap();
+            assert_eq!(before, after, "{id}");
+        }
+    }
+
+    #[test]
+    fn migration_moves_the_theme_fields_and_starts_an_empty_scene() {
+        let v1 = doc();
+        let v2 = v1_to_v2(&v1);
+        assert_eq!(v2.format, "posthaste-look");
+        assert_eq!(v2.version, 2);
+        assert_eq!(v2.name, v1.name);
+        assert_eq!(v2.author, v1.author);
+        assert_eq!(v2.theme.base, v1.base);
+        assert_eq!(v2.theme.colors, v1.colors);
+        assert_eq!(v2.theme.shape, v1.shape);
+        assert_eq!(v2.theme.font, v1.font);
+        assert!(v2.scene.is_empty());
+        assert!(v2.assets.is_empty());
+        assert!(v2.extra.is_empty());
+        assert!(v2.theme.extra.is_empty());
+    }
+}
+
+mod v2_validation_tests {
+    use serde_json::{json, Map};
+
+    use crate::error::CoreError;
+    #[allow(unused_imports)]
+    use crate::look::LookDocV2Ext as _;
+    use crate::look::{
+        Base, Colors, FontFace, LayerRecord, LookDocV2, LookTheme, Scene, Shape, WindowScene,
+    };
+
+    /// The Strawberry Milk theme in a v2 wrapper.
+    fn v2doc() -> LookDocV2 {
+        LookDocV2 {
+            format: "posthaste-look".into(),
+            version: 2,
+            name: "Strawberry Milk".into(),
+            author: Some("Posthaste".into()),
+            theme: LookTheme {
+                base: Base::Light,
+                colors: Colors {
+                    bg: "#fff5f7".into(),
+                    surface: "#ffffff".into(),
+                    text: "#4a2c3a".into(),
+                    accent: "#ff8fb1".into(),
+                    bg_sunken: None,
+                    surface_raised: None,
+                    danger: None,
+                    ok: None,
+                },
+                shape: Shape::Round,
+                font: FontFace::Rounded,
+                extra: Map::new(),
+            },
+            scene: Scene::default(),
+            assets: Vec::new(),
+            extra: Map::new(),
+        }
+    }
+
+    fn image_layer(dim: f64) -> LayerRecord {
+        LayerRecord {
+            kind: "image".into(),
+            v: 1,
+            on: true,
+            config: json!({"asset": "sha256:ab12", "dim": dim}),
+            extra: Map::new(),
+        }
+    }
+
+    fn assert_invalid(d: &LookDocV2, needle: &str) {
+        match d.validate() {
+            Ok(()) => panic!("expected refusal with \"{needle}\""),
+            Err(CoreError::InvalidLook(msg)) => assert!(msg.contains(needle), "got: {msg}"),
+            Err(e) => panic!("wrong error kind: {e}"),
+        }
+    }
+
+    #[test]
+    fn a_theme_only_v2_document_is_valid_and_round_trips() {
+        let d = v2doc();
+        d.validate().unwrap();
+        let back = LookDocV2::from_json(&d.to_json()).unwrap();
+        assert_eq!(back, d);
+        // The empty scene and asset list are not written out.
+        assert!(!d.to_json().contains("\"scene\""));
+        assert!(!d.to_json().contains("\"assets\""));
+    }
+
+    #[test]
+    fn a_document_newer_than_v2_is_refused() {
+        let mut d = v2doc();
+        d.version = 3;
+        assert_invalid(&d, "Update the app");
+    }
+
+    #[test]
+    fn an_oversized_v2_document_is_refused_before_it_is_parsed() {
+        let mut d = v2doc();
+        d.extra.insert("pad".into(), json!("x".repeat(20_000)));
+        let err = LookDocV2::from_json(&d.to_json()).unwrap_err().to_string();
+        assert!(err.contains("too large"), "got: {err}");
+    }
+
+    #[test]
+    fn a_document_nested_deeper_than_16_is_refused() {
+        let mut d = v2doc();
+        let mut deep = json!(true);
+        for _ in 0..20 {
+            deep = json!([deep]);
+        }
+        d.extra.insert("deep".into(), deep);
+        let err = LookDocV2::from_json(&d.to_json()).unwrap_err().to_string();
+        assert!(err.contains("levels deep"), "got: {err}");
+    }
+
+    #[test]
+    fn a_v2_look_with_more_than_64_layers_is_refused() {
+        let mut d = v2doc();
+        d.scene.all = Some(WindowScene {
+            backdrop: (0..65).map(|_| image_layer(0.5)).collect(),
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        assert_invalid(&d, "at most 64 layers");
+    }
+
+    #[test]
+    fn sixty_four_layers_are_accepted() {
+        let mut d = v2doc();
+        d.scene.all = Some(WindowScene {
+            backdrop: (0..64).map(|_| image_layer(0.5)).collect(),
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        d.validate().unwrap();
+    }
+
+    #[test]
+    fn an_image_layer_outside_the_backdrop_is_refused() {
+        let mut d = v2doc();
+        d.scene.capture = Some(WindowScene {
+            backdrop: Vec::new(),
+            margin: vec![image_layer(0.5)],
+            extra: Map::new(),
+        });
+        assert_invalid(&d, "backdrop");
+    }
+
+    #[test]
+    fn an_image_dimmed_out_of_range_is_refused() {
+        let mut d = v2doc();
+        d.scene.main = Some(WindowScene {
+            backdrop: vec![image_layer(1.5)],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        assert_invalid(&d, "dim");
+    }
+
+    #[test]
+    fn an_unknown_layer_kind_is_kept_untouched() {
+        let mut d = v2doc();
+        let mut extra = Map::new();
+        extra.insert("custom".into(), json!("keep"));
+        d.scene.capture = Some(WindowScene {
+            backdrop: Vec::new(),
+            margin: vec![LayerRecord {
+                kind: "shader".into(),
+                v: 9,
+                on: false,
+                config: json!({"source": "spiral"}),
+                extra,
+            }],
+            extra: Map::new(),
+        });
+        d.validate().unwrap();
+        let layer = &d.scene.capture.as_ref().unwrap().margin[0];
+        assert_eq!(layer.kind, "shader");
+        assert!(!layer.on);
+        assert_eq!(layer.config, json!({"source": "spiral"}));
+        assert_eq!(layer.extra.get("custom"), Some(&json!("keep")));
+    }
+
+    #[test]
+    fn a_known_kind_with_a_higher_v_is_kept() {
+        let mut d = v2doc();
+        d.scene.main = Some(WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 2,
+                on: true,
+                config: json!({"asset": "sha256:ab12", "sharpen": 4}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        d.validate().unwrap();
+        // The config is not readable at this build's version, so it is
+        // kept verbatim and never checked.
+        assert_eq!(
+            d.scene.main.as_ref().unwrap().backdrop[0].config,
+            json!({"asset": "sha256:ab12", "sharpen": 4})
+        );
+    }
+
+    #[test]
+    fn an_unknown_window_entry_is_kept() {
+        let mut d = v2doc();
+        d.scene
+            .extra
+            .insert("laterWindow".into(), json!({"backdrop": []}));
+        d.validate().unwrap();
+        assert_eq!(
+            d.scene.extra.get("laterWindow"),
+            Some(&json!({"backdrop": []}))
+        );
+    }
+
+    #[test]
+    fn unknown_fields_at_every_level_survive_a_round_trip() {
+        let mut d = v2doc();
+        d.extra.insert("futureTop".into(), json!({"a": 1}));
+        d.theme.extra.insert("laterTheme".into(), json!(7));
+        d.scene.extra.insert("laterWindow".into(), json!({}));
+        let mut layer = image_layer(0.45);
+        layer.extra.insert("futureKey".into(), json!("keep"));
+        d.scene.all = Some(WindowScene {
+            backdrop: vec![layer],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        let back = LookDocV2::from_json(&d.to_json()).unwrap();
+        assert_eq!(back, d);
+    }
+}
+
+mod document_tests {
+    #[allow(unused_imports)]
+    use crate::look::{LookDocExt as _, LookDocV2Ext as _, LookDocument};
+
+    #[test]
+    fn from_json_dispatches_on_the_version() {
+        let v1 = r##"{"format":"posthaste-look","version":1,"name":"A","base":"light","colors":{"bg":"#fff5f7","surface":"#ffffff","text":"#4a2c3a","accent":"#ff8fb1"}}"##;
+        let v2 = r##"{"format":"posthaste-look","version":2,"name":"B","theme":{"base":"dark","colors":{"bg":"#120d18","surface":"#1d1526","text":"#f3e9f7","accent":"#ff7eb6"}}}"##;
+        assert!(matches!(
+            LookDocument::from_json(v1),
+            Ok(LookDocument::V1(_))
+        ));
+        assert!(matches!(
+            LookDocument::from_json(v2),
+            Ok(LookDocument::V2(_))
+        ));
+    }
+
+    #[test]
+    fn a_document_from_a_newer_version_is_refused_with_the_update_message() {
+        let json = r##"{"format":"posthaste-look","version":9,"name":"X"}"##;
+        let err = LookDocument::from_json(json).unwrap_err().to_string();
+        assert!(err.contains("Update the app"), "got: {err}");
+    }
+
+    #[test]
+    fn a_v1_document_keeps_its_own_size_limit() {
+        let mut d = super::doc();
+        d.name = "x".repeat(5_000);
+        let err = LookDocument::from_json(&d.to_json())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("4096"), "got: {err}");
+    }
+
+    #[test]
+    fn garbage_is_not_a_look() {
+        let err = LookDocument::from_json("not json at all")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("isn't a valid look"), "got: {err}");
+    }
+}
