@@ -2254,6 +2254,40 @@ mod resolve_tests {
     }
 
     #[test]
+    fn a_window_draws_at_most_six_stickers_and_the_own_ones_win() {
+        let mut d = v2doc();
+        d.scene.all = Some(margin_scene(vec![
+            emoji("🌸", "top-left"),
+            emoji("🌙", "top-right"),
+            emoji("⭐", "bottom-left"),
+            emoji("🍀", "bottom-right"),
+        ]));
+        d.scene.capture = Some(margin_scene(vec![
+            emoji("🌷", "top-left"),
+            emoji("🌻", "top-right"),
+            emoji("🌼", "bottom-left"),
+            emoji("🌺", "bottom-right"),
+        ]));
+        let resolved = resolve_scene(&d);
+        // Six drawn: the window's own four first, then the first two of
+        // all. The other two are counted, not drawn.
+        assert_eq!(resolved.capture.margin.len(), 6);
+        let chars: Vec<&str> = resolved
+            .capture
+            .margin
+            .iter()
+            .map(|layer| match layer {
+                ResolvedLayer::Emoji { char, .. } => char.as_str(),
+                _ => panic!("expected stickers"),
+            })
+            .collect();
+        assert_eq!(chars, ["🌸", "🌙", "🌷", "🌻", "🌼", "🌺"]);
+        assert_eq!(resolved.skipped, 2);
+        // A window with no entry of its own still sees all four of all.
+        assert_eq!(resolved.main.margin.len(), 4);
+    }
+
+    #[test]
     fn look_scene_of_a_v1_look_is_empty() {
         let mut db = Db::open_in_memory().unwrap();
         let id = db.save_look(super::doc(), None, None).unwrap().id;

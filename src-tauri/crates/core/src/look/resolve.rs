@@ -2,10 +2,8 @@
 //! the way `derive.rs` resolves colours into tokens. It never fails: a
 //! layer this build does not draw is skipped and counted (invariant 7).
 
-use posthaste_model::{AssetRef, LookDocV2, Scene, WindowScene};
-use posthaste_model::{
-    Known, Read, ResolvedLayer, ResolvedScene, ResolvedWindow, SceneEdit, Window,
-};
+use posthaste_model::{AssetRef, EmojiLayer, LookDocV2, Scene, WindowScene};
+use posthaste_model::{Known, Read, ResolvedLayer, ResolvedScene, SceneEdit, Window};
 
 /// Resolves the scene of a validated v2 document.
 pub fn resolve_scene(doc: &LookDocV2) -> ResolvedScene {
@@ -16,30 +14,53 @@ pub fn resolve_scene(doc: &LookDocV2) -> ResolvedScene {
 /// sends instead of a whole document.
 pub fn resolve_parts(scene: &Scene, assets: &[AssetRef]) -> ResolvedScene {
     let mut skipped = 0u32;
-    let mut build = |target: &mut ResolvedWindow, own: Option<&WindowScene>| {
-        if let Some(all) = &scene.all {
-            push_entry(target, all, assets, &mut skipped);
-        }
-        if let Some(own) = own {
-            push_entry(target, own, assets, &mut skipped);
-        }
-    };
     let mut out = ResolvedScene::default();
-    build(&mut out.main, scene.main.as_ref());
-    build(&mut out.capture, scene.capture.as_ref());
-    build(&mut out.today, scene.today.as_ref());
-    build(&mut out.details, scene.details.as_ref());
+    let windows = [
+        (&mut out.main, scene.main.as_ref()),
+        (&mut out.capture, scene.capture.as_ref()),
+        (&mut out.today, scene.today.as_ref()),
+        (&mut out.details, scene.details.as_ref()),
+    ];
+    for (target, own) in windows {
+        // A window draws `all` first, then its own layers. Stickers are
+        // capped across the merge, and the window's own ones count
+        // first: they were chosen for this window.
+        let shared = scene
+            .all
+            .as_ref()
+            .map(|entry| resolve_entry(entry, assets, &mut skipped))
+            .unwrap_or_default();
+        let own = own
+            .map(|entry| resolve_entry(entry, assets, &mut skipped))
+            .unwrap_or_default();
+        let shared_keep = EmojiLayer::MAX_PER_WINDOW
+            .saturating_sub(own.stickers.len())
+            .min(shared.stickers.len());
+        skipped += u32::try_from(shared.stickers.len() - shared_keep).unwrap_or(0);
+        skipped += u32::try_from(
+            own.stickers
+                .len()
+                .saturating_sub(EmojiLayer::MAX_PER_WINDOW),
+        )
+        .unwrap_or(0);
+        target.backdrop = [shared.backdrop, own.backdrop].concat();
+        target.margin = [shared.stickers[..shared_keep].to_vec(), own.stickers].concat();
+    }
     out.skipped = skipped;
     out
 }
 
-/// One scene entry into a window's drawable layers.
-fn push_entry(
-    out: &mut ResolvedWindow,
-    entry: &WindowScene,
-    assets: &[AssetRef],
-    skipped: &mut u32,
-) {
+/// One scene entry resolved into its drawable layers. Backdrop images
+/// collect in `backdrop`, stickers in `stickers`; anything this build
+/// does not draw is counted.
+#[derive(Default)]
+struct Entry {
+    backdrop: Vec<ResolvedLayer>,
+    stickers: Vec<ResolvedLayer>,
+}
+
+fn resolve_entry(entry: &WindowScene, assets: &[AssetRef], skipped: &mut u32) -> Entry {
+    let mut out = Entry::default();
     for (region, layer) in entry.regions() {
         // An off layer draws nowhere, in no window.
         if !layer.on {
@@ -64,7 +85,7 @@ fn push_entry(
             }
             Read::Known(Known::Emoji(emoji)) => {
                 let _ = region; // the kind decides which list it draws in
-                out.margin.push(ResolvedLayer::Emoji {
+                out.stickers.push(ResolvedLayer::Emoji {
                     char: emoji.char.clone(),
                     anchor: emoji.anchor,
                     size: emoji.size,
@@ -75,6 +96,7 @@ fn push_entry(
             Read::Future | Read::Malformed => *skipped += 1,
         }
     }
+    out
 }
 
 /// The window entries in document order, for `SceneEdit` round trips.
