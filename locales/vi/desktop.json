@@ -11,10 +11,12 @@
     "save_copy": "Lưu một bản sao",
     "export": "Xuất ghi chú",
     "import": "Nhập ghi chú",
-    "backup": "Sao lưu cơ sở dữ liệu"
+    "backup": "Sao lưu cơ sở dữ liệu",
+    "pick_image": "Chọn ảnh cho giao diện"
   },
   "filter": {
     "export": "Bản xuất Posthaste",
-    "database": "Cơ sở dữ liệu SQLite"
+    "database": "Cơ sở dữ liệu SQLite",
+    "images": "Ảnh"
   }
 }

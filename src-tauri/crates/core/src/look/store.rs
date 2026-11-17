@@ -14,7 +14,10 @@ use crate::look::bundled::bundled;
 use crate::look::code::decode_code;
 use crate::look::derive::{resolve, ResolvedLook};
 use crate::look::migrate::v1_to_v2;
-use crate::look::{LookDocExt as _, LookDocument, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
+use crate::look::resolve;
+use crate::look::{
+    LookDocExt as _, LookDocument, ResolvedScene, SceneEdit, DEFAULT_LOOK_ID, MAX_USER_LOOKS,
+};
 
 pub use posthaste_model::LookSummary;
 
@@ -94,6 +97,35 @@ impl Db {
         }
     }
 
+    /// The scene of the look the user selected, ready to draw. Simple
+    /// looks answers an empty scene, as does Plain and every colour-only
+    /// (v1) look: the setting is applied here, so no window can forget it.
+    pub fn active_scene(&self) -> Result<ResolvedScene> {
+        let settings = self.load_settings()?;
+        if settings.simple_looks {
+            return Ok(ResolvedScene::default());
+        }
+        let Some(id) = settings.look_id else {
+            return Ok(ResolvedScene::default());
+        };
+        Ok(match self.look_document(&id) {
+            Ok(LookDocument::V2(doc)) => resolve::resolve_scene(&doc),
+            _ => ResolvedScene::default(),
+        })
+    }
+
+    /// The scene and asset list of a look, as the editor edits them.
+    /// Colour-only looks answer an empty edit.
+    pub fn look_scene(&self, id: &str) -> Result<SceneEdit> {
+        match self.look_document(id)? {
+            LookDocument::V1(_) => Ok(SceneEdit::default()),
+            LookDocument::V2(doc) => Ok(SceneEdit {
+                scene: doc.scene,
+                assets: doc.assets,
+            }),
+        }
+    }
+
     /// The look's full token map, validated and derived.
     pub fn resolve_look(&self, id: &str) -> Result<ResolvedLook> {
         let doc = self.look_doc(id)?;
@@ -149,6 +181,46 @@ impl Db {
             }
             _ => LookDocument::V2(v1_to_v2(&doc)),
         };
+        self.save_look_document_at(to_store, id, now)
+    }
+
+    /// Saves a look with the editor's scene and asset list, replacing
+    /// the stored scene with the edit's. Unknown layers ride inside the
+    /// edit's scene and are kept, as they are in every save.
+    pub fn save_look_with_scene(
+        &mut self,
+        doc: posthaste_model::LookDoc,
+        scene: Option<SceneEdit>,
+        id: Option<&str>,
+    ) -> Result<LookSummary> {
+        self.save_look_with_scene_at(doc, scene, id, now_ms())
+    }
+
+    pub fn save_look_with_scene_at(
+        &mut self,
+        doc: posthaste_model::LookDoc,
+        scene: Option<SceneEdit>,
+        id: Option<&str>,
+        now: i64,
+    ) -> Result<LookSummary> {
+        doc.validate()?;
+        let stored = match id {
+            Some(id) if !is_builtin(id) => self.stored_document(id)?,
+            _ => None,
+        };
+        let mut to_store = match stored {
+            Some(LookDocument::V2(mut v2)) => {
+                v2.set_theme_from(&doc);
+                LookDocument::V2(v2)
+            }
+            _ => LookDocument::V2(v1_to_v2(&doc)),
+        };
+        if let Some(edit) = scene {
+            if let LookDocument::V2(v2) = &mut to_store {
+                v2.scene = edit.scene;
+                v2.assets = edit.assets;
+            }
+        }
         self.save_look_document_at(to_store, id, now)
     }
 

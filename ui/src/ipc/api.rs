@@ -3,9 +3,10 @@
 //! `src-tauri/src/commands.rs`.
 
 use posthaste_model::{
-    AiOverview, AppInfo, AttachReport, Attachment, CommandError, Counts, DataInfo, DayMark,
-    DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookSummary, Note,
-    NoteDetail, NoteQuery, ResolvedLook, Settings, SettingsState, Status, TrashedNote, UpdateInfo,
+    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
+    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookSummary, Note,
+    NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState, Status,
+    TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -414,6 +415,46 @@ pub async fn look_import(code: &str) -> Response<LookSummary> {
 
 pub async fn look_export_code(id: &str) -> Response<String> {
     invoke("look_export_code", &ById { id }).await
+}
+
+/// The scene of the look the user wears, ready to draw. Empty under
+/// Simple looks, for Plain and for colour-only looks.
+// The scene host draws from these; they are wired in its commit.
+#[allow(dead_code)]
+pub async fn look_active_scene() -> Response<ResolvedScene> {
+    invoke("look_active_scene", &NoArgs {}).await
+}
+
+/// A look's scene and assets, as the editor edits them.
+#[allow(dead_code)]
+pub async fn look_scene(id: &str) -> Response<SceneEdit> {
+    invoke("look_scene", &ById { id }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct ScenePreview<'a> {
+    edit: &'a SceneEdit,
+}
+
+/// Checks a scene edit and resolves it for the editor's live preview.
+#[allow(dead_code)]
+pub async fn look_scene_preview(edit: &SceneEdit) -> Response<ResolvedScene> {
+    invoke("look_scene_preview", &ScenePreview { edit }).await
+}
+
+/// One look image as a `data:` URL, for `<img>` sources.
+#[allow(dead_code)]
+pub async fn look_asset(id: &str) -> Response<String> {
+    invoke("look_asset", &ById { id }).await
+}
+
+/// Asks for an image file and stores it. `None` means the dialog was
+/// cancelled.
+#[allow(dead_code)]
+pub async fn look_asset_pick() -> Response<Option<AssetRef>> {
+    invoke("look_asset_pick", &NoArgs {}).await
 }
 
 pub async fn look_delete(id: &str) -> Response<()> {

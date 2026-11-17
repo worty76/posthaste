@@ -58,6 +58,28 @@ pub struct Scene {
 }
 
 impl Scene {
+    /// The scene entry for one window, when it has one.
+    pub fn window(&self, window: crate::look::resolved::Window) -> Option<&WindowScene> {
+        match window {
+            crate::look::resolved::Window::Main => self.main.as_ref(),
+            crate::look::resolved::Window::Capture => self.capture.as_ref(),
+            crate::look::resolved::Window::Today => self.today.as_ref(),
+            crate::look::resolved::Window::Details => self.details.as_ref(),
+        }
+    }
+
+    /// The scene entry for one window, created empty when missing — how
+    /// the editor adds layers for a window that had none.
+    pub fn window_mut(&mut self, window: crate::look::resolved::Window) -> &mut WindowScene {
+        let entry = match window {
+            crate::look::resolved::Window::Main => &mut self.main,
+            crate::look::resolved::Window::Capture => &mut self.capture,
+            crate::look::resolved::Window::Today => &mut self.today,
+            crate::look::resolved::Window::Details => &mut self.details,
+        };
+        entry.get_or_insert_with(WindowScene::default)
+    }
+
     /// True when there is nothing to draw and nothing to keep.
     pub fn is_empty(&self) -> bool {
         self.all.is_none()

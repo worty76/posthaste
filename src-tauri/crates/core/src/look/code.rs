@@ -41,6 +41,32 @@ pub(super) fn b64_encode(bytes: &[u8]) -> String {
     out
 }
 
+/// Padded base64 in the standard alphabet: what a `data:` URL needs.
+pub fn b64_encode_std(bytes: &[u8]) -> String {
+    const STD: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = u32::from(chunk[0]);
+        let b1 = u32::from(*chunk.get(1).unwrap_or(&0));
+        let b2 = u32::from(*chunk.get(2).unwrap_or(&0));
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        let chars = [(n >> 18) & 63, (n >> 12) & 63, (n >> 6) & 63, n & 63];
+        let keep = match chunk.len() {
+            1 => 2,
+            2 => 3,
+            _ => 4,
+        };
+        for (i, c) in chars.iter().enumerate() {
+            if i < keep {
+                out.push(STD[*c as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
 /// Inverse of [`b64_encode`]. `None` for anything with wrong length or a
 /// character outside the url-safe alphabet.
 pub(super) fn b64_decode(s: &str) -> Option<Vec<u8>> {

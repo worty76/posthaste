@@ -118,6 +118,7 @@ pub struct ResolvedLook {
 pub mod asset;
 pub mod kinds;
 pub mod layer;
+pub mod resolved;
 pub mod scene;
 
 /// The format string every look document carries, v1 and v2 alike.
@@ -129,6 +130,7 @@ pub use asset::AssetRef;
 pub use kinds::emoji::{Anchor, EmojiLayer, StickerSize};
 pub use kinds::image::{Fit, ImageLayer};
 pub use layer::{Known, LayerRecord, Read};
+pub use resolved::{ResolvedLayer, ResolvedScene, ResolvedWindow, SceneEdit, Window};
 pub use scene::{Region, Scene, WindowScene};
 
 /// The v1 theme fields, unchanged, nested in a v2 document. Named

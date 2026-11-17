@@ -10,6 +10,7 @@ pub mod code;
 pub mod color;
 pub mod derive;
 pub mod migrate;
+pub mod resolve;
 pub mod scene;
 pub mod store;
 
@@ -24,8 +25,8 @@ pub use posthaste_model::DEFAULT_LOOK_ID;
 pub use posthaste_model::LOOK_FORMAT;
 pub use posthaste_model::{
     Anchor, AssetRef, Base, Colors, EmojiLayer, Fit, FontFace, ImageLayer, Known, LayerRecord,
-    LookDoc, LookDocV2, LookPreview, LookTheme, Read, Region, Scene, Shape, StickerSize,
-    WindowScene, LOOK_VERSION_V2,
+    LookDoc, LookDocV2, LookPreview, LookTheme, Read, Region, ResolvedLayer, ResolvedScene,
+    ResolvedWindow, Scene, SceneEdit, Shape, StickerSize, Window, WindowScene, LOOK_VERSION_V2,
 };
 pub const LOOK_VERSION: u32 = 1;
 pub const MAX_NAME_CHARS: usize = 40;
@@ -240,6 +241,12 @@ impl LookDocV2Ext for LookDocV2 {
     fn preview(&self) -> LookPreview {
         preview_of(&self.theme.colors)
     }
+}
+
+/// Checks a scene and its asset list without a whole document: what the
+/// editor's live preview asks for. The same checks `validate` runs.
+pub fn validate_scene_parts(scene: &Scene, assets: &[AssetRef]) -> Result<()> {
+    scene::check(scene, assets)
 }
 
 /// The message for a payload that arrived broken: the code changed when it

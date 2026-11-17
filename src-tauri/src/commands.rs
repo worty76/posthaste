@@ -3,9 +3,11 @@
 
 use std::sync::atomic::Ordering;
 
-use posthaste_core::look::derive::ResolvedLook;
+use posthaste_core::look::code::{b64_encode_std, encode_document};
+use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{code::encode_document, derive::resolve, LookDoc};
+use posthaste_core::look::{resolve as scene_resolve, validate_scene_parts};
+use posthaste_core::look::{AssetRef, LookDoc, SceneEdit};
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
@@ -745,6 +747,8 @@ pub async fn data_clear(app: AppHandle, confirm: String) -> AppResult<SettingsSt
 
 // ---- looks -------------------------------------------------------------------
 
+type ResolvedSceneAlias = posthaste_core::look::ResolvedScene;
+
 #[tauri::command]
 pub fn look_list(state: State<'_, AppState>) -> AppResult<Vec<LookSummary>> {
     state.with_db(|db| db.list_looks())
@@ -772,11 +776,79 @@ pub fn look_save(
     app: AppHandle,
     state: State<'_, AppState>,
     doc: LookDoc,
+    scene: Option<SceneEdit>,
     id: Option<String>,
 ) -> AppResult<LookSummary> {
-    let summary = state.with_db(|db| db.save_look(doc, id.as_deref()))?;
+    let summary = state.with_db(|db| db.save_look_with_scene(doc, scene, id.as_deref()))?;
     looks_changed(&app);
     Ok(summary)
+}
+
+/// The scene of the look the user wears, ready to draw. Empty under
+/// Simple looks, for Plain, and for colour-only looks.
+#[tauri::command]
+pub fn look_active_scene(state: State<'_, AppState>) -> AppResult<ResolvedSceneAlias> {
+    state.with_db(|db| db.active_scene())
+}
+
+/// A look's scene and assets, as the editor edits them.
+#[tauri::command]
+pub fn look_scene(state: State<'_, AppState>, id: String) -> AppResult<SceneEdit> {
+    state.with_db(|db| db.look_scene(&id))
+}
+
+/// Checks a scene edit and resolves it for the editor's live preview.
+/// Stores nothing.
+#[tauri::command]
+pub fn look_scene_preview(edit: SceneEdit) -> AppResult<ResolvedSceneAlias> {
+    validate_scene_parts(&edit.scene, &edit.assets)?;
+    Ok(scene_resolve::resolve_parts(&edit.scene, &edit.assets))
+}
+
+/// One look image as a `data:` URL, for `<img>` sources.
+#[tauri::command]
+pub fn look_asset(state: State<'_, AppState>, id: String) -> AppResult<String> {
+    let (mime, bytes) = state.with_db(|db| db.look_asset_bytes(&id))?;
+    Ok(format!("data:{mime};base64,{}", b64_encode_std(&bytes)))
+}
+
+/// Asks for an image file, checks it, stores it, and answers the
+/// document's claim about it. The file's name is never logged or kept.
+#[tauri::command]
+pub async fn look_asset_pick(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Option<AssetRef>> {
+    let Some(src) = app
+        .dialog()
+        .file()
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_PICK_IMAGE))
+        .add_filter(
+            state.translator().text(key::DESKTOP_FILTER_IMAGES),
+            &["png", "jpg", "jpeg", "webp"],
+        )
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let src = src
+        .into_path()
+        .map_err(|e| AppError::new("io", e.to_string()))?;
+    let len = std::fs::metadata(&src)
+        .map_err(|e| AppError::new("io", e.to_string()))?
+        .len();
+    if len > posthaste_core::look::assets::MAX_ASSET_BYTES as u64 {
+        return Err(AppError::new(
+            "asset_invalid",
+            format!(
+                "That image is {:.1} MB. Look images are up to 2 MB.",
+                len as f64 / (1024.0 * 1024.0)
+            ),
+        ));
+    }
+    let bytes = std::fs::read(&src).map_err(|e| AppError::new("io", e.to_string()))?;
+    let asset = state.with_db(|db| db.store_look_asset(&bytes))?;
+    Ok(Some(asset))
 }
 
 #[tauri::command]

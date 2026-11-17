@@ -11,10 +11,12 @@
     "save_copy": "Save a copy",
     "export": "Export notes",
     "import": "Import notes",
-    "backup": "Back up database"
+    "backup": "Back up database",
+    "pick_image": "Choose a look image"
   },
   "filter": {
     "export": "Posthaste export",
-    "database": "SQLite database"
+    "database": "SQLite database",
+    "images": "Images"
   }
 }

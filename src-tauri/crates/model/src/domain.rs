@@ -314,6 +314,10 @@ pub struct Settings {
     /// The selected look. `None` is the Plain look (system/light/dark);
     /// out of the box every install wears Ink.
     pub look_id: Option<String>,
+    /// Simple looks: keep a look's colours, turn off every scene layer.
+    /// Applied in storage, so no window can forget to obey it.
+    #[serde(default)]
+    pub simple_looks: bool,
     /// The interface language, as a code from the language list ("en",
     /// "vi"). A code this build does not know is shown in English.
     pub language: String,
@@ -343,6 +347,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             theme: Theme::System,
+            simple_looks: false,
             launch_at_login: false,
             start_minimized: false,
             capture_shortcut: DEFAULT_CAPTURE_SHORTCUT.into(),
