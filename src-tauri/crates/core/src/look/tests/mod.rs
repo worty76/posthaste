@@ -61,6 +61,18 @@ fn v2doc() -> LookDocV2 {
     }
 }
 
+/// A minimal valid PNG header the sniffer accepts, for asset fixtures.
+pub(crate) fn png(width: u32, height: u32) -> Vec<u8> {
+    let mut b = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+    b.extend_from_slice(&13u32.to_be_bytes());
+    b.extend_from_slice(b"IHDR");
+    b.extend_from_slice(&width.to_be_bytes());
+    b.extend_from_slice(&height.to_be_bytes());
+    b.extend_from_slice(&[8, 2, 0, 0, 0]);
+    b.extend_from_slice(&[0; 4]); // CRC, which the sniffer never reads
+    b
+}
+
 /// A well-formed asset id for the fixtures: `sha256:` plus 64 hex digits.
 fn asset_id() -> String {
     format!("sha256:{}", "a".repeat(64))

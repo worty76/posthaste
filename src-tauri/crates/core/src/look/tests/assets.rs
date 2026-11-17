@@ -1,6 +1,9 @@
 use super::*;
 
+use super::png;
+
 mod asset_tests {
+    use super::png;
     use serde_json::{json, Map};
 
     use super::v2doc;
@@ -9,17 +12,6 @@ mod asset_tests {
     #[allow(unused_imports)]
     use crate::look::{LookDocExt as _, LookDocV2Ext as _};
     use crate::Db;
-
-    fn png(width: u32, height: u32) -> Vec<u8> {
-        let mut b = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-        b.extend_from_slice(&13u32.to_be_bytes());
-        b.extend_from_slice(b"IHDR");
-        b.extend_from_slice(&width.to_be_bytes());
-        b.extend_from_slice(&height.to_be_bytes());
-        b.extend_from_slice(&[8, 2, 0, 0, 0]);
-        b.extend_from_slice(&[0; 4]); // CRC, which the sniffer never reads
-        b
-    }
 
     fn jpeg(width: u16, height: u16) -> Vec<u8> {
         let mut b = vec![0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08];
@@ -213,5 +205,232 @@ mod asset_tests {
             .query_row("SELECT COUNT(*) FROM look_assets", [], |r| r.get(0))
             .unwrap();
         assert_eq!(n, 0);
+    }
+}
+
+// ---- look files (.phlook) ----------------------------------------------------
+
+mod package_tests {
+    use serde_json::{json, Map, Value};
+
+    use super::png;
+    use crate::look::package::{read_package, write_package};
+    use crate::look::{AssetRef, Known, LayerRecord, LookDocV2, LookDocument};
+    #[allow(unused_imports)]
+    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
+    use crate::Db;
+
+    /// Sakura-night-like v2 look with one image backdrop, as the editor
+    /// would have saved it.
+    fn look_with_image(id: &str, claims: (u64, u32, u32)) -> LookDocV2 {
+        let mut d = crate::look::tests::v2doc();
+        d.name = "File look".into();
+        d.scene.all = Some(crate::look::WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 1,
+                on: true,
+                config: json!({"asset": id, "fit": "cover", "dim": 0.4}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        d.assets = vec![AssetRef {
+            id: id.into(),
+            asset_type: "image/png".into(),
+            bytes: claims.0,
+            width: claims.1,
+            height: claims.2,
+            extra: Map::new(),
+        }];
+        d
+    }
+
+    fn stored_db(bytes: &[u8]) -> (Db, String, AssetRef) {
+        let mut db = Db::open_in_memory().unwrap();
+        let asset = db.store_look_asset(bytes).unwrap();
+        (db, asset.id.clone(), asset)
+    }
+
+    #[test]
+    fn export_then_import_gives_the_same_document() {
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
+        let saved = db
+            .save_look_document(LookDocument::V2(look.clone()), None)
+            .unwrap();
+
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+
+        let pending = read_package(&file).unwrap();
+        let mut other = Db::open_in_memory().unwrap();
+        let summary = other.install_package(pending).unwrap();
+        assert_eq!(summary.name, "File look");
+        match other.look_document(&summary.id).unwrap() {
+            LookDocument::V2(stored) => {
+                assert_eq!(stored.theme, look.theme);
+                assert_eq!(stored.scene, look.scene);
+                assert_eq!(stored.assets.len(), 1);
+                assert_eq!(stored.assets[0].id, id);
+            }
+            _ => panic!("expected v2"),
+        }
+        // The image came across: the bytes are stored and identical.
+        let (_, stored_bytes) = other.look_asset_bytes(&id).unwrap();
+        assert_eq!(stored_bytes, bytes);
+    }
+
+    #[test]
+    fn a_package_with_a_wrong_digest_writes_nothing() {
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+
+        // Tamper: swap one payload byte so the digest no longer matches.
+        let value: Value = serde_json::from_str(&file).unwrap();
+        let mut file = value;
+        file["assets"][&id] = Value::String("AAAA".into());
+        let tampered = serde_json::to_string(&file).unwrap();
+
+        let mut fresh = Db::open_in_memory().unwrap();
+        assert!(read_package(&tampered).is_err());
+        assert_eq!(fresh.list_looks().unwrap().len(), 8);
+        let n: i64 = fresh
+            .conn()
+            .query_row("SELECT COUNT(*) FROM look_assets", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn a_package_with_an_extra_asset_writes_nothing() {
+        let bytes = png(2, 3);
+        let (mut db, id, _) = stored_db(&bytes);
+        // A colour-only look lists no images, so its file carries none.
+        let look = crate::look::tests::v2doc();
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+
+        // But the file carries bytes for an asset the look never lists.
+        let value: Value = serde_json::from_str(&file).unwrap();
+        let mut file = value;
+        file["assets"][&id] = Value::String(crate::look::code::b64_encode(&bytes));
+        let tampered = serde_json::to_string(&file).unwrap();
+
+        let mut fresh = Db::open_in_memory().unwrap();
+        assert!(read_package(&tampered).is_err());
+        let n: i64 = fresh
+            .conn()
+            .query_row("SELECT COUNT(*) FROM looks", [], |r| r.get(0))
+            .unwrap();
+        // Nothing was written: the bundled looks are data files, so a
+        // fresh database holds no look rows at all.
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn a_package_missing_an_asset_writes_nothing() {
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+
+        // The look lists the image but the file carries no bytes for it.
+        let value: Value = serde_json::from_str(&file).unwrap();
+        let mut file = value;
+        file["assets"] = json!({});
+        let tampered = serde_json::to_string(&file).unwrap();
+
+        let mut fresh = Db::open_in_memory().unwrap();
+        assert!(read_package(&tampered).is_err());
+        let n: i64 = fresh
+            .conn()
+            .query_row("SELECT COUNT(*) FROM looks", [], |r| r.get(0))
+            .unwrap();
+        // Nothing was written: the bundled looks are data files, so a
+        // fresh database holds no look rows at all.
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn a_package_over_12_mb_is_refused_before_parsing() {
+        let big = format!("{}{}", "x".repeat(13 * 1024 * 1024), "}");
+        let err = read_package(&big).unwrap_err().to_string();
+        assert!(err.contains("large"), "got: {err}");
+    }
+
+    #[test]
+    fn a_package_with_a_fake_png_writes_nothing() {
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+
+        // A renamed executable posing as the image.
+        let value: Value = serde_json::from_str(&file).unwrap();
+        let mut file = value;
+        file["assets"][&id] = Value::String(crate::look::code::b64_encode(b"MZ\x90\x00garbage"));
+        let tampered = serde_json::to_string(&file).unwrap();
+
+        let mut fresh = Db::open_in_memory().unwrap();
+        assert!(read_package(&tampered).is_err());
+        let n: i64 = fresh
+            .conn()
+            .query_row("SELECT COUNT(*) FROM looks", [], |r| r.get(0))
+            .unwrap();
+        // Nothing was written: the bundled looks are data files, so a
+        // fresh database holds no look rows at all.
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn a_package_whose_claims_disagree_with_its_bytes_is_refused() {
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        // The document claims 100×200; the bytes say 2×3.
+        let look = look_with_image(&id, (asset.bytes, 100, 200));
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+        assert!(read_package(&file).is_err());
+    }
+
+    #[test]
+    fn a_package_is_not_a_look_document_and_the_other_way_round() {
+        // A look file is not a look, and a look is not a look file.
+        let bytes = png(2, 3);
+        let (mut db, id, asset) = stored_db(&bytes);
+        let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
+        let file = write_package(&look, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+        .unwrap();
+        assert!(LookDocument::from_json(&file).is_err());
+        assert!(read_package(&look.to_json()).is_err());
     }
 }

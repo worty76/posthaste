@@ -10,6 +10,7 @@ pub mod code;
 pub mod color;
 pub mod derive;
 pub mod migrate;
+pub mod package;
 pub mod resolve;
 pub mod scene;
 pub mod store;
