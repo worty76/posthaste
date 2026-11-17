@@ -68,25 +68,32 @@ pub(super) struct SceneState {
     /// Sticker and image counts the shell could not draw in the last
     /// preview.
     pub skipped: RwSignal<u32>,
+    /// True once the look's real scene has loaded, or failed to. Before
+    /// that the editor does not know the scene, so it sends none and
+    /// Save is off: a save without the load would wipe the stored one.
+    pub loaded: RwSignal<bool>,
 }
 
 impl SceneState {
-    /// An empty scene; an existing look's real one loads right after. A
-    /// failed load leaves the empty scene: the save then writes no scene,
-    /// which is what a colour-only look had anyway.
+    /// An empty scene for a new look; an existing look's real one loads
+    /// right after. A failed load keeps the empty scene and the save
+    /// then sends none, which leaves the stored scene as it is.
     pub fn new(editing_id: Option<String>) -> Self {
         let state = Self {
             edit: RwSignal::new(SceneEdit::default()),
             skipped: RwSignal::new(0),
+            loaded: RwSignal::new(editing_id.is_none()),
         };
         if let Some(id) = editing_id {
             let edit = state.edit;
+            let loaded = state.loaded;
             spawn_local(async move {
-                // A failed load leaves the empty scene: the save then
-                // writes no scene, which is the same as the look had.
-                if let Ok(loaded) = api::look_scene(&id).await {
-                    edit.set(loaded);
+                if let Ok(loaded_scene) = api::look_scene(&id).await {
+                    edit.set(loaded_scene);
                 }
+                // Either way the load is over: with it failed, sending
+                // none is exactly what keeps the stored scene.
+                loaded.set(true);
             });
         }
         state

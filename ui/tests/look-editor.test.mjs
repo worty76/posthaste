@@ -105,6 +105,56 @@ describe("look editor scene", () => {
     await w.close();
   });
 
+  it("does not save a scene it has not loaded yet", async () => {
+    const id = `sha256:${"a".repeat(64)}`;
+    const loaded = {
+      scene: {
+        all: { margin: [{ kind: "emoji", v: 1, config: { char: "🌸", anchor: "top-left" } }] },
+      },
+      assets: [],
+    };
+    const store = {
+      looks: [
+        {
+          id: "user:1",
+          name: "Mine",
+          author: null,
+          builtin: false,
+          base: "light",
+          preview: { bg: "#101010", surface: "#202020", text: "#f0f0f0", accent: "#ff8800" },
+        },
+      ],
+    };
+    const w = await open({ label: "main", store, settings: { look_id: "user:1" } });
+    await w.page.getByRole("button", { name: "Settings", exact: true }).click();
+    // The scene load is held, so the editor cannot know the real scene.
+    await w.mock.hold("look_scene");
+    await w.page.getByRole("button", { name: "Edit" }).click();
+    const dialog = w.page.getByRole("dialog", { name: "Edit look" });
+    await eventually(
+      () => dialog.count(),
+      (n) => n === 1,
+      "the editor to open",
+    );
+
+    // Save is off while the load is in flight, and nothing was sent.
+    assert.equal(await dialog.getByRole("button", { name: "Save" }).isDisabled(), true);
+    assert.equal((await w.mock.calls("look_save")).length, 0);
+
+    // The load lands, Save comes on, and the save carries the loaded scene.
+    await w.mock.release("look_scene", loaded);
+    await eventually(
+      () => dialog.getByRole("button", { name: "Save" }).isDisabled(),
+      (disabled) => disabled === false,
+      "Save to come on after the scene loads",
+    );
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const scene = (await w.mock.calls("look_save")).at(-1)?.args.scene;
+    assert.equal(scene.scene.all.margin[0].config.char, "🌸");
+    await w.close();
+  });
+
   it("says when part of the look needs a newer Posthaste", async () => {
     const previewScene = { main: {}, capture: {}, today: {}, details: {}, skipped: 2 };
     const w = await editor(null, { previewScene });

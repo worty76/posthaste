@@ -113,8 +113,10 @@ pub(super) fn LookEditor(
         busy.set(true);
         spawn_local(async move {
             let id = editing_id.get_value();
-            let scene_edit = scene.edit.get_untracked();
-            match api::look_save(&doc.get_untracked(), Some(&scene_edit), id.as_deref()).await {
+            // A scene is sent only once it is the look's own; before the
+            // load finishes, none goes and the stored scene is kept.
+            let scene_edit = scene.loaded.get_untracked().then(|| scene.edit.get_untracked());
+            match api::look_save(&doc.get_untracked(), scene_edit.as_ref(), id.as_deref()).await {
                 Ok(saved) => {
                     on_saved.run(saved);
                     close(());
@@ -127,7 +129,10 @@ pub(super) fn LookEditor(
         });
     };
     let can_save = move || {
-        error.with(Option::is_none) && doc.with(|doc| !doc.name.trim().is_empty()) && !busy.get()
+        error.with(Option::is_none)
+            && doc.with(|doc| !doc.name.trim().is_empty())
+            && scene.loaded.get_untracked()
+            && !busy.get()
     };
 
     view! {

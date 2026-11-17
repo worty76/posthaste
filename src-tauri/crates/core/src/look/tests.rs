@@ -1469,7 +1469,7 @@ mod v2_store_tests {
     }
 
     /// A valid v2 document: the scene plus its listed asset.
-    fn scene_doc() -> LookDocV2 {
+    pub(super) fn scene_doc() -> LookDocV2 {
         let mut d = v2doc();
         d.scene.all = Some(scene_with_layers());
         d.assets = vec![super::listed_asset(&super::asset_id())];
@@ -2227,6 +2227,24 @@ mod resolve_tests {
                 let layer = &stored.scene.capture.as_ref().unwrap().margin[0];
                 assert_eq!(layer.kind, "shader");
                 assert_eq!(layer.config, json!({"source": "spiral"}));
+            }
+            _ => panic!("expected v2"),
+        }
+    }
+
+    #[test]
+    fn saving_without_a_scene_keeps_the_stored_scene() {
+        let mut db = Db::open_in_memory().unwrap();
+        let id = db
+            .save_look_document(LookDocument::V2(super::v2_store_tests::scene_doc()), None)
+            .unwrap()
+            .id;
+        let mut edited = super::doc();
+        edited.name = "Edited".into();
+        db.save_look_with_scene(edited, None, Some(&id)).unwrap();
+        match db.look_document(&id).unwrap() {
+            LookDocument::V2(stored) => {
+                assert!(stored.scene.all.is_some(), "the scene survived a sceneless save");
             }
             _ => panic!("expected v2"),
         }
