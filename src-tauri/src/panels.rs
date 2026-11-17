@@ -63,7 +63,11 @@ mod mac {
             return false;
         };
         // AppKit calls belong on the main thread; shortcuts arrive elsewhere.
-        let result = app.run_on_main_thread(move || panel.show_and_make_key());
+        // makeKeyAndOrderFront is the one call that makes a non-activating
+        // panel key while another application is frontmost — makeKeyWindow
+        // alone is ignored until the app is active, which left every opened
+        // window waiting for a click.
+        let result = app.run_on_main_thread(move || panel.make_key_and_order_front());
         if let Err(e) = result {
             log::error!("could not schedule showing a panel: {e}");
         }
