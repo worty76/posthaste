@@ -1,6 +1,8 @@
 //! Tests for the look module: colour maths, validation, derivation, share
 //! codes, bundled looks, storage and the v2 format layer.
 
+use serde_json::Map;
+
 use crate::look::{Base, Colors, FontFace, LookDoc, Shape};
 #[allow(unused_imports)]
 use crate::look::{LookDocV2, LookTheme};
@@ -22,6 +24,7 @@ fn doc() -> LookDoc {
             surface_raised: None,
             danger: None,
             ok: None,
+            extra: Map::new(),
         },
         shape: Shape::Round,
         font: FontFace::Rounded,
@@ -46,6 +49,7 @@ fn v2doc() -> LookDocV2 {
                 surface_raised: None,
                 danger: None,
                 ok: None,
+                extra: serde_json::Map::new(),
             },
             shape: Shape::Round,
             font: FontFace::Rounded,
@@ -354,6 +358,7 @@ mod derive_tests {
                 surface_raised: None,
                 danger: None,
                 ok: None,
+                extra: serde_json::Map::new(),
             },
             shape: Shape::Round,
             font: FontFace::Rounded,
@@ -535,6 +540,7 @@ mod derive_tests {
                     surface_raised: None,
                     danger: None,
                     ok: None,
+                    extra: serde_json::Map::new(),
                 },
                 shape: Shape::Soft,
                 font: FontFace::System,
@@ -1345,14 +1351,14 @@ mod v2_store_tests {
 
     /// A look written as if by a future build: an unknown top-level field,
     /// an unknown layer kind, and an unknown key inside a known layer.
-    const FUTURE_LOOK: &str = r##"{
+    pub(super) const FUTURE_LOOK: &str = r##"{
       "format": "posthaste-look",
       "version": 2,
       "name": "Future build",
       "author": "Someone newer",
       "theme": {
         "base": "light",
-        "colors": { "bg": "#fff5f7", "surface": "#ffffff", "text": "#4a2c3a", "accent": "#ff8fb1" },
+        "colors": { "bg": "#fff5f7", "surface": "#ffffff", "text": "#4a2c3a", "accent": "#ff8fb1", "border": "#999999" },
         "shape": "round",
         "font": "rounded",
         "futureTheme": { "that": "stays" }
@@ -1401,9 +1407,13 @@ mod v2_store_tests {
         };
 
         // The edited colour came through, and the whole document is
-        // otherwise identical: every unknown part, byte for byte.
+        // otherwise identical: every unknown part keeps its content.
         assert_eq!(back, parsed);
         assert_eq!(back.theme.colors.bg, "#eef2f7");
+        assert_eq!(
+            back.theme.colors.extra.get("border"),
+            Some(&json!("#999999"))
+        );
         assert_eq!(back.extra.get("futureTop"), Some(&json!({"still": "here"})));
         assert_eq!(
             back.theme.extra.get("futureTheme"),
@@ -1529,5 +1539,29 @@ mod v2_store_tests {
             decode_code(&encode_code_v2(&LookDocV2::from_json(FUTURE_LOOK).unwrap())).unwrap();
         let original = LookDocument::V2(LookDocV2::from_json(FUTURE_LOOK).unwrap());
         assert_eq!(raw, original);
+    }
+}
+
+// ---- Part A review fixes ----------------------------------------------------
+
+mod part_a_tests {
+    use super::v2_store_tests::FUTURE_LOOK;
+    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
+
+    #[test]
+    fn an_unknown_colour_key_survives_a_v2_round_trip() {
+        let doc = crate::look::LookDocV2::from_json(FUTURE_LOOK).unwrap();
+        let back: serde_json::Value = serde_json::from_str(&doc.to_json()).unwrap();
+        assert_eq!(back["theme"]["colors"]["border"], "#999999");
+    }
+
+    #[test]
+    fn a_v1_look_with_an_unknown_colour_key_is_still_refused() {
+        let raw = r##"{"format":"posthaste-look","version":1,"name":"N","base":"light",
+              "colors":{"bg":"#ffffff","surface":"#f2f2f2","text":"#111111","accent":"#3366cc","border":"#999999"}}"##;
+        let err = crate::look::LookDoc::from_json(raw)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("border"), "{err}");
     }
 }

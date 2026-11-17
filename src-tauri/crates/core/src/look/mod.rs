@@ -79,6 +79,13 @@ impl LookDocExt for LookDoc {
                 "This isn't a Posthaste look file.".into(),
             ));
         }
+        // Version 1 knows no extra colour keys: name the first one so the
+        // look's author can remove it.
+        if let Some(unknown) = self.colors.extra.keys().next() {
+            return Err(CoreError::InvalidLook(format!(
+                "That isn't a valid look: unknown field `{unknown}`."
+            )));
+        }
         check_identity(&self.name, self.author.as_deref())?;
         check_colors(&self.colors)
     }

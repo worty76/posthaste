@@ -35,9 +35,9 @@ pub enum FontFace {
 }
 
 /// The look's colours. Raw hex only; anything else is rejected by
-/// storage before it is used.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(deny_unknown_fields)]
+/// storage before it is used. A v2 document keeps colour keys it does
+/// not model in `extra`; a v1 document refuses them in validation.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
 pub struct Colors {
     pub bg: String,
     pub surface: String,
@@ -51,6 +51,9 @@ pub struct Colors {
     pub danger: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ok: Option<String>,
+    /// Colour keys a newer Posthaste may have added: kept, never drawn.
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 /// A look document, exactly what version 1 of the format allows. Unknown
