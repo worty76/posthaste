@@ -30,11 +30,19 @@ are skipped, never trusted.
 Look format v2 keeps unknown data: a document may carry fields and layer
 kinds this build does not model, and every save path (`save_look`,
 `import_look`, the share-code paths) must keep them with the same content
-(key order is not kept). Never
-rebuild a stored document from typed structs — edit the parsed value. The
-fixture tests in `look/tests.rs` fail the build if a save path drops data.
-A match on `Known` may not have a `_ =>` arm; `scripts/check-rules.sh`
-enforces it.
+(key order is not kept). Never rebuild a stored document from typed structs
+— edit the parsed value. The fixture tests in `look/tests/` fail the build
+if a save path drops data. A match on `Known` may not have a wildcard arm;
+`scripts/check-rules.sh` enforces it.
+
+Look images live in SQLite (`look_assets`), content-addressed by the SHA-256
+of their bytes, accepted only by header sniffing (PNG, JPEG, WebP) and size
+checks — never by file name. Look files (`.phlook`, `look/package.rs`)
+refuse anything they cannot verify before anything is written, and
+`install_package` stores images and look in one transaction. Simple looks is
+applied here, in `active_scene`, so no window can forget to obey it. The
+UI never parses a look or reads a file; it draws `ResolvedScene` and edits
+through the v1 view and `SceneEdit` the store hands back.
 
 Look invariants, in every phase (a look is data, never code, and the
 user's settings always beat it):

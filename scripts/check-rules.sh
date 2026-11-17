@@ -81,7 +81,7 @@ rule "CLAUDE.md copies are out of date; run: npm run sync:rules (AGENTS.md)" \
 # A match on Known must handle every layer kind explicitly: a wildcard arm
 # would let a new kind be silently skipped by the checker or the renderer.
 rule "No match on Known may have a _ => arm (crates/core/AGENTS.md)" \
-  "$(grep -rn '_ =>' src-tauri/crates/core/src/look/scene.rs ui/src/components/scene 2>/dev/null)"
+  "$(grep -rn '_ =>' src-tauri/crates/core/src/look/scene.rs src-tauri/crates/core/src/look/resolve.rs ui/src/components/scene 2>/dev/null)"
 
 if [ "$FAIL" -eq 0 ]; then echo "rules: ok"; fi
 exit "$FAIL"

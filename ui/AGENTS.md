@@ -128,6 +128,12 @@ invariants hold in every phase:
   tokens `look_active` and `look_preview` resolved in storage, and edits a
   look only through the v1 view the shell returns. A look with scene parts
   this build does not draw keeps them; saving one never strips them.
+- Scene layers draw through `SceneHost` from the `ResolvedScene` storage
+  resolved. Stickers and backdrops are CSS classes — sizes, anchors, tilts
+  and dims are fixed lists, one class each; never inline values. The scene
+  preview belongs to the window that hosts the look editor; Simple looks is
+  applied in storage, so the empty scene arrives ready-made and every
+  window obeys it without knowing the setting exists.
 
 ## Text and language
 
