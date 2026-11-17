@@ -18,5 +18,6 @@
     "export": "Bản xuất Posthaste",
     "database": "Cơ sở dữ liệu SQLite",
     "images": "Ảnh"
-  }
+  },
+  "error_image_too_big": "Ảnh này là {size} MB. Ảnh cho giao diện tối đa 2 MB."
 }

@@ -836,12 +836,12 @@ pub async fn look_asset_pick(
         .map_err(|e| AppError::new("io", e.to_string()))?
         .len();
     if len > posthaste_core::look::assets::MAX_ASSET_BYTES as u64 {
+        let size = format!("{:.1}", len as f64 / (1024.0 * 1024.0));
         return Err(AppError::new(
             "asset_invalid",
-            format!(
-                "That image is {:.1} MB. Look images are up to 2 MB.",
-                len as f64 / (1024.0 * 1024.0)
-            ),
+            state
+                .translator()
+                .format(key::DESKTOP_ERROR_IMAGE_TOO_BIG, &[("size", size.as_str())]),
         ));
     }
     let bytes = std::fs::read(&src).map_err(|e| AppError::new("io", e.to_string()))?;
@@ -911,6 +911,7 @@ mod tests {
     use super::valid_day;
     use posthaste_core::look::{LookDoc, LookDocument};
     use posthaste_core::ExportFormat;
+    use posthaste_i18n::key;
 
     #[test]
     fn a_look_with_images_cannot_travel_as_a_code() {
@@ -962,6 +963,16 @@ mod tests {
             shape: Default::default(),
             font: Default::default(),
         })));
+    }
+
+    #[test]
+    fn the_image_too_big_error_names_the_size() {
+        let t = posthaste_i18n::Translator::new("en");
+        let message = t.format(key::DESKTOP_ERROR_IMAGE_TOO_BIG, &[("size", "3.2")]);
+        assert!(message.contains("3.2"), "got: {message}");
+        let t = posthaste_i18n::Translator::new("vi");
+        let message = t.format(key::DESKTOP_ERROR_IMAGE_TOO_BIG, &[("size", "3.2")]);
+        assert!(message.contains("3.2"), "got: {message}");
     }
 
     #[test]

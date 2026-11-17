@@ -18,5 +18,6 @@
     "export": "Posthaste export",
     "database": "SQLite database",
     "images": "Images"
-  }
+  },
+  "error_image_too_big": "That image is {size} MB. Look images are up to 2 MB."
 }
