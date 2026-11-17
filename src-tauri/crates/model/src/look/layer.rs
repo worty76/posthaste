@@ -16,7 +16,9 @@ pub struct LayerRecord {
     pub kind: String,
     pub v: u32,
     /// Off layers are kept, not dropped, so a toggle survives a downgrade.
-    #[serde(default = "yes")]
+    /// Written only when off: a default true would grow every document on
+    /// a round trip.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub on: bool,
     #[serde(default, skip_serializing_if = "Value::is_null")]
     pub config: Value,
@@ -34,6 +36,11 @@ pub enum Known {
 /// The envelope's default for `on`.
 fn yes() -> bool {
     true
+}
+
+/// The skip condition for `on`.
+fn is_true(on: &bool) -> bool {
+    *on
 }
 
 impl LayerRecord {

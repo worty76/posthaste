@@ -1566,6 +1566,8 @@ mod v2_store_tests {
 // ---- Part A review fixes ----------------------------------------------------
 
 mod part_a_tests {
+    use serde_json::Map;
+
     use super::v2_store_tests::FUTURE_LOOK;
     use crate::look::{LookDocExt as _, LookDocV2Ext as _};
 
@@ -1584,5 +1586,61 @@ mod part_a_tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("border"), "{err}");
+    }
+
+    #[test]
+    fn a_layer_that_is_on_serializes_without_on() {
+        let l: crate::look::LayerRecord = serde_json::from_str(r#"{"kind":"zz","v":1}"#).unwrap();
+        assert_eq!(serde_json::to_string(&l).unwrap(), r#"{"kind":"zz","v":1}"#);
+    }
+
+    #[test]
+    fn a_near_limit_document_still_reimports_after_one_save() {
+        // A document just under the limit whose 64 layers carry no "on"
+        // key: writing every layer back with `"on":true` used to push it
+        // over the limit, so the next import refused the app's own save.
+        let mut pad = 20_000usize;
+        let json = loop {
+            let mut d = super::v2doc();
+            d.extra
+                .insert("pad".into(), serde_json::json!("x".repeat(pad)));
+            let layers: Vec<crate::look::LayerRecord> = (0..64)
+                .map(|_| crate::look::LayerRecord {
+                    kind: "zz".into(),
+                    v: 1,
+                    on: true,
+                    config: serde_json::Value::Null,
+                    extra: Map::new(),
+                })
+                .collect();
+            d.scene.all = Some(crate::look::WindowScene {
+                backdrop: layers,
+                margin: Vec::new(),
+                extra: Map::new(),
+            });
+            let raw = {
+                // Serialize through Value so the input has no "on" keys.
+                let value = serde_json::to_value(&d).unwrap();
+                let mut value = value;
+                if let Some(all) = value["scene"]["all"]["backdrop"].as_array_mut() {
+                    for layer in all {
+                        layer.as_object_mut().unwrap().remove("on");
+                    }
+                }
+                serde_json::to_string(&value).unwrap()
+            };
+            if raw.len() <= 16_384 {
+                assert!(
+                    raw.len() > 15_808,
+                    "the fixture must be near the limit: {}",
+                    raw.len()
+                );
+                break raw;
+            }
+            pad -= 50;
+        };
+        let parsed = crate::look::LookDocV2::from_json(&json).unwrap();
+        let again = crate::look::LookDocV2::from_json(&parsed.to_json()).unwrap();
+        assert_eq!(again, parsed);
     }
 }

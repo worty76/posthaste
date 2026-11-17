@@ -31,7 +31,8 @@ are skipped, never trusted.
 
 Look format v2 keeps unknown data: a document may carry fields and layer
 kinds this build does not model, and every save path (`save_look`,
-`import_look`, the share-code paths) must keep them byte for byte. Never
+`import_look`, the share-code paths) must keep them with the same content
+(key order is not kept). Never
 rebuild a stored document from typed structs — edit the parsed value. The
 fixture tests in `look/tests.rs` fail the build if a save path drops data.
 A match on `Known` may not have a `_ =>` arm; `scripts/check-rules.sh`
