@@ -126,8 +126,9 @@ pub const LOOK_FORMAT: &str = "posthaste-look";
 pub const LOOK_VERSION_V2: u32 = 2;
 
 pub use asset::AssetRef;
+pub use kinds::emoji::{Anchor, EmojiLayer, StickerSize};
 pub use kinds::image::{Fit, ImageLayer};
-pub use layer::{Known, LayerRecord};
+pub use layer::{Known, LayerRecord, Read};
 pub use scene::{Region, Scene, WindowScene};
 
 /// The v1 theme fields, unchanged, nested in a v2 document. Named

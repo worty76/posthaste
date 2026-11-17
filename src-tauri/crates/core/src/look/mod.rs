@@ -22,8 +22,9 @@ use color::{contrast, Rgb};
 pub use posthaste_model::DEFAULT_LOOK_ID;
 pub use posthaste_model::LOOK_FORMAT;
 pub use posthaste_model::{
-    AssetRef, Base, Colors, Fit, FontFace, ImageLayer, Known, LayerRecord, LookDoc, LookDocV2,
-    LookPreview, LookTheme, Region, Scene, Shape, WindowScene, LOOK_VERSION_V2,
+    Anchor, AssetRef, Base, Colors, EmojiLayer, Fit, FontFace, ImageLayer, Known, LayerRecord,
+    LookDoc, LookDocV2, LookPreview, LookTheme, Read, Region, Scene, Shape, StickerSize,
+    WindowScene, LOOK_VERSION_V2,
 };
 pub const LOOK_VERSION: u32 = 1;
 pub const MAX_NAME_CHARS: usize = 40;
