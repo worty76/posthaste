@@ -43,8 +43,8 @@ pub fn sniff_image(bytes: &[u8]) -> Result<ImageInfo> {
         }
         return Ok(ImageInfo {
             mime: "image/png",
-            width: u32::from_be_bytes(bytes[16..20].try_into().expect("4 bytes")),
-            height: u32::from_be_bytes(bytes[20..24].try_into().expect("4 bytes")),
+            width: u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]),
+            height: u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]),
         });
     }
     if bytes.starts_with(&[0xFF, 0xD8]) {

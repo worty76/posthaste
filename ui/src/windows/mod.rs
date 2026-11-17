@@ -10,8 +10,9 @@ mod note_badges;
 mod today;
 
 use leptos::prelude::*;
-use posthaste_model::{AppInfo, Os};
+use posthaste_model::{AppInfo, Os, Window as SceneWindow};
 
+use crate::components::SceneHost;
 use crate::ipc::{self, api};
 
 /// Labels the shell gives its windows (`src-tauri/src/windows.rs`).
@@ -31,9 +32,27 @@ pub fn mount() {
         let info = api::app_info().await;
         let os = info.as_ref().map_or_else(|_| guess_os(), |info| info.os);
         match label.as_str() {
-            CAPTURE => show(move || view! { <capture::CaptureWindow os=os /> }),
-            TODAY => show(move || view! { <today::TodayWindow os=os /> }),
-            DETAILS => show(move || view! { <details::DetailsWindow os=os /> }),
+            CAPTURE => show(move || {
+                view! {
+                    <SceneHost window=SceneWindow::Capture>
+                        <capture::CaptureWindow os=os />
+                    </SceneHost>
+                }
+            }),
+            TODAY => show(move || {
+                view! {
+                    <SceneHost window=SceneWindow::Today>
+                        <today::TodayWindow os=os />
+                    </SceneHost>
+                }
+            }),
+            DETAILS => show(move || {
+                view! {
+                    <SceneHost window=SceneWindow::Details>
+                        <details::DetailsWindow os=os />
+                    </SceneHost>
+                }
+            }),
             MAIN => show_main(info),
             // The shell makes no other window.
             _ => {}
@@ -49,7 +68,13 @@ fn show_main(info: Result<AppInfo, posthaste_model::CommandError>) {
         Err(error) => Some(error.clone()),
     };
     match (info, failure) {
-        (Ok(info), None) => show(move || view! { <main::MainWindow info=info /> }),
+        (Ok(info), None) => show(move || {
+            view! {
+                <SceneHost window=SceneWindow::Main>
+                    <main::MainWindow info=info />
+                </SceneHost>
+            }
+        }),
         (_, failure) => {
             let message = failure.map(|error| error.message).unwrap_or_default();
             show(move || view! { <fatal::Fatal message=message /> });

@@ -34,6 +34,7 @@ export const defaultSettings = {
   enter_behavior: "save",
   draft_retention: "forever",
   look_id: null,
+  simple_looks: false,
   language: "en",
   ai_provider: "none",
   ai_models: {},
@@ -55,6 +56,8 @@ export function emptyStore() {
     /** What the file dialog answers: an attach report, or null for cancel. */
     pick: null,
     looks: [],
+    /** The resolved scene `look_active_scene` answers, or null for Plain. */
+    scene: null,
     ai: { backend: "keychain", providers: [] },
     /** The newer release `update_check` finds, or null. */
     update: null,
@@ -172,6 +175,10 @@ export async function open({
         }),
         settings_get: () => ({ settings: mock.settings, shortcuts }),
         look_active: () => null,
+        look_active_scene: () =>
+          store.scene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
+        look_asset: ({ id }) =>
+          `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#${id}`,
         categories_list: () => ["work", "home"],
         draft_get: () => mock.draft,
         draft_set: ({ content, category }) => {
