@@ -62,8 +62,9 @@ pub fn use_asset_urls() -> RwSignal<HashMap<String, String>> {
     ASSETS.with_borrow_mut(|slot| *slot.get_or_insert_with(|| RwSignal::new(HashMap::new())))
 }
 
-/// Fetches one asset's URL into the cache, once. The view redraws when
-/// the answer lands.
+/// Fetches one asset's URL into the cache. A failed fetch leaves no
+/// entry, so the next render tries again; a pending one holds an empty
+/// string, so it draws nothing until the answer lands.
 pub fn fetch_asset(urls: RwSignal<HashMap<String, String>>, id: String) {
     if urls.with(|map| map.contains_key(&id)) {
         return;
@@ -72,9 +73,37 @@ pub fn fetch_asset(urls: RwSignal<HashMap<String, String>>, id: String) {
         map.insert(id.clone(), String::new());
     });
     spawn_local(async move {
-        let url = api::look_asset(&id).await.unwrap_or_default();
-        urls.update(|map| {
-            map.insert(id, url);
+        // A refused fetch removes its placeholder, so the image is
+        // asked for again the next time it is drawn.
+        let landed = api::look_asset(&id).await.ok();
+        urls.update(|map| match landed {
+            Some(url) => {
+                map.insert(id, url);
+            }
+            None => {
+                map.remove(&id);
+            }
         });
+    });
+}
+
+/// Drops cached URLs for assets no window of `scene` draws, so images
+/// that left the look stop holding their bytes.
+pub fn trim_assets(urls: RwSignal<HashMap<String, String>>, scene: &ResolvedScene) {
+    let wanted: Vec<String> = [
+        scene.main.backdrop.as_slice(),
+        scene.capture.backdrop.as_slice(),
+        scene.today.backdrop.as_slice(),
+        scene.details.backdrop.as_slice(),
+    ]
+    .concat()
+    .into_iter()
+    .filter_map(|layer| match layer {
+        posthaste_model::ResolvedLayer::Image { asset, .. } => Some(asset),
+        _ => None,
+    })
+    .collect();
+    urls.update(|map| {
+        map.retain(|id, _| wanted.iter().any(|wanted| wanted == id));
     });
 }

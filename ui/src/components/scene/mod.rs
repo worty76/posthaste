@@ -8,7 +8,7 @@ mod image;
 use leptos::prelude::*;
 use posthaste_model::{ResolvedLayer, Window};
 
-use crate::state::{fetch_asset, use_asset_urls, use_scene, use_scene_preview};
+use crate::state::{fetch_asset, trim_assets, use_asset_urls, use_scene, use_scene_preview};
 
 /// Wraps a window's content in its scene: the backdrop layers are
 /// absolutely positioned below the content, the stickers above it in the
@@ -29,15 +29,30 @@ pub fn SceneHost(window: Window, children: Children) -> impl IntoView {
     });
     let has_backdrop = Memo::new(move |_| layers.with(|w| !w.backdrop.is_empty()));
 
-    // Warm the URL cache for every image this window draws.
+    // Warm the URL cache for every image this window draws, and drop
+    // the ones nothing draws any more: the active scene, plus the whole
+    // preview when the editor holds one.
     Effect::new(move |_| {
-        layers.with(|w| {
-            for layer in &w.backdrop {
-                if let ResolvedLayer::Image { asset, .. } = layer {
-                    fetch_asset(urls, asset.clone());
+        scene.with(|scene| {
+            for window in [
+                posthaste_model::Window::Main,
+                posthaste_model::Window::Capture,
+                posthaste_model::Window::Today,
+                posthaste_model::Window::Details,
+            ] {
+                for layer in &scene.window(window).backdrop {
+                    if let ResolvedLayer::Image { asset, .. } = layer {
+                        fetch_asset(urls, asset.clone());
+                    }
                 }
             }
         });
+        preview.with(|preview| {
+            if let Some(preview) = preview {
+                trim_assets(urls, preview);
+            }
+        });
+        scene.with(|scene| trim_assets(urls, scene));
     });
 
     let backdrops = move || {
