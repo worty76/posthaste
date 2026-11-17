@@ -104,6 +104,31 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
 - State reaches CSS through ARIA or `data-*` attributes (`aria-checked`,
   `data-selected`), not through extra class toggling.
 
+## Looks
+
+A look is data, never code, and the user's settings always beat it. These
+invariants hold in every phase:
+
+1. A look cannot run code: no scripts, no CSS text, no fonts or images
+   from outside the look's own checked assets.
+2. Preserved unknown data is inert. It is stored and exported, never drawn
+   and never turned into CSS.
+3. Decorations never take input: `pointer-events: none` on every scene
+   layer, and no focusable element inside one.
+4. Margin layers stay in the margin. The renderer clamps them to the
+   window's edge band, so they cannot cover the text field or a note.
+5. A backdrop never lowers text contrast. Content keeps its `--surface`
+   panel at 85% opacity or more over any backdrop image.
+6. Reduce motion and Simple looks always win. Simple looks keeps the
+   colours and turns off every scene layer, in every window.
+7. One bad layer never breaks a window. A layer that fails its check is
+   skipped with a warning, the same way a bad stored look is today.
+
+- The interface never parses a look or reads a look file: it applies the
+  tokens `look_active` and `look_preview` resolved in storage, and edits a
+  look only through the v1 view the shell returns. A look with scene parts
+  this build does not draw keeps them; saving one never strips them.
+
 ## Text and language
 
 - Every string a person reads comes from `locales/` through `I18n` or a

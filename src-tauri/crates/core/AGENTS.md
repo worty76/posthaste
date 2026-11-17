@@ -20,10 +20,38 @@ The data types themselves live in `crates/model` and are re-exported from
 here, so storage code keeps writing `posthaste_core::Note`.
 
 Look-specific rules: look validation and derivation live only in `look/`
-(`mod.rs` validates, `derive.rs` derives the token map); the bundled looks are
-data files in `crates/core/looks/`, parsed by `look/bundled.rs` and kept valid
-by tests. A user look is stored as its re-serialized JSON in the `looks`
-table; unreadable rows are skipped, never trusted.
+(`mod.rs` validates both format versions, `derive.rs` derives the token map,
+`migrate.rs` is the only v1 → v2 converter, `scene.rs` checks layers against
+their kind's limits and regions); the bundled looks are data files in
+`crates/core/looks/`, parsed by `look/bundled.rs` and kept valid by tests. A
+user look is stored as its JSON text in the `looks` table; unreadable rows
+are skipped, never trusted.
+
+Look format v2 keeps unknown data: a document may carry fields and layer
+kinds this build does not model, and every save path (`save_look`,
+`import_look`, the share-code paths) must keep them byte for byte. Never
+rebuild a stored document from typed structs — edit the parsed value. The
+fixture tests in `look/tests.rs` fail the build if a save path drops data.
+A match on `Known` may not have a `_ =>` arm; `scripts/check-rules.sh`
+enforces it.
+
+Look invariants, in every phase (a look is data, never code, and the
+user's settings always beat it):
+
+1. A look cannot run code: no scripts, no CSS text, no fonts or images
+   from outside the look's own checked assets.
+2. Preserved unknown data is inert. It is stored and exported, never drawn
+   and never turned into CSS.
+3. Decorations never take input: `pointer-events: none` on every scene
+   layer, and no focusable element inside one.
+4. Margin layers stay in the margin. The renderer clamps them to the
+   window's edge band, so they cannot cover the text field or a note.
+5. A backdrop never lowers text contrast. Content keeps its `--surface`
+   panel at 85% opacity or more over any backdrop image.
+6. Reduce motion and Simple looks always win. Simple looks keeps the
+   colours and turns off every scene layer, in every window.
+7. One bad layer never breaks a window. A layer that fails its check is
+   skipped with a warning, the same way a bad stored look is today.
 
 ## Data safety
 

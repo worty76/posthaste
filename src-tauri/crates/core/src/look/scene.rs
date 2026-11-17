@@ -2,7 +2,7 @@
 //! then every layer against its kind's limits and allowed regions. A
 //! layer of a kind or version this build does not know is kept untouched:
 //! it is never drawn. When a kind is added, its arm is written in the
-//! `match` below — no `_ =>` arm may hide it.
+//! `match` below — no wildcard arm may hide it.
 
 use crate::error::{CoreError, Result};
 use crate::look::{ImageLayer, Known, Region, Scene, MAX_LAYERS};
