@@ -197,7 +197,11 @@ describe("AI polish settings", () => {
 
   it("asks the shell about keys again whenever the provider changes", async () => {
     const w = await settings({ store: ai() });
-    await eventually(() => w.calls("ai_providers"), (c) => c.length >= 1, "first load");
+    await eventually(
+      () => w.calls("ai_providers"),
+      (c) => c.length >= 1,
+      "first load",
+    );
     const before = (await w.calls("ai_providers")).length;
     await w.mock.changeSettings({ ai_provider: "openai" });
     await eventually(
