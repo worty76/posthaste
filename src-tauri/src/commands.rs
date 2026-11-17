@@ -1005,7 +1005,7 @@ pub async fn look_file_open(
         })
         .collect();
 
-    *state.pending_look.lock().unwrap() = Some(pending);
+    *lock(&state.pending_look) = Some(pending);
     Ok(Some(LookFilePreview {
         summary,
         tokens,
@@ -1017,10 +1017,7 @@ pub async fn look_file_open(
 /// Installs the held look file. The answer is the stored look's summary.
 #[tauri::command]
 pub fn look_file_install(app: AppHandle, state: State<'_, AppState>) -> AppResult<LookSummary> {
-    let pending = state
-        .pending_look
-        .lock()
-        .unwrap()
+    let pending = lock(&state.pending_look)
         .take()
         .ok_or_else(|| AppError::new("file_install", "There is no look file to add."))?;
     let summary = state.with_db(|db| db.install_package(pending))?;
@@ -1031,7 +1028,7 @@ pub fn look_file_install(app: AppHandle, state: State<'_, AppState>) -> AppResul
 /// Throws the held look file away, on Cancel.
 #[tauri::command]
 pub fn look_file_discard(state: State<'_, AppState>) -> AppResult<()> {
-    *state.pending_look.lock().unwrap() = None;
+    *lock(&state.pending_look) = None;
     Ok(())
 }
 

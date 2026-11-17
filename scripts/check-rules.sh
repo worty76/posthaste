@@ -69,7 +69,7 @@ rule "Read a reactive value with .with(|_| ()) instead of .track(): a Memo that 
 
 rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.md)" \
   "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src ui/src --include='*.rs' \
-      | grep -v '/tests.rs:' | grep -v 'could not start' \
+      | grep -v '/tests.rs:' | grep -v '/tests/' | grep -v 'could not start' \
       | awk -F: '{ if (system("awk \"NR<" $2 " && /#\\[cfg\\(test\\)\\]/ {f=1} END {exit !f}\" " $1) != 0) print }')"
 
 rule "The version lives only in src-tauri/Cargo.toml [workspace.package] (src-tauri/AGENTS.md)" \
