@@ -50,8 +50,9 @@ pub fn use_scene() -> RwSignal<ResolvedScene> {
     })
 }
 
-/// The editor's scene preview. While it holds a scene, every window
-/// draws it instead of the active one, exactly as it would look.
+/// The editor's scene preview. While it holds a scene, the window that
+/// hosts the editor draws it instead of the active look's scene, exactly
+/// as it would look.
 pub fn use_scene_preview() -> RwSignal<Option<ResolvedScene>> {
     PREVIEW.with_borrow_mut(|slot| *slot.get_or_insert_with(|| RwSignal::new(None)))
 }

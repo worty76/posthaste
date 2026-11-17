@@ -20,7 +20,7 @@ pub fn SceneHost(window: Window, children: Children) -> impl IntoView {
     let preview = use_scene_preview();
     let urls = use_asset_urls();
     let layers = Memo::new(move |_| {
-        // While the look editor previews a scene, every window draws it.
+        // While the look editor previews a scene, this window draws it.
         preview.with(|p| {
             p.as_ref()
                 .map(|scene| scene.window(window).clone())

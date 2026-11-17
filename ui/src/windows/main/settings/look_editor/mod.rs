@@ -115,7 +115,10 @@ pub(super) fn LookEditor(
             let id = editing_id.get_value();
             // A scene is sent only once it is the look's own; before the
             // load finishes, none goes and the stored scene is kept.
-            let scene_edit = scene.loaded.get_untracked().then(|| scene.edit.get_untracked());
+            let scene_edit = scene
+                .loaded
+                .get_untracked()
+                .then(|| scene.edit.get_untracked());
             match api::look_save(&doc.get_untracked(), scene_edit.as_ref(), id.as_deref()).await {
                 Ok(saved) => {
                     on_saved.run(saved);
