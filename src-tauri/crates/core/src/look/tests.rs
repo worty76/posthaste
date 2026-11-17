@@ -860,8 +860,8 @@ mod store_tests {
     #[test]
     fn saved_looks_get_user_ids_and_list_after_the_bundled_ones_newest_first() {
         let mut db = Db::open_in_memory().unwrap();
-        let a = db.save_look_at(named("Alpha"), None, 1_000).unwrap();
-        let b = db.save_look_at(named("Beta"), None, 2_000).unwrap();
+        let a = db.save_look_at(named("Alpha"), None, None, 1_000).unwrap();
+        let b = db.save_look_at(named("Beta"), None, None, 2_000).unwrap();
         assert!(a.id.starts_with("user:"));
         assert!(b.id.starts_with("user:"));
         assert_ne!(a.id, b.id);
@@ -877,7 +877,7 @@ mod store_tests {
         let mut db = Db::open_in_memory().unwrap();
         let mut d = named("Upper");
         d.colors.bg = "#FFF".into();
-        let s = db.save_look(d, None).unwrap();
+        let s = db.save_look(d, None, None).unwrap();
         assert!(!s.builtin);
         assert_eq!(s.preview.bg, "#ffffff");
     }
@@ -885,9 +885,9 @@ mod store_tests {
     #[test]
     fn saving_with_an_existing_id_updates_in_place() {
         let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look_at(named("First"), None, 1_000).unwrap();
+        let s = db.save_look_at(named("First"), None, None, 1_000).unwrap();
         let updated = db
-            .save_look_at(named("Second"), Some(&s.id), 2_000)
+            .save_look_at(named("Second"), None, Some(&s.id), 2_000)
             .unwrap();
         assert_eq!(updated.id, s.id);
         assert_eq!(updated.name, "Second");
@@ -913,7 +913,7 @@ mod store_tests {
                 [broken],
             )
             .unwrap();
-        let result = db.save_look(named("New"), Some("user:broken"));
+        let result = db.save_look(named("New"), None, Some("user:broken"));
         assert!(result.is_err(), "the save must be refused");
         let doc: String = db
             .conn()
@@ -929,11 +929,11 @@ mod store_tests {
         let mut db = Db::open_in_memory().unwrap();
         let d = named("X");
         assert!(matches!(
-            db.save_look(d.clone(), Some("user:missing")),
+            db.save_look(d.clone(), None, Some("user:missing")),
             Err(CoreError::NotFound)
         ));
         assert!(matches!(
-            db.save_look(d, Some("builtin:ink")),
+            db.save_look(d, None, Some("builtin:ink")),
             Err(CoreError::BuiltinLook)
         ));
     }
@@ -944,7 +944,7 @@ mod store_tests {
         let mut d = named("Bad");
         d.colors.text = d.colors.bg.clone();
         assert!(matches!(
-            db.save_look(d, None),
+            db.save_look(d, None, None),
             Err(CoreError::InvalidLook(_))
         ));
         assert_eq!(db.list_looks().unwrap().len(), 8);
@@ -956,22 +956,23 @@ mod store_tests {
         let mut last = String::new();
         for i in 0..50 {
             last = db
-                .save_look_at(named(&format!("Look {i}")), None, i as i64)
+                .save_look_at(named(&format!("Look {i}")), None, None, i as i64)
                 .unwrap()
                 .id;
         }
         assert!(matches!(
-            db.save_look_at(named("One too many"), None, 100),
+            db.save_look_at(named("One too many"), None, None, 100),
             Err(CoreError::TooManyLooks)
         ));
-        db.save_look_at(named("Renamed"), Some(&last), 200).unwrap();
+        db.save_look_at(named("Renamed"), None, Some(&last), 200)
+            .unwrap();
         assert_eq!(db.list_looks().unwrap().len(), 58);
     }
 
     #[test]
     fn deleting_removes_user_looks_and_refuses_builtins() {
         let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look(named("Doomed"), None).unwrap();
+        let s = db.save_look(named("Doomed"), None, None).unwrap();
         db.delete_look(&s.id).unwrap();
         assert!(matches!(db.look_doc(&s.id), Err(CoreError::NotFound)));
         assert!(matches!(
@@ -1010,7 +1011,7 @@ mod store_tests {
         .unwrap();
         assert_eq!(db.active_look().unwrap(), None);
 
-        let s = db.save_look(named("Mine"), None).unwrap();
+        let s = db.save_look(named("Mine"), None, None).unwrap();
         db.save_settings(&Settings {
             look_id: Some(s.id.clone()),
             ..Default::default()
@@ -1027,7 +1028,7 @@ mod store_tests {
     #[test]
     fn a_corrupt_stored_row_is_skipped_without_breaking_the_list() {
         let mut db = Db::open_in_memory().unwrap();
-        db.save_look(named("Good"), None).unwrap();
+        db.save_look(named("Good"), None, None).unwrap();
         db.conn()
             .execute(
                 "INSERT INTO looks (id, doc, created_at, updated_at)
@@ -1066,7 +1067,7 @@ mod store_tests {
     #[test]
     fn clear_all_removes_user_looks() {
         let mut db = Db::open_in_memory().unwrap();
-        db.save_look(named("Mine"), None).unwrap();
+        db.save_look(named("Mine"), None, None).unwrap();
         db.clear_all().unwrap();
         assert_eq!(db.list_looks().unwrap().len(), 8);
     }
@@ -1521,7 +1522,7 @@ mod v2_store_tests {
     #[test]
     fn saving_a_v1_look_stores_a_v2_document_that_resolves_identically() {
         let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look(doc(), None).unwrap();
+        let s = db.save_look(doc(), None, None).unwrap();
         let stored = match db.look_document(&s.id).unwrap() {
             LookDocument::V2(d) => d,
             _ => panic!("expected the stored copy to be v2"),
@@ -1541,7 +1542,7 @@ mod v2_store_tests {
         // The editor only knows the v1 view: it renames and saves back.
         let mut edited = db.look_doc(&imported.id).unwrap();
         edited.name = "Renamed".into();
-        db.save_look(edited, Some(&imported.id)).unwrap();
+        db.save_look(edited, None, Some(&imported.id)).unwrap();
 
         let back = match db.look_document(&imported.id).unwrap() {
             LookDocument::V2(d) => d,
@@ -1562,7 +1563,7 @@ mod v2_store_tests {
             .unwrap();
         let mut edited = doc();
         edited.name = "Updated".into();
-        db.save_look_at(edited, Some("user:v1"), 2).unwrap();
+        db.save_look_at(edited, None, Some("user:v1"), 2).unwrap();
         match db.look_document("user:v1").unwrap() {
             LookDocument::V2(d) => assert_eq!(d.name, "Updated"),
             _ => panic!("expected the save to migrate the row to v2"),
@@ -2204,7 +2205,7 @@ mod resolve_tests {
     #[test]
     fn saving_with_a_scene_edit_keeps_unknown_layers_inside_it() {
         let mut db = Db::open_in_memory().unwrap();
-        let id = db.save_look(super::doc(), None).unwrap().id;
+        let id = db.save_look(super::doc(), None, None).unwrap().id;
         let edit = crate::look::SceneEdit {
             scene: Scene {
                 capture: Some(margin_scene(vec![LayerRecord {
@@ -2220,8 +2221,7 @@ mod resolve_tests {
         };
         let mut edited = super::doc();
         edited.name = "Edited".into();
-        db.save_look_with_scene(edited, Some(edit), Some(&id))
-            .unwrap();
+        db.save_look(edited, Some(edit), Some(&id)).unwrap();
         match db.look_document(&id).unwrap() {
             LookDocument::V2(stored) => {
                 let layer = &stored.scene.capture.as_ref().unwrap().margin[0];
@@ -2241,10 +2241,13 @@ mod resolve_tests {
             .id;
         let mut edited = super::doc();
         edited.name = "Edited".into();
-        db.save_look_with_scene(edited, None, Some(&id)).unwrap();
+        db.save_look(edited, None, Some(&id)).unwrap();
         match db.look_document(&id).unwrap() {
             LookDocument::V2(stored) => {
-                assert!(stored.scene.all.is_some(), "the scene survived a sceneless save");
+                assert!(
+                    stored.scene.all.is_some(),
+                    "the scene survived a sceneless save"
+                );
             }
             _ => panic!("expected v2"),
         }
@@ -2253,7 +2256,7 @@ mod resolve_tests {
     #[test]
     fn look_scene_of_a_v1_look_is_empty() {
         let mut db = Db::open_in_memory().unwrap();
-        let id = db.save_look(super::doc(), None).unwrap().id;
+        let id = db.save_look(super::doc(), None, None).unwrap().id;
         let edit = db.look_scene(&id).unwrap();
         assert!(edit.scene.is_empty());
         assert!(edit.assets.is_empty());

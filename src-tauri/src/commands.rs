@@ -779,7 +779,7 @@ pub fn look_save(
     scene: Option<SceneEdit>,
     id: Option<String>,
 ) -> AppResult<LookSummary> {
-    let summary = state.with_db(|db| db.save_look_with_scene(doc, scene, id.as_deref()))?;
+    let summary = state.with_db(|db| db.save_look(doc, scene, id.as_deref()))?;
     looks_changed(&app);
     Ok(summary)
 }

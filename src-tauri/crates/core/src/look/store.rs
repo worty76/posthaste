@@ -151,17 +151,24 @@ impl Db {
     /// stored format is v2: a v1 document migrates on this save, and an
     /// update over a stored v2 look keeps the parts the v1 editor does
     /// not model.
+    ///
+    /// The scene edit decides what happens to the look's scene and
+    /// assets: `None` keeps them exactly as stored (a save from the
+    /// colour editor, or from an editor whose scene has not loaded),
+    /// `Some` replaces them with the edit, unknown layers included.
     pub fn save_look(
         &mut self,
         doc: posthaste_model::LookDoc,
+        scene: Option<SceneEdit>,
         id: Option<&str>,
     ) -> Result<LookSummary> {
-        self.save_look_at(doc, id, now_ms())
+        self.save_look_at(doc, scene, id, now_ms())
     }
 
     pub fn save_look_at(
         &mut self,
         doc: posthaste_model::LookDoc,
+        scene: Option<SceneEdit>,
         id: Option<&str>,
         now: i64,
     ) -> Result<LookSummary> {
@@ -170,40 +177,6 @@ impl Db {
         // editing the stored document instead of rebuilding one — and if
         // the row exists but this build cannot read it, stop: writing a
         // fresh document over it would silently drop whatever it holds.
-        let stored = match id {
-            Some(id) if !is_builtin(id) => self.stored_document(id)?,
-            _ => None,
-        };
-        let to_store = match stored {
-            Some(LookDocument::V2(mut v2)) => {
-                v2.set_theme_from(&doc);
-                LookDocument::V2(v2)
-            }
-            _ => LookDocument::V2(v1_to_v2(&doc)),
-        };
-        self.save_look_document_at(to_store, id, now)
-    }
-
-    /// Saves a look with the editor's scene and asset list, replacing
-    /// the stored scene with the edit's. Unknown layers ride inside the
-    /// edit's scene and are kept, as they are in every save.
-    pub fn save_look_with_scene(
-        &mut self,
-        doc: posthaste_model::LookDoc,
-        scene: Option<SceneEdit>,
-        id: Option<&str>,
-    ) -> Result<LookSummary> {
-        self.save_look_with_scene_at(doc, scene, id, now_ms())
-    }
-
-    pub fn save_look_with_scene_at(
-        &mut self,
-        doc: posthaste_model::LookDoc,
-        scene: Option<SceneEdit>,
-        id: Option<&str>,
-        now: i64,
-    ) -> Result<LookSummary> {
-        doc.validate()?;
         let stored = match id {
             Some(id) if !is_builtin(id) => self.stored_document(id)?,
             _ => None,
