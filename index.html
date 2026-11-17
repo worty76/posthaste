@@ -1,5 +1,7 @@
 <!doctype html>
-<!-- The first frame wears Ink, the factory default, before any script runs. -->
+<!-- The one page every window loads. The interface is Rust compiled to
+     WebAssembly (ui/); ui/boot.js starts it. The first frame wears Ink,
+     the factory default, before anything has loaded. -->
 <html lang="en" data-theme="dark" data-font="mono" data-shape="sharp">
   <head>
     <meta charset="UTF-8" />
@@ -9,6 +11,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/ui/boot.js"></script>
   </body>
 </html>

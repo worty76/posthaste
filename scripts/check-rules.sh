@@ -9,32 +9,37 @@ rule() { # rule "<message>" "<offending lines>"
   if [ -n "$2" ]; then FAIL=1; printf '\n✗ %s\n%s\n' "$1" "$2"; fi
 }
 
-rule "Raw colours are only allowed in src/styles/tokens.css (src/styles/AGENTS.md)" \
-  "$(grep -rnE '#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(' src --include='*.css' --include='*.tsx' --include='*.ts' \
-      | grep -v '^src/styles/tokens.css:' | grep -v '\.test\.' | grep -v '^src/test/')"
+rule "Raw colours are only allowed in ui/styles/tokens.css (ui/styles/AGENTS.md)" \
+  "$(grep -rnE '#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(' ui/styles --include='*.css' \
+      | grep -v '^ui/styles/tokens.css:')"
 
-rule "Inline style props are not allowed; use a class and tokens (src/AGENTS.md)" \
-  "$(grep -rnE 'style=\{' src --include='*.tsx')"
+rule "Inline styles are not allowed; use a class and tokens (ui/AGENTS.md)" \
+  "$(grep -rnE '\bstyle(=|:[a-z-]+=)' ui/src --include='*.rs')"
 
-rule "setProperty is only allowed in src/lib/appearance.ts (src/AGENTS.md)" \
-  "$(grep -rn 'setProperty' src --include='*.ts' --include='*.tsx' \
-      | grep -v '^src/lib/appearance.ts:' | grep -v '\.test\.')"
+# One exception: capture replays its entrance animation by clearing it.
+rule "set_property is only allowed in ui/src/state/appearance.rs (ui/AGENTS.md)" \
+  "$(grep -rn 'set_property' ui/src --include='*.rs' | grep -v '^ui/src/state/appearance.rs:' \
+      | grep -v 'set_property("animation", "none")')"
 
 # The dark and the light block must define exactly the same token names, so
 # a look can swap either base without a missing token.
-DARK_TOKENS=$(awk '/^:root,$/,/^}/' src/styles/tokens.css | grep -oE '^\s*--[a-z0-9-]+' | sort)
-LIGHT_TOKENS=$(awk '/^:root\[data-theme="light"\]/,/^}/' src/styles/tokens.css | grep -oE '^\s*--[a-z0-9-]+' | sort)
-rule "Every token must be defined in both the dark and the light block of src/styles/tokens.css (src/styles/AGENTS.md)" \
+DARK_TOKENS=$(awk '/^:root,$/,/^}/' ui/styles/tokens.css | grep -oE '^\s*--[a-z0-9-]+' | sort)
+LIGHT_TOKENS=$(awk '/^:root\[data-theme="light"\]/,/^}/' ui/styles/tokens.css | grep -oE '^\s*--[a-z0-9-]+' | sort)
+rule "Every token must be defined in both the dark and the light block of ui/styles/tokens.css (ui/styles/AGENTS.md)" \
   "$(diff <(echo "$DARK_TOKENS") <(echo "$LIGHT_TOKENS"))"
 
-rule "Only src/lib/ipc.ts and src/main.tsx may import @tauri-apps (src/AGENTS.md)" \
-  "$(grep -rnE "from \"@tauri-apps" src | grep -v '^src/lib/ipc.ts:' | grep -v '^src/main.tsx:')"
+rule "The interface is Rust: no TypeScript or JSX outside landing-page/ (AGENTS.md)" \
+  "$(git ls-files '*.ts' '*.tsx' '*.jsx' | grep -v '^landing-page/')"
 
-rule "localStorage/sessionStorage are not used; state lives in SQLite (AGENTS.md)" \
-  "$(grep -rnE '\b(localStorage|sessionStorage|indexedDB)\b' src --include='*.ts' --include='*.tsx')"
+rule "ui/boot.js and the test harness are the only hand-written JavaScript (ui/AGENTS.md)" \
+  "$(git ls-files '*.js' '*.mjs' | grep -vE '^(landing-page/|ui/boot\.js$|ui/tests/|vite\.config\.js$)')"
+
+rule "Browser storage is not used; state lives in SQLite (AGENTS.md)" \
+  "$(grep -rnE '\b(localStorage|sessionStorage|indexedDB|local_storage|session_storage)\b' ui/src ui/boot.js)"
 
 rule "No network calls from the UI (AGENTS.md)" \
-  "$(grep -rnE '\bfetch\(|XMLHttpRequest|WebSocket\(|https?://' src --include='*.ts' --include='*.tsx' | grep -v '\.test\.')"
+  "$(grep -rnE '\bfetch\(|XmlHttpRequest|XMLHttpRequest|WebSocket|https?://' ui/src ui/boot.js \
+      | awk -F: '{ if (system("awk \"NR<" $2 " && /#\\[cfg\\(test\\)\\]/ {f=1} END {exit !f}\" " $1) != 0) print }')"
 
 rule "posthaste-core must not depend on Tauri (src-tauri/crates/core/AGENTS.md)" \
   "$(grep -nE '^\s*tauri' src-tauri/crates/core/Cargo.toml)"
@@ -42,8 +47,25 @@ rule "posthaste-core must not depend on Tauri (src-tauri/crates/core/AGENTS.md)"
 rule "Shipped migrations are append-only: do not edit, add a new numbered file (src-tauri/crates/core/AGENTS.md)" \
   "$(git diff --name-only --diff-filter=MD HEAD -- src-tauri/crates/core/migrations 2>/dev/null)"
 
+rule "Only ui/src/ipc may touch Tauri (ui/AGENTS.md)" \
+  "$(grep -rnE '__TAURI|tauri_invoke|tauri_listen' ui/src --include='*.rs' | grep -v '^ui/src/ipc/')"
+
+rule "ui/src/logic is plain Rust: no Leptos, browser or IPC imports (ui/AGENTS.md)" \
+  "$(grep -rnE 'leptos|web_sys|wasm_bindgen|js_sys|crate::(ipc|state|windows|components)' ui/src/logic --include='*.rs')"
+
+rule "Only ui/src/time.rs reads the clock or formats dates (ui/AGENTS.md)" \
+  "$(grep -rnE 'js_sys::Date|Date::(new|now)|DateTimeFormat' ui/src --include='*.rs' | grep -v '^ui/src/time.rs:')"
+
+rule "ui/src/components must not import ipc (ui/AGENTS.md)" \
+  "$(grep -rn 'crate::ipc' ui/src/components --include='*.rs')"
+
+rule "The wasm-bindgen version must be the same in ui/Cargo.toml, scripts/build-ui.sh and the release workflow (ui/AGENTS.md)" \
+  "$(V=$(grep -oE '^wasm-bindgen = "=[0-9.]+"' ui/Cargo.toml | grep -oE '[0-9.]+'); \
+     grep -q "WASM_BINDGEN_VERSION=\"$V\"" scripts/build-ui.sh || echo "scripts/build-ui.sh does not pin $V"; \
+     grep -q "wasm-bindgen-cli --version $V " .github/workflows/release.yml || echo ".github/workflows/release.yml does not install $V")"
+
 rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.md)" \
-  "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src --include='*.rs' \
+  "$(grep -rnE '\.unwrap\(\)|\.expect\(' src-tauri/src src-tauri/crates/*/src ui/src --include='*.rs' \
       | grep -v '/tests.rs:' | grep -v 'could not start' \
       | awk -F: '{ if (system("awk \"NR<" $2 " && /#\\[cfg\\(test\\)\\]/ {f=1} END {exit !f}\" " $1) != 0) print }')"
 

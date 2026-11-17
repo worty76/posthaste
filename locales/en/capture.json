@@ -1,0 +1,27 @@
+{
+  "title": "Quick Note",
+  "from_source": "from {app}",
+  "note_label": "Note",
+  "placeholder": "What's on your mind?",
+  "category_label": "Category (optional)",
+  "category_placeholder": "# category",
+  "polish_label": "Polish note with AI",
+  "discard": "Discard",
+  "status": {
+    "draft_restored": "Draft restored",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "not_saved": "Not saved: {reason}",
+    "draft_not_saved": "Draft not saved: {reason}",
+    "nothing_to_save": "Nothing to save yet",
+    "polishing": "Polishing…",
+    "polished": "Polished",
+    "nothing_to_polish": "Nothing to polish yet"
+  },
+  "hint": {
+    "save": "save",
+    "new_line": "new line",
+    "close": "close",
+    "polish": "polish"
+  }
+}

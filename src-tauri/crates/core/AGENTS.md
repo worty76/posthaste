@@ -10,12 +10,14 @@ database file in milliseconds.
 | File | Owns |
 |---|---|
 | `db.rs` | `Db`: the connection and every query |
-| `model.rs` | Types shared with the frontend (serde) |
 | `migrations.rs` + `migrations/*.sql` | Schema history |
 | `transfer.rs` | JSON export and import |
 | `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests.rs` |
 | `error.rs` | `CoreError` and its stable `code()` |
 | `tests.rs` | Tests for db, model and migrations |
+
+The data types themselves live in `crates/model` and are re-exported from
+here, so storage code keeps writing `posthaste_core::Note`.
 
 Look-specific rules: look validation and derivation live only in `look/`
 (`mod.rs` validates, `derive.rs` derives the token map); the bundled looks are
@@ -69,8 +71,8 @@ table; unreadable rows are skipped, never trusted.
   system clock inside logic that a test needs to control.
 - Return `Result<T>` with a `CoreError`. A new failure kind gets a variant, a
   stable `code()`, and a message a person can act on.
-- A type sent to the frontend derives `Serialize`/`Deserialize` and is mirrored
-  in `src/lib/types.ts` in the same change.
+- A type sent to the interface lives in `crates/model`, not here, and derives
+  both `Serialize` and `Deserialize`.
 - `Settings` uses `#[serde(default)]`: a new field must have a default so
   settings saved by older versions still load. Never rename or repurpose an
   existing field; add a new one.

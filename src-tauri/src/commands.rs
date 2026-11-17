@@ -7,10 +7,11 @@ use posthaste_core::look::derive::ResolvedLook;
 use posthaste_core::look::store::LookSummary;
 use posthaste_core::look::{code::encode_code, derive::resolve, LookDoc};
 use posthaste_core::{
-    now_ms, Attachment, Counts, DataInfo, DayMark, Draft, ExportFormat, Glance, ImportReport,
-    NewNote, Note, NoteDetail, NoteQuery, Settings, Status, TrashedNote, MAX_ATTACHMENT_BYTES,
+    now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
+    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
+    Settings, SettingsState, Status, TrashedNote, MAX_ATTACHMENT_BYTES,
 };
-use serde::Serialize;
+use posthaste_i18n::key;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -18,7 +19,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::error::{AppError, AppResult};
-use crate::shortcuts::{self, ShortcutReport};
+use crate::shortcuts;
 use crate::state::{lock, AppState};
 use crate::windows::{self, DetailsTarget};
 
@@ -32,26 +33,17 @@ fn looks_changed(app: &AppHandle) {
 
 // ---- app ---------------------------------------------------------------------
 
-#[derive(Serialize)]
-pub struct AppInfo {
-    version: String,
-    /// "macos" | "windows" | "linux"
-    os: &'static str,
-    /// "macos" | "windows" | "x11" | "wayland" | "unknown"
-    session: &'static str,
-    tray_available: bool,
-    /// Present when the database could not be opened at startup.
-    startup_error: Option<AppError>,
-}
-
 #[tauri::command]
 pub fn app_info(app: AppHandle, state: State<'_, AppState>) -> AppInfo {
     AppInfo {
         version: app.package_info().version.to_string(),
-        os: std::env::consts::OS,
-        session: posthaste_platform::session().as_str(),
+        os: Os::current(),
+        session: posthaste_platform::session().as_str().to_owned(),
         tray_available: state.tray_available.load(Ordering::Relaxed),
-        startup_error: state.startup_error.clone(),
+        startup_error: state.startup_error.clone().map(|error| CommandError {
+            code: error.code,
+            message: error.message,
+        }),
     }
 }
 
@@ -288,7 +280,7 @@ pub fn trash_empty(app: AppHandle, state: State<'_, AppState>, up_to: i64) -> Ap
 /// where Esc goes back to.
 #[tauri::command]
 pub fn details_open(app: AppHandle, id: String, from: String) {
-    windows::show_details(&app, DetailsTarget::new(id, &from));
+    windows::show_details(&app, windows::details_target(id, &from));
 }
 
 #[tauri::command]
@@ -318,22 +310,6 @@ pub fn note_details_set(
     let note = state.with_db(|db| db.set_details(&id, &details))?;
     notes_changed(&app);
     Ok(note)
-}
-
-/// One file that could not be attached, named so the user knows which.
-#[derive(Serialize)]
-pub struct AttachFailure {
-    name: String,
-    code: String,
-    message: String,
-}
-
-/// What happened to a batch of files: the ones stored and the ones refused.
-/// One bad file never stops the others.
-#[derive(Serialize, Default)]
-pub struct AttachReport {
-    added: Vec<Attachment>,
-    failed: Vec<AttachFailure>,
 }
 
 fn attach_paths(
@@ -395,7 +371,7 @@ pub async fn attachment_add_files(
     let Some(picked) = app
         .dialog()
         .file()
-        .set_title("Attach files")
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_ATTACH))
         .blocking_pick_files()
     else {
         return Ok(None);
@@ -490,7 +466,7 @@ pub async fn attachment_save_copy(
     let Some(dest) = app
         .dialog()
         .file()
-        .set_title("Save a copy")
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_SAVE_COPY))
         .set_file_name(&meta.name)
         .blocking_save_file()
     else {
@@ -533,12 +509,6 @@ fn percent_decode(s: &str) -> String {
 }
 
 // ---- settings ----------------------------------------------------------------
-
-#[derive(Serialize)]
-pub struct SettingsState {
-    settings: Settings,
-    shortcuts: ShortcutReport,
-}
 
 #[tauri::command]
 pub fn settings_get(app: AppHandle, state: State<'_, AppState>) -> SettingsState {
@@ -608,6 +578,12 @@ pub fn settings_update(
         // next time so the new size shows.
         state.details_placed.store(false, Ordering::Relaxed);
     }
+    if settings.language != old.language {
+        // No tray on this system means no menu to rename.
+        if let Some(menu) = app.try_state::<crate::tray::TrayMenu>() {
+            menu.translate(state.translator());
+        }
+    }
     let _ = app.emit("settings-changed", crate::ai::for_interface(&settings));
 
     Ok(SettingsState {
@@ -661,7 +637,7 @@ pub async fn data_export(
     let Some(dest) = app
         .dialog()
         .file()
-        .set_title("Export notes")
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT))
         .set_file_name(format!("posthaste-notes-{}.md", stamp()))
         .add_filter("Markdown", &["md"])
         .add_filter("JSON", &["json"])
@@ -697,8 +673,11 @@ pub async fn data_import(
     let Some(src) = app
         .dialog()
         .file()
-        .set_title("Import notes")
-        .add_filter("Posthaste export", &["md", "markdown", "json"])
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_IMPORT))
+        .add_filter(
+            state.translator().text(key::DESKTOP_FILTER_EXPORT),
+            &["md", "markdown", "json"],
+        )
         .blocking_pick_file()
     else {
         return Ok(None);
@@ -717,9 +696,12 @@ pub async fn data_backup(app: AppHandle, state: State<'_, AppState>) -> AppResul
     let Some(dest) = app
         .dialog()
         .file()
-        .set_title("Back up database")
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_BACKUP))
         .set_file_name(format!("posthaste-backup-{}.db", stamp()))
-        .add_filter("SQLite database", &["db"])
+        .add_filter(
+            state.translator().text(key::DESKTOP_FILTER_DATABASE),
+            &["db"],
+        )
         .blocking_save_file()
     else {
         return Ok(None);

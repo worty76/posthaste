@@ -1,0 +1,27 @@
+{
+  "title": "Ghi nhanh",
+  "from_source": "từ {app}",
+  "note_label": "Ghi chú",
+  "placeholder": "Bạn đang nghĩ gì?",
+  "category_label": "Phân loại (không bắt buộc)",
+  "category_placeholder": "# phân loại",
+  "polish_label": "Trau chuốt ghi chú bằng AI",
+  "discard": "Bỏ",
+  "status": {
+    "draft_restored": "Đã khôi phục bản nháp",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu",
+    "not_saved": "Chưa lưu được: {reason}",
+    "draft_not_saved": "Chưa lưu được bản nháp: {reason}",
+    "nothing_to_save": "Chưa có gì để lưu",
+    "polishing": "Đang trau chuốt…",
+    "polished": "Đã trau chuốt",
+    "nothing_to_polish": "Chưa có gì để trau chuốt"
+  },
+  "hint": {
+    "save": "lưu",
+    "new_line": "xuống dòng",
+    "close": "đóng",
+    "polish": "trau chuốt"
+  }
+}

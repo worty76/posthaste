@@ -1,0 +1,20 @@
+{
+  "tray": {
+    "open": "Open Posthaste",
+    "capture": "New Posthaste",
+    "inbox": "Open Inbox",
+    "settings": "Settings…",
+    "quit": "Quit Posthaste"
+  },
+  "dialog": {
+    "attach": "Attach files",
+    "save_copy": "Save a copy",
+    "export": "Export notes",
+    "import": "Import notes",
+    "backup": "Back up database"
+  },
+  "filter": {
+    "export": "Posthaste export",
+    "database": "SQLite database"
+  }
+}

@@ -3,7 +3,6 @@
 //! and using the connection accessors from `db.rs`.
 
 use rusqlite::{params, OptionalExtension};
-use serde::Serialize;
 use uuid::Uuid;
 
 use crate::db::{now_ms, Db};
@@ -11,18 +10,9 @@ use crate::error::{CoreError, Result};
 use crate::look::bundled::bundled;
 use crate::look::code::decode_code;
 use crate::look::derive::{resolve, ResolvedLook};
-use crate::look::{Base, LookDoc, LookPreview, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
+use crate::look::{LookDoc, LookDocExt, DEFAULT_LOOK_ID, MAX_USER_LOOKS};
 
-/// A look as the gallery shows it: identity plus the four preview colours.
-#[derive(Serialize, Clone, PartialEq, Eq, Debug)]
-pub struct LookSummary {
-    pub id: String,
-    pub name: String,
-    pub author: Option<String>,
-    pub builtin: bool,
-    pub base: Base,
-    pub preview: LookPreview,
-}
+pub use posthaste_model::LookSummary;
 
 fn summary(id: String, doc: LookDoc, builtin: bool) -> LookSummary {
     LookSummary {

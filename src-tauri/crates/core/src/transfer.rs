@@ -12,7 +12,7 @@ use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db, NOTE_C
 use crate::details::clean_details;
 use crate::error::{CoreError, Result};
 use crate::markdown;
-use crate::model::{ImportReport, Status};
+use posthaste_model::{ImportReport, Status};
 
 pub const EXPORT_FORMAT: &str = "posthaste-export";
 pub const EXPORT_VERSION: u32 = 1;

@@ -5,8 +5,6 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::Serialize;
-
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -50,12 +48,7 @@ impl KeyStore for Keychain {
 }
 
 /// Which store keys are going to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Backend {
-    Keychain,
-    Database,
-}
+pub use posthaste_core::KeyStore as Backend;
 
 /// Managed Tauri state: the keychain, and whether it currently works.
 pub struct Secrets {

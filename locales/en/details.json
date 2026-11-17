@@ -1,0 +1,66 @@
+{
+  "title": "Note details",
+  "title_field": "Title",
+  "text_field": "Details",
+  "text_placeholder": "Add details…",
+  "close": "Close (Esc)",
+  "status": {
+    "done": "Done",
+    "archived": "Archived",
+    "later": "Later",
+    "inbox": "Inbox",
+    "mark_completed": "Mark as completed ({keys})",
+    "mark_not_completed": "Mark as not completed ({keys})"
+  },
+  "meta": {
+    "created_today": "Created today, {time}",
+    "created_yesterday": "Created yesterday, {time}",
+    "created_on": "Created {date}, {time}",
+    "from": "from {source}",
+    "carried": {
+      "one": "carried over {count} day",
+      "other": "carried over {count} days"
+    },
+    "edited_today": "edited today, {time}",
+    "edited_yesterday": "edited yesterday, {time}",
+    "edited_on": "edited {date}, {time}"
+  },
+  "files": {
+    "title": "Attachments",
+    "add": "Add files",
+    "drop_now": "Drop to attach",
+    "drop_hint": "Drop files here, paste an image, or press {keys}",
+    "full": "This note already has {max} files. Remove one to add another.",
+    "too_big": "{name}: This file is over {size} MB. Posthaste attaches files up to {size} MB.",
+    "failed": "{name}: {reason}",
+    "attached": "Attached {name}",
+    "attached_many": {
+      "one": "Attached {count} file",
+      "other": "Attached {count} files"
+    },
+    "pasted": "Attached the pasted image",
+    "pasted_many": {
+      "one": "Attached {count} image",
+      "other": "Attached {count} images"
+    },
+    "removed": "Removed {name}",
+    "copy_saved": "Saved a copy of {name}",
+    "pasted_name": "Pasted image {stamp}"
+  },
+  "tile": {
+    "tip": "Open {name} (Enter) · Remove (Delete)",
+    "label": "{name}, {size}. Enter opens it, Delete removes it.",
+    "open": "Open {name}",
+    "save_copy": "Save a copy of {name}",
+    "remove": "Remove {name}"
+  },
+  "save": {
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+  "hint": {
+    "close": "close",
+    "done": "done",
+    "add_file": "add file"
+  }
+}

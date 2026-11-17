@@ -11,14 +11,13 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize};
-
 use crate::error::{CoreError, Result};
 use color::{contrast, Rgb};
 
 pub const LOOK_FORMAT: &str = "posthaste-look";
 /// The look a fresh install wears until the user picks one.
-pub const DEFAULT_LOOK_ID: &str = "builtin:ink";
+pub use posthaste_model::DEFAULT_LOOK_ID;
+pub use posthaste_model::{Base, Colors, FontFace, LookDoc, LookPreview, Shape};
 pub const LOOK_VERSION: u32 = 1;
 pub const MAX_NAME_CHARS: usize = 40;
 pub const MAX_DOC_BYTES: usize = 4096;
@@ -27,80 +26,6 @@ pub const MAX_USER_LOOKS: usize = 50;
 pub const TEXT_CONTRAST_MIN: f64 = 4.5;
 /// The accent only has to stand out as a fill, not be read as text.
 pub const ACCENT_FILL_MIN: f64 = 1.3;
-
-/// Which built-in token set the look sits on: everything it does not set
-/// comes from the light or the dark block in `tokens.css`.
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum Base {
-    Light,
-    Dark,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum Shape {
-    Sharp,
-    #[default]
-    Soft,
-    Round,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum FontFace {
-    #[default]
-    System,
-    Rounded,
-    Serif,
-    Mono,
-}
-
-/// The look's colours. Raw hex only; anything else is rejected by
-/// [`LookDoc::validate`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct Colors {
-    pub bg: String,
-    pub surface: String,
-    pub text: String,
-    pub accent: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bg_sunken: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub surface_raised: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub danger: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ok: Option<String>,
-}
-
-/// A look document, exactly what version 1 of the format allows. Unknown
-/// fields anywhere reject the whole look.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct LookDoc {
-    pub format: String,
-    pub version: u32,
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    pub base: Base,
-    pub colors: Colors,
-    #[serde(default)]
-    pub shape: Shape,
-    #[serde(default)]
-    pub font: FontFace,
-}
-
-/// Normalized hex of the four main colours, for gallery cards.
-#[derive(Serialize, Clone, PartialEq, Eq, Debug)]
-pub struct LookPreview {
-    pub bg: String,
-    pub surface: String,
-    pub text: String,
-    pub accent: String,
-}
 
 fn parse_color(field: &str, value: &str) -> Result<Rgb> {
     Rgb::parse(value).ok_or_else(|| {
@@ -111,9 +36,21 @@ fn parse_color(field: &str, value: &str) -> Result<Rgb> {
     })
 }
 
-impl LookDoc {
+/// What storage does with a look document. The document's shape lives in
+/// `posthaste-model`, shared with the UI; checking it lives only here.
+pub trait LookDocExt: Sized {
     /// All checks in order, first failure wins; nothing is partly applied.
-    pub fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<()>;
+    /// Parses and validates. The size limit comes first: a huge blob is
+    /// refused before any of it is processed.
+    fn from_json(json: &str) -> Result<Self>;
+    /// Compact JSON, the form stored and shared.
+    fn to_json(&self) -> String;
+    fn preview(&self) -> LookPreview;
+}
+
+impl LookDocExt for LookDoc {
+    fn validate(&self) -> Result<()> {
         if self.format != LOOK_FORMAT {
             return Err(CoreError::InvalidLook(
                 "This isn't a Posthaste look file.".into(),
@@ -199,9 +136,7 @@ impl LookDoc {
         Ok(())
     }
 
-    /// Parses and validates. The size limit comes first: a huge blob is
-    /// refused before any of it is processed.
-    pub fn from_json(json: &str) -> Result<LookDoc> {
+    fn from_json(json: &str) -> Result<LookDoc> {
         if json.len() > MAX_DOC_BYTES {
             return Err(CoreError::InvalidLook(format!(
                 "That look file is too large. The limit is {MAX_DOC_BYTES} bytes."
@@ -213,12 +148,11 @@ impl LookDoc {
         Ok(doc)
     }
 
-    /// Compact JSON, the form stored and shared.
-    pub fn to_json(&self) -> String {
+    fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
 
-    pub fn preview(&self) -> LookPreview {
+    fn preview(&self) -> LookPreview {
         let hex = |s: &str| Rgb::parse(s).map(Rgb::to_hex).unwrap_or_default();
         LookPreview {
             bg: hex(&self.colors.bg),

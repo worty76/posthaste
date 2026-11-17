@@ -4,7 +4,7 @@
 //! approval and the alphabet is twenty lines.
 
 use crate::error::{CoreError, Result};
-use crate::look::LookDoc;
+use crate::look::{LookDoc, LookDocExt};
 
 pub const CODE_PREFIX: &str = "posthaste-look:1:";
 

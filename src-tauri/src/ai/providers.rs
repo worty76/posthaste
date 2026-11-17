@@ -6,8 +6,6 @@
 //! single entry in [`PROVIDERS`]. A provider with a format of its own adds a
 //! [`Wire`] variant and its two functions in `wire.rs`.
 
-use serde::Serialize;
-
 /// The request and reply format a provider speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wire {
@@ -20,16 +18,7 @@ pub enum Wire {
     Gemini,
 }
 
-/// Whether a provider needs an API key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum KeyNeed {
-    Required,
-    /// Self-hosted servers may or may not ask for one.
-    Optional,
-    /// Runs on this computer; nothing to sign in to.
-    None,
-}
+pub use posthaste_core::KeyNeed;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Provider {

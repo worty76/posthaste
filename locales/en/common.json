@@ -1,0 +1,43 @@
+{
+  "unknown_error": "Something went wrong.",
+  "badges": {
+    "has_details": "has details",
+    "files": {
+      "one": "{count} file",
+      "other": "{count} files"
+    }
+  },
+  "calendar": {
+    "choose_day": "Choose a day",
+    "previous_month": "Previous month",
+    "next_month": "Next month",
+    "today": "Today",
+    "clear": "Clear",
+    "day_open": "{date}, {count} open",
+    "day_done": "{date}, all done",
+    "hint": {
+      "day": "day",
+      "month": "month",
+      "today": "today"
+    }
+  },
+  "close": "Close",
+  "cancel": "Cancel",
+  "save": "Save",
+  "dismiss": "Dismiss",
+  "day": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "position": {
+    "top_left": "Top left",
+    "top": "Top center",
+    "top_right": "Top right",
+    "left": "Middle left",
+    "center": "Center",
+    "right": "Middle right",
+    "bottom_left": "Bottom left",
+    "bottom": "Bottom center",
+    "bottom_right": "Bottom right"
+  }
+}

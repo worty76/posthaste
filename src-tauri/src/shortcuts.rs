@@ -1,30 +1,12 @@
 //! Global keyboard shortcuts: registration, conflict reporting, fallback.
 
 use posthaste_core::Settings;
+pub use posthaste_core::{ShortcutReport, ShortcutStatus};
 use posthaste_platform::Session;
-use serde::Serialize;
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use crate::windows;
-
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct ShortcutStatus {
-    pub accelerator: String,
-    /// Whether the operating system accepted the registration.
-    pub registered: bool,
-    /// Why registration failed, in plain language.
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct ShortcutReport {
-    pub capture: ShortcutStatus,
-    pub inbox: ShortcutStatus,
-    pub today: ShortcutStatus,
-    /// Set when shortcuts register but cannot be relied on (Wayland).
-    pub limitation: Option<String>,
-}
 
 const WAYLAND_NOTE: &str = "This is a Wayland session. Wayland does not let applications \
      register global shortcuts themselves, so the shortcut may only work while an X11 \

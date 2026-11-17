@@ -128,6 +128,8 @@ mod color_tests {
 mod validation_tests {
     use super::doc;
     use crate::look::LookDoc;
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
 
     fn assert_invalid(d: &LookDoc, needle: &str) {
         let err = d.validate().unwrap_err().to_string();
@@ -300,6 +302,8 @@ mod derive_tests {
     use super::doc;
     use crate::look::color::contrast;
     use crate::look::derive::{resolve, ResolvedLook};
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
     use crate::look::{Base, Colors, FontFace, LookDoc, Shape, TEXT_CONTRAST_MIN};
     use crate::CoreError;
 
@@ -558,6 +562,8 @@ mod derive_tests {
 mod code_tests {
     use super::doc;
     use crate::look::code::{b64_decode, b64_encode, decode_code, encode_code, CODE_PREFIX};
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
 
     fn coded() -> String {
         encode_code(&doc())
@@ -659,6 +665,8 @@ mod bundled_tests {
     use crate::look::bundled::bundled;
     use crate::look::code::{decode_code, encode_code};
     use crate::look::derive::resolve;
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
 
     #[test]
     fn the_six_bundled_looks_ship_in_gallery_order() {
@@ -717,6 +725,8 @@ mod store_tests {
     use super::doc;
     use crate::error::CoreError;
     use crate::look::code::encode_code;
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
     use crate::{Db, Settings};
 
     /// The Strawberry Milk look with a different name, so saved looks are
