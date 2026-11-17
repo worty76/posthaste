@@ -174,6 +174,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .skip_taskbar(true)
         .visible(false)
         .build()?;
+    panels::adopt(app, &details);
     let handle = app.clone();
     details.on_window_event(move |event| {
         if let WindowEvent::CloseRequested { api, .. } = event {
@@ -385,7 +386,6 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
     }
     *lock(&state.details_target) = Some(target.clone());
 
-    let was_visible = window.is_visible().unwrap_or(false);
     let first = !state.details_placed.swap(true, Ordering::Relaxed);
     let placed = if first {
         let size = state.settings().window_size;
@@ -398,11 +398,9 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         );
         unpin_details_size(&window);
         placed
-    } else if !was_visible {
-        // Reopening from hidden: open on the display the pointer is on, as
-        // capture and Today do, but keep the size the user left it at.
-        // Placed once and left there, it reappeared on whichever display it
-        // was first opened on.
+    } else {
+        // Reopening: keep the size the user left it at, on the display the
+        // pointer is on, as capture and Today do.
         let kept = window
             .inner_size()
             .ok()
@@ -413,33 +411,25 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         });
         unpin_details_size(&window);
         placed
-    } else {
-        None
     };
 
-    // macOS: a window belongs to the Space (desktop) it was last shown on,
-    // and showing it again switches the user back to that Space, or out of a
-    // full-screen app. Joining every Space for the moment it is shown puts
-    // it on the one the user is on; leaving again keeps it there.
-    #[cfg(target_os = "macos")]
-    if !was_visible {
-        let _ = window.set_visible_on_all_workspaces(true);
-    }
-
-    let _ = window.unminimize();
-    if let Err(e) = window.show() {
-        log::error!("details window could not be shown: {e}");
-        return;
-    }
+    // As a panel it takes the keyboard without activating Posthaste, the
+    // same way the capture and Today panels do: whatever app the user is
+    // working in stays in front.
+    let has_keyboard = match panels::show(app, &window) {
+        Ok(has_keyboard) => has_keyboard,
+        Err(e) => {
+            log::error!("details window could not be shown: {e}");
+            return;
+        }
+    };
     if let Some(pos) = placed {
         let _ = window.set_position(pos);
     }
-    if let Err(e) = window.set_focus() {
-        log::warn!("details window could not take focus: {e}");
-    }
-    #[cfg(target_os = "macos")]
-    if !was_visible {
-        settle_on_current_space(window.clone());
+    if !has_keyboard {
+        if let Err(e) = window.set_focus() {
+            log::warn!("details window could not take focus: {e}");
+        }
     }
     let _ = window.emit("details-open", target);
     if from_today {
@@ -449,7 +439,7 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         if let Some(today) = app.get_webview_window(TODAY) {
             let _ = today.hide();
         }
-        refocus_later(window);
+        refocus_later(app.clone(), window);
     }
 }
 
@@ -462,22 +452,20 @@ fn unpin_details_size(window: &WebviewWindow) {
     ))));
 }
 
-/// Stops the details window joining every Space once it has appeared on the
-/// current one, so switching desktops leaves it behind like any window.
-#[cfg(target_os = "macos")]
-fn settle_on_current_space(window: WebviewWindow) {
-    std::thread::spawn(move || {
-        std::thread::sleep(REFOCUS_DELAY);
-        let _ = window.set_visible_on_all_workspaces(false);
-    });
-}
-
 /// Asks for focus again shortly after a window-manager focus hand-off.
-fn refocus_later(window: WebviewWindow) {
+/// Panels re-take the keyboard through their own show path: tao's set_focus
+/// runs `activateIgnoringOtherApps`, which would pull Posthaste in front of
+/// the app the user is working in.
+fn refocus_later(app: AppHandle, window: WebviewWindow) {
     std::thread::spawn(move || {
         std::thread::sleep(REFOCUS_DELAY);
         if window.is_visible().unwrap_or(false) {
-            let _ = window.set_focus();
+            let has_keyboard = panels::show(&app, &window).unwrap_or_default();
+            if !has_keyboard {
+                // A regular window, or panels are unavailable: plain focus,
+                // which activates the app — right for the inbox.
+                let _ = window.set_focus();
+            }
         }
     });
 }
@@ -504,7 +492,7 @@ pub fn hide_details(app: &AppHandle) {
         None => None,
     };
     if let Some(back) = back {
-        refocus_later(back);
+        refocus_later(app.clone(), back);
     }
 }
 
