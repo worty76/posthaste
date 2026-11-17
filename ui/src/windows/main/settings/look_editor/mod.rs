@@ -28,6 +28,10 @@ pub(super) fn LookEditor(
     i18n: I18n,
     appearance: Appearance,
     initial: LookDoc,
+    /// Whether Simple looks is on: the windows hide the scene, but this
+    /// editor still previews it.
+    #[prop(into)]
+    simple_looks: Signal<bool>,
     /// The look being changed, or `None` for a new one.
     editing_id: Option<String>,
     #[prop(into)] on_close: Callback<()>,
@@ -200,6 +204,11 @@ pub(super) fn LookEditor(
                     on_change=move |font| doc.update(|doc| doc.font = font)
                 />
                 <ScenePanel i18n=i18n state=scene />
+                {move || simple_looks.get().then(|| view! {
+                    <p class="dialog__status" role="status">
+                        {i18n.text(key::LOOKS_EDITOR_SIMPLE_NOTE)}
+                    </p>
+                })}
                 {move || (scene.skipped.get() > 0).then(|| view! {
                     <p class="dialog__status" role="status">
                         {i18n.text(key::LOOKS_EDITOR_NEEDS_NEWER)}

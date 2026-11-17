@@ -80,7 +80,8 @@
     "sticker_tilt": "Tilt",
     "sticker_faded": "Faded",
     "remove_layer": "Remove",
-    "needs_newer": "Part of this look needs a newer Posthaste."
+    "needs_newer": "Part of this look needs a newer Posthaste.",
+    "simple_note": "Simple looks is hiding stickers and images in the windows. This preview still shows them."
   },
   "simple": "Simple looks",
   "simple_help": "Keep a look's colours, hide its stickers and images.",

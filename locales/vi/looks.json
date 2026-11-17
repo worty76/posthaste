@@ -80,7 +80,8 @@
     "sticker_tilt": "Nghiêng",
     "sticker_faded": "Mờ",
     "remove_layer": "Bỏ",
-    "needs_newer": "Một phần của giao diện này cần Posthaste mới hơn."
+    "needs_newer": "Một phần của giao diện này cần Posthaste mới hơn.",
+    "simple_note": "Tối giản đang ẩn hình dán và ảnh trong các cửa sổ. Bản xem trước này vẫn hiện chúng."
   },
   "simple": "Giao diện tối giản",
   "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh.",

@@ -6,7 +6,7 @@ before(start);
 after(stop);
 
 /** One user look in the gallery, selected, with an editable scene. */
-async function editor(sceneEdit, extra = {}) {
+async function editor(sceneEdit, extra = {}, settings = {}) {
   const store = {
     looks: [
       {
@@ -21,7 +21,11 @@ async function editor(sceneEdit, extra = {}) {
     sceneEdits: sceneEdit ? { "user:1": sceneEdit } : {},
     ...extra,
   };
-  const w = await open({ label: "main", store, settings: { look_id: "user:1" } });
+  const w = await open({
+    label: "main",
+    store,
+    settings: { look_id: "user:1", ...settings },
+  });
   await w.page.getByRole("button", { name: "Settings", exact: true }).click();
   await w.page.getByRole("button", { name: "Edit" }).click();
   const dialog = w.page.getByRole("dialog", { name: "Edit look" });
@@ -152,6 +156,15 @@ describe("look editor scene", () => {
     await text(w.toast, 'Saved "Mine"');
     const scene = (await w.mock.calls("look_save")).at(-1)?.args.scene;
     assert.equal(scene.scene.all.margin[0].config.char, "🌸");
+    await w.close();
+  });
+
+  it("notes when Simple looks hides the scene in the windows", async () => {
+    const w = await editor(null, {}, { simple_looks: true });
+    await text(
+      w.dialog.getByRole("status"),
+      "Simple looks is hiding stickers and images in the windows.",
+    );
     await w.close();
   });
 

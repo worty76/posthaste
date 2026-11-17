@@ -313,6 +313,7 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                 i18n=i18n
                 appearance=appearance
                 initial=editing.doc
+                simple_looks=context.read(|s| s.simple_looks)
                 editing_id=editing.id
                 on_close=move |()| editor.set(None)
                 on_saved=move |saved: LookSummary| {
