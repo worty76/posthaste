@@ -6,8 +6,8 @@ use std::sync::atomic::Ordering;
 use posthaste_core::look::code::{b64_encode_std, encode_document};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve as scene_resolve, validate_scene_parts};
-use posthaste_core::look::{AssetRef, LookDoc, LookDocument, SceneEdit};
+use posthaste_core::look::{resolve_parts, validate_scene_parts};
+use posthaste_core::look::{AssetRef, LookDoc, LookDocument, ResolvedScene, SceneEdit};
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
@@ -747,8 +747,6 @@ pub async fn data_clear(app: AppHandle, confirm: String) -> AppResult<SettingsSt
 
 // ---- looks -------------------------------------------------------------------
 
-type ResolvedSceneAlias = posthaste_core::look::ResolvedScene;
-
 #[tauri::command]
 pub fn look_list(state: State<'_, AppState>) -> AppResult<Vec<LookSummary>> {
     state.with_db(|db| db.list_looks())
@@ -787,7 +785,7 @@ pub fn look_save(
 /// The scene of the look the user wears, ready to draw. Empty under
 /// Simple looks, for Plain, and for colour-only looks.
 #[tauri::command]
-pub fn look_active_scene(state: State<'_, AppState>) -> AppResult<ResolvedSceneAlias> {
+pub fn look_active_scene(state: State<'_, AppState>) -> AppResult<ResolvedScene> {
     state.with_db(|db| db.active_scene())
 }
 
@@ -800,9 +798,9 @@ pub fn look_scene(state: State<'_, AppState>, id: String) -> AppResult<SceneEdit
 /// Checks a scene edit and resolves it for the editor's live preview.
 /// Stores nothing.
 #[tauri::command]
-pub fn look_scene_preview(edit: SceneEdit) -> AppResult<ResolvedSceneAlias> {
+pub fn look_scene_preview(edit: SceneEdit) -> AppResult<ResolvedScene> {
     validate_scene_parts(&edit.scene, &edit.assets)?;
-    Ok(scene_resolve::resolve_parts(&edit.scene, &edit.assets))
+    Ok(resolve_parts(&edit.scene, &edit.assets))
 }
 
 /// One look image as a `data:` URL, for `<img>` sources.

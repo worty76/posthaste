@@ -28,6 +28,7 @@ pub use posthaste_model::{
     LookDoc, LookDocV2, LookPreview, LookTheme, Read, Region, ResolvedLayer, ResolvedScene,
     ResolvedWindow, Scene, SceneEdit, Shape, StickerSize, Window, WindowScene, LOOK_VERSION_V2,
 };
+pub use resolve::{resolve_parts, resolve_scene};
 pub const LOOK_VERSION: u32 = 1;
 pub const MAX_NAME_CHARS: usize = 40;
 pub const MAX_DOC_BYTES: usize = 4096;
