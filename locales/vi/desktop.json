@@ -12,12 +12,15 @@
     "export": "Xuất ghi chú",
     "import": "Nhập ghi chú",
     "backup": "Sao lưu cơ sở dữ liệu",
-    "pick_image": "Chọn ảnh cho giao diện"
+    "pick_image": "Chọn ảnh cho giao diện",
+    "export_look": "Xuất tệp giao diện",
+    "open_look": "Mở tệp giao diện"
   },
   "filter": {
     "export": "Bản xuất Posthaste",
     "database": "Cơ sở dữ liệu SQLite",
-    "images": "Ảnh"
+    "images": "Ảnh",
+    "looks": "Tệp giao diện Posthaste"
   },
   "error_image_too_big": "Ảnh này là {size} MB. Ảnh cho giao diện tối đa 2 MB."
 }

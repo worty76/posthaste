@@ -4,9 +4,9 @@
 
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
-    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookSummary, Note,
-    NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState, Status,
-    TrashedNote, UpdateInfo,
+    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookFilePreview,
+    LookSummary, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings,
+    SettingsState, Status, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -456,6 +456,28 @@ pub async fn look_asset(id: &str) -> Response<String> {
 /// cancelled.
 pub async fn look_asset_pick() -> Response<Option<AssetRef>> {
     invoke("look_asset_pick", &NoArgs {}).await
+}
+
+/// Asks where to save, then writes the look and its images as one
+/// `.phlook` file. `None` means the dialog was cancelled.
+pub async fn look_file_export(id: &str) -> Response<Option<String>> {
+    invoke("look_file_export", &ById { id }).await
+}
+
+/// Asks for a look file, checks it, and holds it for the user's OK.
+/// `None` means the dialog was cancelled.
+pub async fn look_file_open() -> Response<Option<LookFilePreview>> {
+    invoke("look_file_open", &NoArgs {}).await
+}
+
+/// Installs the held look file.
+pub async fn look_file_install() -> Response<LookSummary> {
+    invoke("look_file_install", &NoArgs {}).await
+}
+
+/// Throws the held look file away.
+pub async fn look_file_discard() -> Response<()> {
+    invoke("look_file_discard", &NoArgs {}).await
 }
 
 pub async fn look_delete(id: &str) -> Response<()> {

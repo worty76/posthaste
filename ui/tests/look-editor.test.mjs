@@ -159,6 +159,60 @@ describe("look editor scene", () => {
     await w.close();
   });
 
+  it("imports a look file after a preview, and discards on cancel", async () => {
+    const payload = {
+      summary: {
+        id: "",
+        name: "From file",
+        author: null,
+        builtin: false,
+        base: "dark",
+        preview: { bg: "#101010", surface: "#202020", text: "#f0f0f0", accent: "#ff8800" },
+      },
+      tokens: {
+        id: "file:preview",
+        name: "From file",
+        author: null,
+        base: "dark",
+        shape: "soft",
+        font: "system",
+        tokens: { "--bg": "#101010" },
+      },
+      scene: { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
+      asset_urls: [["a1", "data:image/png;base64,AAAA"]],
+    };
+    const w = await open({
+      label: "main",
+      store: { fileOpen: payload },
+      settings: { look_id: null },
+    });
+    await w.page.getByRole("button", { name: "Settings", exact: true }).click();
+    await w.page.getByRole("button", { name: "Open a look file…" }).click();
+    const dialog = w.page.getByRole("dialog", { name: "Import look" });
+    await eventually(
+      () => dialog.count(),
+      (n) => n === 1,
+      "the import dialog to open",
+    );
+
+    // The windows wear the file's look while the dialog is open.
+    await eventually(
+      () => w.page.evaluate(() => document.documentElement.style.getPropertyValue("--bg")),
+      (v) => v === "#101010",
+      "the preview tokens to be worn",
+    );
+
+    // Cancel: the file is discarded, nothing added.
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await eventually(
+      () => w.mock.calls("look_file_discard").length,
+      (n) => n === 1,
+      "the file to be discarded",
+    );
+    assert.deepEqual(w.mock.store.looks, []);
+    await w.close();
+  });
+
   it("notes when Simple looks hides the scene in the windows", async () => {
     const w = await editor(null, {}, { simple_looks: true });
     await text(

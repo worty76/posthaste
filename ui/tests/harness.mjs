@@ -62,6 +62,8 @@ export function emptyStore() {
     sceneEdits: {},
     /** The resolved scene `look_scene_preview` answers, or null for empty. */
     previewScene: null,
+    /** What `look_file_open` answers: a preview payload, or null for cancel. */
+    fileOpen: null,
     ai: { backend: "keychain", providers: [] },
     /** The newer release `update_check` finds, or null. */
     update: null,
@@ -183,6 +185,15 @@ export async function open({
         look_scene_preview: () =>
           store.previewScene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset_pick: () => store.pick,
+        look_file_export: () => "/home/me/look.phlook",
+        look_file_open: () => store.fileOpen,
+        look_file_install: () => {
+          const saved = summary(`user:${store.looks.length}`, "From file", "dark");
+          store.looks.push(saved);
+          mock.emit("looks-changed");
+          return saved;
+        },
+        look_file_discard: () => null,
         look_active_scene: () =>
           store.scene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset: ({ id }) =>

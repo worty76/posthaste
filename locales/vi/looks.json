@@ -85,5 +85,11 @@
   },
   "simple": "Giao diện tối giản",
   "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh.",
-  "share_has_images": "Giao diện có ảnh được chia sẻ bằng tệp, không phải bằng mã."
+  "share_has_images": "Giao diện có ảnh được chia sẻ bằng tệp, không phải bằng mã.",
+  "export_file": "Xuất thành tệp…",
+  "open_file": "Mở tệp giao diện…",
+  "file_title": "Nhập giao diện",
+  "file_text": "Mọi thứ trong tệp đã được kiểm tra. Bản xem trước nằm sau hộp thoại này; thêm sẽ lưu giao diện và ảnh của nó trên máy này.",
+  "file_install": "Thêm vào giao diện của tôi",
+  "exported": "Đã xuất ra tệp"
 }

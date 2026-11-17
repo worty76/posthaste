@@ -85,5 +85,11 @@
   },
   "simple": "Simple looks",
   "simple_help": "Keep a look's colours, hide its stickers and images.",
-  "share_has_images": "Looks with images are shared as a file, not a code."
+  "share_has_images": "Looks with images are shared as a file, not a code.",
+  "export_file": "Export as file…",
+  "open_file": "Open a look file…",
+  "file_title": "Import look",
+  "file_text": "Everything in the file was checked. The preview is behind this dialog; adding it stores the look and its images on this computer.",
+  "file_install": "Add to my looks",
+  "exported": "Exported to a file"
 }

@@ -85,9 +85,9 @@ pub fn read_package(json: &str) -> Result<PendingLook> {
     // extra bytes are either a mistake or a way to smuggle content in.
     for key in carried.keys() {
         if !listed.iter().any(|asset| &asset.id == key) {
-            return Err(CoreError::InvalidAsset(format!(
-                "That look file carries an image the look does not use."
-            )));
+            return Err(CoreError::InvalidAsset(
+                "That look file carries an image the look does not use.".into(),
+            ));
         }
     }
 

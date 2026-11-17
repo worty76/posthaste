@@ -215,7 +215,7 @@ mod package_tests {
 
     use super::png;
     use crate::look::package::{read_package, write_package};
-    use crate::look::{AssetRef, Known, LayerRecord, LookDocV2, LookDocument};
+    use crate::look::{AssetRef, LayerRecord, LookDocV2, LookDocument};
     #[allow(unused_imports)]
     use crate::look::{LookDocExt as _, LookDocV2Ext as _};
     use crate::Db;
@@ -256,10 +256,10 @@ mod package_tests {
     #[test]
     fn export_then_import_gives_the_same_document() {
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
-        let saved = db
-            .save_look_document(LookDocument::V2(look.clone()), None)
+        let mut db = db;
+        db.save_look_document(LookDocument::V2(look.clone()), None)
             .unwrap();
 
         let file = write_package(&look, |asset_id| {
@@ -289,7 +289,7 @@ mod package_tests {
     #[test]
     fn a_package_with_a_wrong_digest_writes_nothing() {
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
@@ -303,7 +303,7 @@ mod package_tests {
         file["assets"][&id] = Value::String("AAAA".into());
         let tampered = serde_json::to_string(&file).unwrap();
 
-        let mut fresh = Db::open_in_memory().unwrap();
+        let fresh = Db::open_in_memory().unwrap();
         assert!(read_package(&tampered).is_err());
         assert_eq!(fresh.list_looks().unwrap().len(), 8);
         let n: i64 = fresh
@@ -316,7 +316,7 @@ mod package_tests {
     #[test]
     fn a_package_with_an_extra_asset_writes_nothing() {
         let bytes = png(2, 3);
-        let (mut db, id, _) = stored_db(&bytes);
+        let (db, id, _) = stored_db(&bytes);
         // A colour-only look lists no images, so its file carries none.
         let look = crate::look::tests::v2doc();
         let file = write_package(&look, |asset_id| {
@@ -331,7 +331,7 @@ mod package_tests {
         file["assets"][&id] = Value::String(crate::look::code::b64_encode(&bytes));
         let tampered = serde_json::to_string(&file).unwrap();
 
-        let mut fresh = Db::open_in_memory().unwrap();
+        let fresh = Db::open_in_memory().unwrap();
         assert!(read_package(&tampered).is_err());
         let n: i64 = fresh
             .conn()
@@ -345,7 +345,7 @@ mod package_tests {
     #[test]
     fn a_package_missing_an_asset_writes_nothing() {
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
@@ -359,7 +359,7 @@ mod package_tests {
         file["assets"] = json!({});
         let tampered = serde_json::to_string(&file).unwrap();
 
-        let mut fresh = Db::open_in_memory().unwrap();
+        let fresh = Db::open_in_memory().unwrap();
         assert!(read_package(&tampered).is_err());
         let n: i64 = fresh
             .conn()
@@ -380,7 +380,7 @@ mod package_tests {
     #[test]
     fn a_package_with_a_fake_png_writes_nothing() {
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
@@ -394,7 +394,7 @@ mod package_tests {
         file["assets"][&id] = Value::String(crate::look::code::b64_encode(b"MZ\x90\x00garbage"));
         let tampered = serde_json::to_string(&file).unwrap();
 
-        let mut fresh = Db::open_in_memory().unwrap();
+        let fresh = Db::open_in_memory().unwrap();
         assert!(read_package(&tampered).is_err());
         let n: i64 = fresh
             .conn()
@@ -408,7 +408,7 @@ mod package_tests {
     #[test]
     fn a_package_whose_claims_disagree_with_its_bytes_is_refused() {
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         // The document claims 100×200; the bytes say 2×3.
         let look = look_with_image(&id, (asset.bytes, 100, 200));
         let file = write_package(&look, |asset_id| {
@@ -423,7 +423,7 @@ mod package_tests {
     fn a_package_is_not_a_look_document_and_the_other_way_round() {
         // A look file is not a look, and a look is not a look file.
         let bytes = png(2, 3);
-        let (mut db, id, asset) = stored_db(&bytes);
+        let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;

@@ -13,7 +13,8 @@ use crate::browser::{self, bind_text};
 use crate::components::{Button, Dialog, Segmented, Switch, Variant};
 use crate::ipc::{self, api, events};
 use crate::logic::look::fit_name;
-use crate::state::{Appearance, Message};
+use crate::state::{seed_assets, use_asset_urls, use_scene_preview, Appearance, Message};
+use posthaste_model::LookFilePreview;
 
 /// What "Make your own" starts from when the Plain look is selected: the
 /// bundled look that matches how the window is drawn.
@@ -41,6 +42,10 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
     let delete_target = RwSignal::new(None::<LookSummary>);
     let delete_busy = RwSignal::new(false);
     let editor = RwSignal::new(None::<Editing>);
+    let file_preview = RwSignal::new(None::<LookFilePreview>);
+    let file_busy = RwSignal::new(false);
+    let file_installed = RwSignal::new(false);
+    let scene_preview = use_scene_preview();
 
     let reload = move || {
         spawn_local(async move {
@@ -88,6 +93,66 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                     toaster.info(Message::Plain(key::LOOKS_SHARED));
                 }
                 Ok(_) => toaster.error(Message::Plain(key::INBOX_TOAST_COPY_FAILED)),
+                Err(error) => toaster.fail(error),
+            }
+        });
+    };
+
+    // Opens a look file: every byte is checked in the shell, and the
+    // answer carries the whole preview. The windows wear it until the
+    // dialog closes, exactly as they wear an edit-in-progress.
+    let open_file = move || {
+        spawn_local(async move {
+            match api::look_file_open().await {
+                Ok(Some(preview)) => {
+                    seed_assets(use_asset_urls(), &preview.asset_urls);
+                    appearance.preview(Some(preview.tokens.clone()));
+                    scene_preview.set(Some(preview.scene.clone()));
+                    file_installed.set(false);
+                    file_preview.set(Some(preview));
+                }
+                Ok(None) => {}
+                Err(error) => toaster.fail(error),
+            }
+        });
+    };
+
+    let close_file = move |()| {
+        if file_preview.with(Option::is_some) && !file_installed.get_untracked() {
+            spawn_local(async {
+                let _ = api::look_file_discard().await;
+            });
+        }
+        file_preview.set(None);
+        appearance.preview(None);
+        scene_preview.set(None);
+    };
+
+    let install_file = move |()| {
+        file_busy.set(true);
+        spawn_local(async move {
+            match api::look_file_install().await {
+                Ok(saved) => {
+                    file_installed.set(true);
+                    file_preview.set(None);
+                    appearance.preview(None);
+                    scene_preview.set(None);
+                    toaster.info(Message::with(key::LOOKS_SAVED, "name", saved.name));
+                    context.set(move |s| s.look_id = Some(saved.id));
+                }
+                Err(error) => {
+                    file_busy.set(false);
+                    toaster.fail(error);
+                }
+            }
+        });
+    };
+
+    let export_file = move |look: LookSummary| {
+        spawn_local(async move {
+            match api::look_file_export(&look.id).await {
+                Ok(Some(_)) => toaster.info(Message::Plain(key::LOOKS_EXPORTED)),
+                Ok(None) => {}
                 Err(error) => toaster.fail(error),
             }
         });
@@ -219,6 +284,9 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                 {look_button(None, i18n.label(key::LOOKS_PLAIN), None)}
             </div>
             <div class="looks__actions">
+                <Button on_click=open_file>
+                    {i18n.text(key::LOOKS_OPEN_FILE)}
+                </Button>
                 {move || selected.get().map(|look| {
                     let builtin = look.builtin;
                     let (to_share, to_edit, to_delete) = (look.clone(), look.clone(), look);
@@ -248,6 +316,14 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                             }
                             .into_any()
                         }}
+                    }
+                })}
+                {move || selected.get().filter(|look| !look.builtin).map(|look| {
+                    let to_export = look.clone();
+                    view! {
+                        <Button on_click=move |()| export_file(to_export.clone())>
+                            {i18n.text(key::LOOKS_EXPORT_FILE)}
+                        </Button>
                     }
                 })}
                 <Button on_click=move |()| import_open.set(true)>{i18n.text(key::LOOKS_ADD)}</Button>
@@ -306,6 +382,24 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
             }.into_any())
         >
             <p class="dialog__text">{i18n.text(key::LOOKS_REMOVE_TEXT)}</p>
+        </Dialog>
+
+        <Dialog
+            open=Signal::derive(move || file_preview.with(Option::is_some))
+            title=i18n.label(key::LOOKS_FILE_TITLE)
+            on_close=close_file
+            actions=Box::new(move || view! {
+                <Button on_click=close_file>{i18n.text(key::COMMON_CANCEL)}</Button>
+                <Button
+                    variant=Variant::Primary
+                    busy=file_busy
+                    on_click=install_file
+                >
+                    {i18n.text(key::LOOKS_FILE_INSTALL)}
+                </Button>
+            }.into_any())
+        >
+            <p class="dialog__text">{i18n.text(key::LOOKS_FILE_TEXT)}</p>
         </Dialog>
 
         {move || editor.get().map(|editing| view! {

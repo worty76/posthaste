@@ -62,6 +62,17 @@ pub fn use_asset_urls() -> RwSignal<HashMap<String, String>> {
     ASSETS.with_borrow_mut(|slot| *slot.get_or_insert_with(|| RwSignal::new(HashMap::new())))
 }
 
+/// Puts `data:` URLs a look file carried straight into the cache: a
+/// pending import's images are not stored yet, so the scene host draws
+/// them from here.
+pub fn seed_assets(urls: RwSignal<HashMap<String, String>>, pairs: &[(String, String)]) {
+    urls.update(|map| {
+        for (id, url) in pairs {
+            map.insert(id.clone(), url.clone());
+        }
+    });
+}
+
 /// Fetches one asset's URL into the cache. A failed fetch leaves no
 /// entry, so the next render tries again; a pending one holds an empty
 /// string, so it draws nothing until the answer lands.

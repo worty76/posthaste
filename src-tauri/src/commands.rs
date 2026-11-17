@@ -5,9 +5,11 @@ use std::sync::atomic::Ordering;
 
 use posthaste_core::look::code::{b64_encode_std, encode_document};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
+use posthaste_core::look::package::{read_package, write_package};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve_parts, validate_scene_parts};
+use posthaste_core::look::{resolve_parts, validate_scene_parts, LookDocV2Ext};
 use posthaste_core::look::{AssetRef, LookDoc, LookDocument, ResolvedScene, SceneEdit};
+use posthaste_core::LookFilePreview;
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
@@ -886,6 +888,151 @@ fn look_has_images(doc: &LookDocument) -> bool {
         LookDocument::V2(doc) => !doc.assets.is_empty(),
         LookDocument::V1(_) => false,
     }
+}
+
+/// A look's name as a file's base name: separators out, never empty.
+fn file_name_for(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| {
+            if c == '/' || c == '\\' || c == ':' {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() {
+        "look".into()
+    } else {
+        trimmed.chars().take(60).collect()
+    }
+}
+
+/// Asks where to save, then writes the look and its images as one
+/// `.phlook` file. `None` means the dialog was cancelled.
+#[tauri::command]
+pub async fn look_file_export(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<Option<String>> {
+    let v2 = {
+        let doc = state.with_db(|db| db.look_document(&id))?;
+        match doc {
+            LookDocument::V2(doc) => doc,
+            LookDocument::V1(v1) => posthaste_core::look::migrate::v1_to_v2(&v1),
+        }
+    };
+    let name = v2.name.clone();
+    // Every listed image must be in storage: write_package refuses a
+    // dangling reference, and its error is what the UI shows.
+    let file = state.with_db(|db| {
+        write_package(&v2, |asset_id| {
+            let (_, bytes) = db.look_asset_bytes(asset_id)?;
+            Ok(bytes)
+        })
+    })?;
+
+    let Some(dest) = app
+        .dialog()
+        .file()
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT_LOOK))
+        .set_file_name(format!("{}.phlook", file_name_for(&name)))
+        .add_filter(
+            state.translator().text(key::DESKTOP_FILTER_LOOKS),
+            &["phlook"],
+        )
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let dest = dest
+        .into_path()
+        .map_err(|e| AppError::new("io", e.to_string()))?;
+    std::fs::write(&dest, file).map_err(|e| AppError::new("io", e.to_string()))?;
+    Ok(Some(dest.to_string_lossy().to_string()))
+}
+
+/// Asks for a look file, checks every byte of it, and holds what passed
+/// for the user's OK. Nothing touches the database until
+/// `look_file_install`. The preview travels in the answer, images as
+/// `data:` URLs, so nothing needs to be stored to show it.
+#[tauri::command]
+pub async fn look_file_open(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Option<LookFilePreview>> {
+    let Some(src) = app
+        .dialog()
+        .file()
+        .set_title(state.translator().text(key::DESKTOP_DIALOG_OPEN_LOOK))
+        .add_filter(
+            state.translator().text(key::DESKTOP_FILTER_LOOKS),
+            &["phlook"],
+        )
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let src = src
+        .into_path()
+        .map_err(|e| AppError::new("io", e.to_string()))?;
+    let text = std::fs::read_to_string(&src).map_err(|e| AppError::new("io", e.to_string()))?;
+    let pending = read_package(&text)?;
+    pending.doc.validate()?;
+
+    let doc = pending.doc.clone();
+    let summary = posthaste_core::look::store::LookSummary {
+        id: String::new(),
+        name: doc.name.clone(),
+        author: doc.author.clone(),
+        builtin: false,
+        base: doc.theme.base,
+        preview: posthaste_core::look::LookDocExt::preview(&doc.v1_view()),
+    };
+    let tokens = resolve("file:preview", &doc.v1_view())?;
+    let scene = resolve_parts(&doc.scene, &doc.assets);
+    let asset_urls = pending
+        .assets
+        .iter()
+        .map(|(asset, bytes)| {
+            (
+                asset.id.clone(),
+                format!("data:{};base64,{}", asset.asset_type, b64_encode_std(bytes)),
+            )
+        })
+        .collect();
+
+    *state.pending_look.lock().unwrap() = Some(pending);
+    Ok(Some(LookFilePreview {
+        summary,
+        tokens,
+        scene,
+        asset_urls,
+    }))
+}
+
+/// Installs the held look file. The answer is the stored look's summary.
+#[tauri::command]
+pub fn look_file_install(app: AppHandle, state: State<'_, AppState>) -> AppResult<LookSummary> {
+    let pending = state
+        .pending_look
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or_else(|| AppError::new("file_install", "There is no look file to add."))?;
+    let summary = state.with_db(|db| db.install_package(pending))?;
+    looks_changed(&app);
+    Ok(summary)
+}
+
+/// Throws the held look file away, on Cancel.
+#[tauri::command]
+pub fn look_file_discard(state: State<'_, AppState>) -> AppResult<()> {
+    *state.pending_look.lock().unwrap() = None;
+    Ok(())
 }
 
 #[tauri::command]
