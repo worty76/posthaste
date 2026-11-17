@@ -18,7 +18,9 @@ use posthaste_model::{AppInfo, CommandError, Counts, DetailsFrom, Note, Os, Stat
 use wasm_bindgen::JsCast;
 
 use crate::browser::{self, bind_text};
-use crate::components::{Button, Icon, IconButton, IconName, Kbd, Segmented, Toaster, Toasts};
+use crate::components::{
+    Button, Icon, IconButton, IconName, Kbd, SceneHost, Segmented, Toaster, Toasts,
+};
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{
@@ -28,6 +30,7 @@ use crate::logic::selection::{moved_from_none, neighbour};
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
 use crate::state::{use_appearance, use_i18n, use_settings, use_updates, I18n, Message};
 use crate::time;
+use posthaste_model::Window as SceneWindow;
 
 /// How many notes a section shows before "Show older notes".
 const PAGE: usize = 200;
@@ -574,7 +577,8 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 {nav_item(View::Settings)}
             </aside>
 
-            <main class="content">
+            <SceneHost window=SceneWindow::Main>
+                <main class="content">
                 <header class="content__header" data-tauri-drag-region=(os == Os::Macos).then_some("")>
                     <h1 class="content__title">{move || i18n.translator().text(title())}</h1>
                     <Show when=move || !in_settings()>
@@ -668,7 +672,8 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                         }}
                     </div>
                 </div>
-            </main>
+                </main>
+            </SceneHost>
 
             <Toasts toaster=main.toaster i18n=i18n />
             <help::ShortcutHelp

@@ -635,32 +635,32 @@
 }
 
 .scene-sticker--top-left {
-  top: 0;
-  left: 0;
+  top: calc(var(--scene-band) * 0.15);
+  left: calc(var(--scene-band) * 0.15);
 }
 
 .scene-sticker--top-right {
-  top: 0;
-  right: 0;
+  top: calc(var(--scene-band) * 0.15);
+  right: calc(var(--scene-band) * 0.15);
 }
 
 .scene-sticker--bottom-left {
-  bottom: 0;
-  left: 0;
+  bottom: calc(var(--scene-band) * 0.15);
+  left: calc(var(--scene-band) * 0.15);
 }
 
 .scene-sticker--bottom-right {
-  bottom: 0;
-  right: 0;
+  bottom: calc(var(--scene-band) * 0.15);
+  right: calc(var(--scene-band) * 0.15);
 }
 
 .scene-sticker--left-middle {
-  left: 0;
+  left: calc(var(--scene-band) * 0.15);
   top: calc(50% - 0.55em);
 }
 
 .scene-sticker--right-middle {
-  right: 0;
+  right: calc(var(--scene-band) * 0.15);
   top: calc(50% - 0.55em);
 }
 
@@ -694,7 +694,9 @@
 
 /* Over a backdrop image, every content panel keeps most of its raised
    surface: text contrast is decided against an almost-opaque panel, so
-   the window stays readable whatever the image behind it is. */
+   the window stays readable whatever the image behind it is. The main
+   window's pane is the scene itself, so the pane gets the veil too, in
+   its own surface. */
 .scene-has-backdrop .capture__panel,
 .scene-has-backdrop .today__panel,
 .scene-has-backdrop .details__panel {
@@ -703,4 +705,8 @@
     var(--surface-raised) calc(var(--scene-panel-alpha) * 100%),
     transparent
   );
+}
+
+.scene-has-backdrop .content {
+  background: color-mix(in srgb, var(--surface) calc(var(--scene-panel-alpha) * 100%), transparent);
 }

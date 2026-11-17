@@ -96,6 +96,11 @@
   min-width: 0;
   min-height: 0;
 }
+
+/* The scene wrapper is the grid cell now; the pane fills it. */
+.scene > .content {
+  height: 100%;
+}
 .content__header {
   display: flex;
   align-items: center;

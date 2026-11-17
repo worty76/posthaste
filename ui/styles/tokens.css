@@ -44,10 +44,31 @@
   --sidebar: 228px;
   --measure: 680px;
 
-  /* Scene: the edge band a sticker lives in, and how opaque the content
-     panels stay over a backdrop image. */
-  --scene-band: 44px;
+  /* Scene: how opaque the content panels stay over a backdrop image.
+     The band itself is per window, below. */
   --scene-panel-alpha: 0.88;
+}
+
+/* The edge band a sticker lives in: each window's real corner padding,
+   so a sticker sits in padding and never over content. */
+:root.is-capture {
+  /* capture pads 20px 24px 28px */
+  --scene-band: 28px;
+}
+
+:root.is-today {
+  /* today pads 20px 24px 28px */
+  --scene-band: 28px;
+}
+
+:root.is-details {
+  /* details pads 16px 20px 24px */
+  --scene-band: 24px;
+}
+
+:root.is-main {
+  /* the content pane pads 24px 32px 12px */
+  --scene-band: 12px;
 }
 
 /* Dark is the default: it is where a capture tool spends most of its life. */

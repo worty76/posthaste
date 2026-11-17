@@ -68,13 +68,10 @@ fn show_main(info: Result<AppInfo, posthaste_model::CommandError>) {
         Err(error) => Some(error.clone()),
     };
     match (info, failure) {
-        (Ok(info), None) => show(move || {
-            view! {
-                <SceneHost window=SceneWindow::Main>
-                    <main::MainWindow info=info />
-                </SceneHost>
-            }
-        }),
+        // The main window's scene wraps its content pane, inside the
+        // window's own view: stickers belong beside the notes, never on
+        // the sidebar's buttons.
+        (Ok(info), None) => show(move || view! { <main::MainWindow info=info /> }),
         (_, failure) => {
             let message = failure.map(|error| error.message).unwrap_or_default();
             show(move || view! { <fatal::Fatal message=message /> });
