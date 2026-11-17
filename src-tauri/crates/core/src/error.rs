@@ -39,6 +39,9 @@ pub enum CoreError {
     #[error("{0}")]
     InvalidLook(String),
 
+    #[error("{0}")]
+    InvalidAsset(String),
+
     #[error("Built-in looks can't be changed or deleted. Make a copy to customize one.")]
     BuiltinLook,
 
@@ -81,6 +84,7 @@ impl CoreError {
             CoreError::Migration { .. } => "db_migration",
             CoreError::InvalidImport(_) => "invalid_import",
             CoreError::InvalidLook(_) => "look_invalid",
+            CoreError::InvalidAsset(_) => "asset_invalid",
             CoreError::BuiltinLook => "look_builtin",
             CoreError::TooManyLooks => "look_limit",
             CoreError::AttachmentTooLarge { .. } => "attachment_too_large",

@@ -4,6 +4,7 @@
 //! and an asset list and keeps unknown fields; v1 documents migrate to it on
 //! the next save.
 
+pub mod assets;
 pub mod bundled;
 pub mod code;
 pub mod color;
@@ -225,7 +226,7 @@ impl LookDocV2Ext for LookDocV2 {
         }
         check_identity(&self.name, self.author.as_deref())?;
         check_colors(&self.theme.colors)?;
-        scene::check(&self.scene)
+        scene::check(&self.scene, &self.assets)
     }
 
     fn from_json(json: &str) -> Result<LookDocV2> {

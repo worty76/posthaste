@@ -7,10 +7,14 @@
 //! may hide it.
 
 use crate::error::{CoreError, Result};
-use crate::look::{EmojiLayer, ImageLayer, Known, Read, Region, Scene, WindowScene, MAX_LAYERS};
+use crate::look::assets::{MAX_ASSETS_PER_LOOK, MAX_ASSET_SIDE, MAX_ASSET_TOTAL_BYTES};
+use crate::look::{
+    AssetRef, EmojiLayer, ImageLayer, Known, Read, Region, Scene, WindowScene, MAX_LAYERS,
+};
 
 /// All scene checks, first failure wins.
-pub(crate) fn check(scene: &Scene) -> Result<()> {
+pub(crate) fn check(scene: &Scene, assets: &[AssetRef]) -> Result<()> {
+    check_assets(assets)?;
     let count = scene.layer_count();
     if count > MAX_LAYERS {
         return Err(CoreError::InvalidLook(format!(
@@ -25,13 +29,52 @@ pub(crate) fn check(scene: &Scene) -> Result<()> {
         .chain(scene.today.iter())
         .chain(scene.details.iter());
     for entry in entries {
-        check_entry(entry)?;
+        check_entry(entry, assets)?;
+    }
+    Ok(())
+}
+
+/// The checks on the look's asset list itself: count, total size, and
+/// well-formed ids.
+fn check_assets(assets: &[AssetRef]) -> Result<()> {
+    if assets.len() > MAX_ASSETS_PER_LOOK {
+        return Err(CoreError::InvalidLook(format!(
+            "A look can list at most {MAX_ASSETS_PER_LOOK} images, not {}.",
+            assets.len()
+        )));
+    }
+    let total: u64 = assets.iter().map(|a| a.bytes).sum();
+    if total > MAX_ASSET_TOTAL_BYTES as u64 {
+        return Err(CoreError::InvalidLook(
+            "That look's images are more than 10 MB in total.".into(),
+        ));
+    }
+    for asset in assets {
+        let well_formed = match asset.id.strip_prefix("sha256:") {
+            Some(hex) => {
+                hex.len() == 64
+                    && hex
+                        .chars()
+                        .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+            }
+            None => false,
+        };
+        if !well_formed {
+            return Err(CoreError::InvalidLook(
+                "That look has a malformed image id.".into(),
+            ));
+        }
+        if asset.width > MAX_ASSET_SIDE || asset.height > MAX_ASSET_SIDE {
+            return Err(CoreError::InvalidLook(format!(
+                "That look has an image bigger than {MAX_ASSET_SIDE}×{MAX_ASSET_SIDE}."
+            )));
+        }
     }
     Ok(())
 }
 
 /// The checks for one scene entry (the `all` entry, or one window's own).
-fn check_entry(entry: &WindowScene) -> Result<()> {
+fn check_entry(entry: &WindowScene, assets: &[AssetRef]) -> Result<()> {
     let mut stickers = 0usize;
     for (region, layer) in entry.regions() {
         if layer.read() == Read::Malformed {
@@ -40,7 +83,7 @@ fn check_entry(entry: &WindowScene) -> Result<()> {
             ));
         }
         match layer.known() {
-            Some(Known::Image(image)) => check_image(region, image)?,
+            Some(Known::Image(image)) => check_image(region, image, assets)?,
             Some(Known::Emoji(emoji)) => {
                 stickers += 1;
                 check_emoji(region, emoji)?;
@@ -57,7 +100,7 @@ fn check_entry(entry: &WindowScene) -> Result<()> {
     Ok(())
 }
 
-fn check_image(region: Region, image: ImageLayer) -> Result<()> {
+fn check_image(region: Region, image: ImageLayer, assets: &[AssetRef]) -> Result<()> {
     if !ImageLayer::REGIONS.contains(&region) {
         return Err(CoreError::InvalidLook(
             "Image layers can only sit in a backdrop region.".into(),
@@ -71,6 +114,11 @@ fn check_image(region: Region, image: ImageLayer) -> Result<()> {
                 ImageLayer::MAX_DIM
             )));
         }
+    }
+    if !assets.iter().any(|a| a.id == image.asset) {
+        return Err(CoreError::InvalidLook(
+            "That look's backdrop uses an image that is not in its assets list.".into(),
+        ));
     }
     Ok(())
 }

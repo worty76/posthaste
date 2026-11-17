@@ -72,6 +72,11 @@ fn open_database(app: &AppHandle) -> Result<Db, AppError> {
         Ok(n) => log::info!("emptied {n} old note(s) from the trash"),
         Err(e) => log::warn!("trash could not be emptied: {e}"),
     }
+    match db.purge_unused_look_assets(posthaste_core::now_ms()) {
+        Ok(0) => {}
+        Ok(n) => log::info!("purged {n} unused look image(s)"),
+        Err(e) => log::warn!("look images could not be purged: {e}"),
+    }
     Ok(db)
 }
 

@@ -1510,7 +1510,10 @@ fn upgrading_from_v4_leaves_every_note_unchanged() {
         .unwrap();
     }
     let db = Db::open(&path).unwrap();
-    assert_eq!(db.info().unwrap().schema_version, 5);
+    assert_eq!(
+        db.info().unwrap().schema_version,
+        MIGRATIONS.last().unwrap().version
+    );
     let n = db.get_note("legacy-4").unwrap();
     assert_eq!(n.later_at, None);
     assert_eq!(contents(&glance(&db).carried), ["carried over from before"]);
@@ -2082,4 +2085,36 @@ fn clearing_all_data_removes_fallback_secrets() {
     db.secret_set("ai:gemini", "key").unwrap();
     db.clear_all().unwrap();
     assert_eq!(db.secret_get("ai:gemini").unwrap(), None);
+}
+
+#[test]
+fn upgrading_from_v5_keeps_looks_and_adds_the_asset_table() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("posthaste.db");
+    {
+        // A database as version 5 of the app would have left it.
+        let mut conn = Connection::open(&path).unwrap();
+        migrations::migrate_with(&mut conn, Some(&path), &MIGRATIONS[..5]).unwrap();
+        conn.execute(
+            "INSERT INTO looks (id, doc, created_at, updated_at)
+             VALUES ('user:legacy', '{\"format\":\"posthaste-look\",\"version\":1}', 1, 1)",
+            [],
+        )
+        .unwrap();
+    }
+    let db = Db::open(&path).unwrap();
+    assert_eq!(
+        db.info().unwrap().schema_version,
+        MIGRATIONS.last().unwrap().version
+    );
+    let n: i64 = db
+        .conn()
+        .query_row("SELECT COUNT(*) FROM looks", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(n, 1, "the stored look survived the upgrade");
+    let a: i64 = db
+        .conn()
+        .query_row("SELECT COUNT(*) FROM look_assets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(a, 0, "the new table exists and starts empty");
 }
