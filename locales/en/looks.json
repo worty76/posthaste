@@ -83,5 +83,6 @@
     "needs_newer": "Part of this look needs a newer Posthaste."
   },
   "simple": "Simple looks",
-  "simple_help": "Keep a look's colours, hide its stickers and images."
+  "simple_help": "Keep a look's colours, hide its stickers and images.",
+  "share_has_images": "Looks with images are shared as a file, not a code."
 }

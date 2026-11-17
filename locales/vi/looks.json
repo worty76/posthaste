@@ -83,5 +83,6 @@
     "needs_newer": "Một phần của giao diện này cần Posthaste mới hơn."
   },
   "simple": "Giao diện tối giản",
-  "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh."
+  "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh.",
+  "share_has_images": "Giao diện có ảnh được chia sẻ bằng tệp, không phải bằng mã."
 }

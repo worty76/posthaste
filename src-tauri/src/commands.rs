@@ -7,7 +7,7 @@ use posthaste_core::look::code::{b64_encode_std, encode_document};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::store::LookSummary;
 use posthaste_core::look::{resolve as scene_resolve, validate_scene_parts};
-use posthaste_core::look::{AssetRef, LookDoc, SceneEdit};
+use posthaste_core::look::{AssetRef, LookDoc, LookDocument, SceneEdit};
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
@@ -867,7 +867,27 @@ pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<Str
     // The document as stored, not the v1 view: a shared look keeps its
     // scene and every field this build does not model.
     let doc = state.with_db(|db| db.look_document(&id))?;
+    if look_has_images(&doc) {
+        // A code carries no image bytes, so a look that lists images
+        // would arrive with a backdrop that never draws.
+        return Err(AppError::new(
+            "look_shared_as_file",
+            state
+                .translator()
+                .text(key::LOOKS_SHARE_HAS_IMAGES)
+                .to_string(),
+        ));
+    }
     Ok(encode_document(&doc))
+}
+
+/// True when the document lists look images, which a share code cannot
+/// carry.
+fn look_has_images(doc: &LookDocument) -> bool {
+    match doc {
+        LookDocument::V2(doc) => !doc.assets.is_empty(),
+        LookDocument::V1(_) => false,
+    }
 }
 
 #[tauri::command]
@@ -888,9 +908,63 @@ pub fn look_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> Ap
 mod tests {
     use super::civil_from_days;
     use super::export_format;
+    use super::look_has_images;
     use super::percent_decode;
     use super::valid_day;
+    use posthaste_core::look::{LookDoc, LookDocument};
     use posthaste_core::ExportFormat;
+
+    #[test]
+    fn a_look_with_images_cannot_travel_as_a_code() {
+        let mut v2 = posthaste_core::look::LookDocV2 {
+            format: "posthaste-look".into(),
+            version: 2,
+            name: "With image".into(),
+            author: None,
+            theme: posthaste_core::look::LookTheme {
+                base: posthaste_core::look::Base::Dark,
+                colors: posthaste_core::look::Colors {
+                    bg: "#120d18".into(),
+                    surface: "#1d1526".into(),
+                    text: "#f3e9f7".into(),
+                    accent: "#ff7eb6".into(),
+                    ..Default::default()
+                },
+                shape: Default::default(),
+                font: Default::default(),
+                extra: Default::default(),
+            },
+            scene: Default::default(),
+            assets: vec![posthaste_core::look::AssetRef {
+                id: format!("sha256:{}", "a".repeat(64)),
+                asset_type: "image/png".into(),
+                bytes: 33,
+                width: 2,
+                height: 3,
+                extra: Default::default(),
+            }],
+            extra: Default::default(),
+        };
+        assert!(look_has_images(&LookDocument::V2(v2.clone())));
+        v2.assets.clear();
+        assert!(!look_has_images(&LookDocument::V2(v2)));
+        assert!(!look_has_images(&LookDocument::V1(LookDoc {
+            format: "posthaste-look".into(),
+            version: 1,
+            name: "Colour only".into(),
+            author: None,
+            base: posthaste_core::look::Base::Dark,
+            colors: posthaste_core::look::Colors {
+                bg: "#120d18".into(),
+                surface: "#1d1526".into(),
+                text: "#f3e9f7".into(),
+                accent: "#ff7eb6".into(),
+                ..Default::default()
+            },
+            shape: Default::default(),
+            font: Default::default(),
+        })));
+    }
 
     #[test]
     fn the_chosen_file_name_decides_the_export_format() {
