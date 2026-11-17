@@ -185,7 +185,7 @@ impl Main {
         let view = self.view.get();
         let filters = self.filters.get();
         let limit = self.limit.get();
-        self.revision.track();
+        self.revision.with(|_| ());
         if view == View::Settings || (view == View::Trash && !filters.is_searching()) {
             return;
         }
@@ -229,7 +229,7 @@ impl Main {
     }
 
     fn load_counts(self) {
-        self.revision.track();
+        self.revision.with(|_| ());
         let (from, to) = time::bounds(time::today());
         spawn_local(async move {
             // The sidebar still works without its numbers.

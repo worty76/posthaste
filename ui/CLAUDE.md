@@ -79,6 +79,11 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
 - `state/appearance.rs` is the only writer of CSS custom properties and of
   `data-theme`, `data-shape`, `data-font`. `state/i18n.rs` is the only
   writer of `lang` and `dir`.
+- To make an effect depend on a value it does not use, read it with
+  `value.with(|_| ())`, never `value.track()`. A `Memo` that is only
+  tracked is never computed, so it never subscribes to what it is made
+  from and the effect never runs again. `scripts/check-rules.sh` enforces
+  this.
 
 ## Keyboard, accessibility, styling
 

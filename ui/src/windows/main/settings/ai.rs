@@ -37,7 +37,7 @@ pub(super) fn AiSection(context: Context, language: Signal<String>) -> impl Into
     // ("Clear all data") never still shows as saved.
     let request = StoredValue::new(0u32);
     Effect::new(move |_| {
-        chosen.track();
+        chosen.with(|_| ());
         let id = request.get_value().wrapping_add(1);
         request.set_value(id);
         spawn_local(async move {
@@ -113,7 +113,7 @@ pub(super) fn AiSection(context: Context, language: Signal<String>) -> impl Into
 
             {move || {
                 // Read so the fields are rebuilt in the new language.
-                language.track();
+                language.with(|_| ());
                 let provider = provider.get()?;
                 let backend = overview.with(|overview| overview.as_ref().map(|o| o.backend))?;
                 Some(view! {

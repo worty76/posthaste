@@ -91,7 +91,7 @@ pub fn Calendar(
     // Focus follows the focused day, after the grid has been drawn.
     Effect::new(move |_| {
         let selector = format!("[data-day=\"{}\"]", focused.get());
-        cells.track();
+        cells.with(|_| ());
         request_animation_frame(move || {
             let button = root
                 .get_untracked()

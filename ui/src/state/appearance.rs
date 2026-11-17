@@ -124,7 +124,9 @@ pub fn use_appearance(settings: SettingsHandle) -> Appearance {
             .with(|s| s.as_ref().map(|s| s.look_id.clone()))
     });
     Effect::new(move |_| {
-        look_id.track();
+        // Read, not `track()`: a memo that is only tracked is never computed,
+        // so it never hears about the settings it is made from.
+        look_id.with(|_| ());
         reload();
     });
     events::on::<events::LooksChanged>(move |_| reload());
