@@ -519,6 +519,10 @@
    own surface above --scene-panel-alpha. ---- */
 
 .scene {
+  /* The window roots size themselves as 100% of their parent, so the
+     wrapper has to fill #root exactly as they did before it existed. */
+  width: 100%;
+  height: 100%;
   position: relative;
   isolation: isolate;
 }
