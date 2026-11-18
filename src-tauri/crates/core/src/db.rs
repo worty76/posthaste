@@ -10,7 +10,7 @@ use crate::migrations;
 use posthaste_model::*;
 
 const DRAFT_SLOT: &str = "capture";
-const SETTINGS_KEY: &str = "settings";
+pub(crate) const SETTINGS_KEY: &str = "settings";
 const DEFAULT_LIMIT: u32 = 200;
 const MAX_LIMIT: u32 = 1000;
 const MAX_CATEGORY_CHARS: usize = 40;
@@ -772,7 +772,7 @@ pub const RETIRED_AI_PROVIDERS: &[&str] = &["github"];
 
 /// Reads stored settings. Today shared the capture window's position before
 /// it had its own, so a blob without one starts Today where capture is.
-fn parse_settings(json: &str) -> serde_json::Result<Settings> {
+pub(crate) fn parse_settings(json: &str) -> serde_json::Result<Settings> {
     let value: serde_json::Value = serde_json::from_str(json)?;
     let has_today_position = value.get("today_position").is_some();
     let mut settings: Settings = serde_json::from_value(value)?;

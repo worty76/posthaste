@@ -41,14 +41,11 @@ mod one_format_store_tests {
         assert_eq!(looks.len(), 8, "the eight bundled looks only");
         assert!(looks.iter().all(|l| l.id != "user:v1"));
         db.save_settings(&Settings {
-            look_id: Some("user:v1".into()),
+            look_id: "user:v1".into(),
             ..Settings::default()
         })
         .unwrap();
-        assert_eq!(
-            db.active_look().unwrap().map(|l| l.id),
-            Some(crate::look::DEFAULT_LOOK_ID.into())
-        );
+        assert_eq!(db.active_look().unwrap().id, crate::look::DEFAULT_LOOK_ID);
     }
 
     #[test]
@@ -284,45 +281,26 @@ mod store_tests {
     }
 
     #[test]
-    fn the_active_look_follows_settings_and_falls_back_to_ink() {
+    fn the_active_look_follows_the_selection() {
         let mut db = Db::open_in_memory().unwrap();
         // Ink is the factory default look.
-        let active = db.active_look().unwrap().expect("factory default resolves");
-        assert_eq!(active.id, crate::look::DEFAULT_LOOK_ID);
-
-        // A look that cannot be found lands on Ink, not on Plain.
-        db.save_settings(&Settings {
-            look_id: Some("user:missing".into()),
-            ..Default::default()
-        })
-        .unwrap();
-        assert_eq!(
-            db.active_look().unwrap().map(|l| l.id),
-            Some(crate::look::DEFAULT_LOOK_ID.into())
-        );
-
-        // Plain (no look) is a choice the user made, and is kept.
-        db.save_settings(&Settings {
-            look_id: None,
-            ..Default::default()
-        })
-        .unwrap();
-        assert_eq!(db.active_look().unwrap(), None);
+        assert_eq!(db.active_look().unwrap().id, crate::look::DEFAULT_LOOK_ID);
 
         let s = db
             .save_look(named("Mine").theme_edit(), None, None)
             .unwrap();
         db.save_settings(&Settings {
-            look_id: Some(s.id.clone()),
+            look_id: s.id.clone(),
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(db.active_look().unwrap().map(|l| l.id), Some(s.id.clone()));
-        db.delete_look(&s.id).unwrap();
-        assert_eq!(
-            db.active_look().unwrap().map(|l| l.id),
-            Some(crate::look::DEFAULT_LOOK_ID.into())
-        );
+        assert_eq!(db.active_look().unwrap().id, s.id);
+        // Deleting a look that is not selected leaves the selection alone.
+        let other = db
+            .save_look(named("Other").theme_edit(), None, None)
+            .unwrap();
+        assert!(!db.delete_look(&other.id).unwrap());
+        assert_eq!(db.active_look().unwrap().id, s.id);
     }
 
     #[test]
@@ -342,14 +320,11 @@ mod store_tests {
         assert!(looks.iter().all(|l| l.id != "user:broken"));
 
         db.save_settings(&Settings {
-            look_id: Some("user:broken".into()),
+            look_id: "user:broken".into(),
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(
-            db.active_look().unwrap().map(|l| l.id),
-            Some(crate::look::DEFAULT_LOOK_ID.into())
-        );
+        assert_eq!(db.active_look().unwrap().id, crate::look::DEFAULT_LOOK_ID);
     }
 
     #[test]
@@ -375,30 +350,93 @@ mod store_tests {
     }
 
     #[test]
-    fn settings_default_to_ink_and_older_settings_adopt_it() {
+    fn settings_without_a_look_wear_ink() {
         let db = Db::open_in_memory().unwrap();
         assert_eq!(
             db.load_settings().unwrap().look_id,
-            Some(crate::look::DEFAULT_LOOK_ID.into())
+            crate::look::DEFAULT_LOOK_ID
         );
-        // Settings saved before looks existed adopt the factory default…
+        let set = |db: &Db, json: &str| {
+            db.conn()
+                .execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', ?1)",
+                    [json],
+                )
+                .unwrap();
+        };
+        // An old row with the look missing, `null`, a non-string or empty
+        // wears Ink, and every other setting in the row survives.
+        for json in [
+            r#"{"capture_shortcut":"Alt+Space"}"#,
+            r#"{"look_id":null,"capture_shortcut":"Alt+Space"}"#,
+            r#"{"look_id":7,"capture_shortcut":"Alt+Space"}"#,
+            r#"{"look_id":"","capture_shortcut":"Alt+Space"}"#,
+        ] {
+            set(&db, json);
+            let settings = db.load_settings().unwrap();
+            assert_eq!(settings.look_id, crate::look::DEFAULT_LOOK_ID, "{json}");
+            assert_eq!(settings.capture_shortcut, "Alt+Space", "{json}");
+        }
+    }
+
+    #[test]
+    fn an_old_theme_key_is_ignored() {
+        let mut db = Db::open_in_memory().unwrap();
         db.conn()
             .execute(
-                "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', '{\"theme\":\"dark\"}')",
-                [],
+                "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', ?1)",
+                [r#"{"theme":"dark","look_id":"builtin:matcha"}"#],
             )
             .unwrap();
         assert_eq!(
             db.load_settings().unwrap().look_id,
-            Some(crate::look::DEFAULT_LOOK_ID.into())
+            "builtin:matcha",
+            "the look survives the old key"
         );
-        // …while an explicit "no look" (the user picked Plain) is kept.
-        db.conn()
-            .execute(
-                "INSERT OR REPLACE INTO settings (key, value) VALUES ('settings', '{\"theme\":\"dark\",\"look_id\":null}')",
+        db.save_settings(&db.load_settings().unwrap()).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'settings'",
                 [],
+                |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(db.load_settings().unwrap().look_id, None);
+        assert!(
+            !stored.contains("theme"),
+            "the dead key is not written: {stored}"
+        );
+    }
+
+    #[test]
+    fn deleting_the_selected_look_selects_ink() {
+        let mut db = Db::open_in_memory().unwrap();
+        let saved = db
+            .save_look_at(named("Mine").theme_edit(), None, None, 1_000)
+            .unwrap();
+        db.save_settings(&Settings {
+            look_id: saved.id.clone(),
+            ..Settings::default()
+        })
+        .unwrap();
+        assert!(db.delete_look(&saved.id).unwrap());
+        assert_eq!(
+            db.load_settings().unwrap().look_id,
+            crate::look::DEFAULT_LOOK_ID
+        );
+        assert_eq!(db.active_look().unwrap().id, crate::look::DEFAULT_LOOK_ID);
+        // The whole settings row survived the reset.
+        assert!(!db.load_settings().unwrap().capture_shortcut.is_empty());
+    }
+
+    #[test]
+    fn active_look_always_answers_a_look() {
+        let mut db = Db::open_in_memory().unwrap();
+        db.save_settings(&Settings {
+            look_id: "user:gone".into(),
+            ..Settings::default()
+        })
+        .unwrap();
+        assert_eq!(db.active_look().unwrap().id, crate::look::DEFAULT_LOOK_ID);
     }
 }

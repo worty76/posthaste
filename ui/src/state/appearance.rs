@@ -6,12 +6,12 @@ use std::cell::RefCell;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_model::{Base, FontFace, ResolvedLook, Shape, Theme};
+use posthaste_model::{Base, FontFace, ResolvedLook, Shape};
 use wasm_bindgen::prelude::*;
 
 use super::SettingsHandle;
 use crate::ipc::{api, events};
-use crate::logic::theme::{resolve_theme, Scheme};
+use crate::logic::theme::Scheme;
 
 thread_local! {
     /// The properties the last look set, so the next one (or none) removes
@@ -68,29 +68,10 @@ fn font_name(font: FontFace) -> &'static str {
     }
 }
 
-/// Whether the OS prefers dark, kept current while the window lives.
-fn use_system_dark() -> ReadSignal<bool> {
-    let media = window()
-        .match_media("(prefers-color-scheme: dark)")
-        .ok()
-        .flatten();
-    let (dark, set_dark) = signal(media.as_ref().is_some_and(|m| m.matches()));
-    if let Some(media) = media {
-        let watched = media.clone();
-        let on_change = Closure::<dyn FnMut()>::new(move || set_dark.set(watched.matches()));
-        let _ =
-            media.add_event_listener_with_callback("change", on_change.as_ref().unchecked_ref());
-        // The window never outlives its page, so the listener stays for good.
-        on_change.forget();
-    }
-    dark
-}
-
 /// What a window can ask of its appearance.
 #[derive(Clone, Copy)]
 pub struct Appearance {
     preview: RwSignal<Option<ResolvedLook>>,
-    scheme: Memo<Option<Scheme>>,
 }
 
 impl Appearance {
@@ -99,26 +80,24 @@ impl Appearance {
     pub fn preview(self, look: Option<ResolvedLook>) {
         self.preview.set(look);
     }
-
-    /// Whether the window is drawn dark right now.
-    pub fn is_dark(self) -> bool {
-        self.scheme.get_untracked() == Some(Scheme::Dark)
-    }
 }
 
-/// Keeps the window wearing the active look. While a look is active its
-/// base pins light or dark; with Plain (no look) the theme setting decides.
-/// Nothing is touched until the active look is known: the page paints its
-/// first frame as Ink, and clearing that early would flash the OS theme.
+/// Keeps the window wearing the active look. There is always one: its
+/// base pins light or dark, and nothing else decides. Nothing is touched
+/// until the active look is known: the page paints its first frame as
+/// Ink, and guessing early would flash the wrong scheme.
 pub fn use_appearance(settings: SettingsHandle) -> Appearance {
-    // `None` = not known yet; `Some(None)` = Plain.
-    let (active, set_active) = signal(None::<Option<ResolvedLook>>);
+    // `None` = not known yet.
+    let (active, set_active) = signal(None::<ResolvedLook>);
     let preview = RwSignal::new(None::<ResolvedLook>);
 
     let reload = move || {
         spawn_local(async move {
-            // A rejected lookup (corrupt row, unknown id) is just "no look".
-            set_active.set(Some(api::look_active().await.ok().flatten()));
+            // A rejected lookup cannot happen while the app runs: the
+            // store falls back to the factory default.
+            if let Ok(look) = api::look_active().await {
+                set_active.set(Some(look));
+            }
         });
     };
     let look_id = Memo::new(move |_| {
@@ -134,28 +113,20 @@ pub fn use_appearance(settings: SettingsHandle) -> Appearance {
     });
     events::on::<events::LooksChanged>(move |_| reload());
 
-    let theme = Memo::new(move |_| {
-        settings
-            .settings
-            .with(|s| s.as_ref().map_or(Theme::System, |s| s.theme))
-    });
-    let system_dark = use_system_dark();
     // The look worn: a preview first, else the active one.
-    let worn = Memo::new(move |_| active.get().map(|active| preview.get().or(active)));
+    let worn = Memo::new(move |_| active.get().map(|active| preview.get().unwrap_or(active)));
     let scheme = Memo::new(move |_| {
         worn.with(|worn| {
-            let look = worn.as_ref()?;
-            Some(match look.as_ref().map(|look| look.base) {
-                Some(Base::Light) => Scheme::Light,
-                Some(Base::Dark) => Scheme::Dark,
-                None => resolve_theme(theme.get(), system_dark.get()),
+            worn.as_ref().map(|look| match look.base {
+                Base::Light => Scheme::Light,
+                Base::Dark => Scheme::Dark,
             })
         })
     });
     Effect::new(move |_| {
         worn.with(|worn| {
             if let Some(look) = worn {
-                apply_look(look.as_ref());
+                apply_look(Some(look));
             }
         });
     });
@@ -164,5 +135,5 @@ pub fn use_appearance(settings: SettingsHandle) -> Appearance {
             let _ = root.set_attribute("data-theme", scheme.as_str());
         }
     });
-    Appearance { preview, scheme }
+    Appearance { preview }
 }

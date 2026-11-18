@@ -95,17 +95,14 @@ impl Db {
     }
 
     /// The scene of the look the user selected, ready to draw. Simple
-    /// looks answers an empty scene, as does Plain: the setting is
-    /// applied here, so no window can forget it.
+    /// looks answers an empty scene: the setting is applied here, so no
+    /// window can forget it.
     pub fn active_scene(&self) -> Result<ResolvedScene> {
         let settings = self.load_settings()?;
         if settings.simple_looks {
             return Ok(ResolvedScene::default());
         }
-        let Some(id) = settings.look_id else {
-            return Ok(ResolvedScene::default());
-        };
-        Ok(match self.look_document(&id) {
+        Ok(match self.look_document(&settings.look_id) {
             Ok(doc) => resolve::resolve_scene(&doc),
             _ => ResolvedScene::default(),
         })
@@ -126,18 +123,13 @@ impl Db {
         resolve(id, &doc.theme_edit())
     }
 
-    /// The look the user selected, or `None` for Plain. A selection that no
-    /// longer resolves (deleted, corrupt, removed from a later version)
-    /// falls back to Ink, the factory default, so the app never loses its
-    /// look by accident.
-    pub fn active_look(&self) -> Result<Option<ResolvedLook>> {
-        let Some(id) = self.load_settings()?.look_id else {
-            return Ok(None);
-        };
-        Ok(self
-            .resolve_look(&id)
+    /// The look the user wears. A selection that no longer resolves
+    /// (deleted, corrupt, removed from a later version) falls back to Ink,
+    /// the factory default, so the app never loses its look by accident.
+    pub fn active_look(&self) -> Result<ResolvedLook> {
+        let id = self.load_settings()?.look_id;
+        self.resolve_look(&id)
             .or_else(|_| self.resolve_look(DEFAULT_LOOK_ID))
-            .ok())
     }
 
     /// Saves a new user look, or updates one by id. The edit is validated
@@ -247,17 +239,39 @@ impl Db {
     }
 
     /// Deletes a user look. Built-in looks are data, not rows, and stay.
-    pub fn delete_look(&mut self, id: &str) -> Result<()> {
+    /// When the deleted look is the one selected, the settings row moves
+    /// to the factory default in the same transaction, so no window is
+    /// left wearing the deleted look's tokens. Answers whether it was.
+    pub fn delete_look(&mut self, id: &str) -> Result<bool> {
         if is_builtin(id) {
             return Err(CoreError::BuiltinLook);
         }
         let tx = self.conn_mut().transaction()?;
         let changed = tx.execute("DELETE FROM looks WHERE id = ?1", [id])?;
-        tx.commit()?;
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
-        Ok(())
+        let raw: Option<String> = tx
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                [crate::db::SETTINGS_KEY],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let mut settings = raw
+            .and_then(|json| crate::db::parse_settings(&json).ok())
+            .unwrap_or_default();
+        let was_selected = settings.look_id == id;
+        if was_selected {
+            settings.look_id = DEFAULT_LOOK_ID.into();
+            tx.execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+                params![crate::db::SETTINGS_KEY, serde_json::to_string(&settings)?],
+            )?;
+        }
+        tx.commit()?;
+        Ok(was_selected)
     }
 }
 

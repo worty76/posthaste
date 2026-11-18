@@ -755,7 +755,7 @@ pub fn look_list(state: State<'_, AppState>) -> AppResult<Vec<LookSummary>> {
 }
 
 #[tauri::command]
-pub fn look_active(state: State<'_, AppState>) -> AppResult<Option<ResolvedLook>> {
+pub fn look_active(state: State<'_, AppState>) -> AppResult<ResolvedLook> {
     state.with_db(|db| db.active_look())
 }
 
@@ -1027,13 +1027,14 @@ pub fn look_file_discard(state: State<'_, AppState>) -> AppResult<()> {
 
 #[tauri::command]
 pub fn look_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.with_db(|db| db.delete_look(&id))?;
-    // Deleting the active look returns the app to Ink, the factory default,
-    // immediately, the same way data_clear resets settings.
-    if state.settings().look_id.as_deref() == Some(id.as_str()) {
-        let mut settings = state.settings();
-        settings.look_id = Some(posthaste_core::look::DEFAULT_LOOK_ID.into());
-        settings_update(app.clone(), state, settings)?;
+    // The store resets a deleted selected look to the factory default in
+    // the same transaction as the delete, so no window is left wearing
+    // the deleted look's tokens. The cached settings follow, and every
+    // window hears the change like any other.
+    if state.with_db(|db| db.delete_look(&id))? {
+        let settings = state.with_db(|db| db.load_settings())?;
+        *state.settings.write().unwrap_or_else(|e| e.into_inner()) = settings.clone();
+        let _ = app.emit("settings-changed", crate::ai::for_interface(&settings));
     }
     looks_changed(&app);
     Ok(())

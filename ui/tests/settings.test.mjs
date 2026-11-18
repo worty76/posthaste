@@ -248,12 +248,22 @@ describe("AI polish settings", () => {
 describe("looks", () => {
   const looks = () => ({ looks: [look("builtin:ink", "Ink"), look("user:1", "Mine")] });
 
-  it("picks a look by click and by arrow key", async () => {
+  it("picks a look by click and by arrow key, and wraps", async () => {
     const w = await settings({ store: looks() });
     await w.page.getByRole("radio", { name: "Mine" }).click();
     await eventually(w.saved, (s) => s?.look_id === "user:1", "look saved");
     await w.page.getByRole("radio", { name: "Mine" }).press("ArrowRight");
-    await eventually(w.saved, (s) => s?.look_id === null, "Plain is after the last look");
+    await eventually(w.saved, (s) => s?.look_id === "builtin:ink", "wrap to the first look");
+    await w.page.getByRole("radio", { name: "Ink" }).press("ArrowLeft");
+    await eventually(w.saved, (s) => s?.look_id === "user:1", "wrap back to the last look");
+    // There is no Plain card and no light/dark control: every install
+    // wears a look.
+    assert.equal(await w.page.getByRole("radio", { name: "Plain" }).count(), 0);
+    // The light/dark/system control is gone; the gallery's own group stays.
+    assert.equal(
+      await w.page.getByRole("radiogroup", { name: "Appearance" }).count(),
+      0,
+    );
     await w.close();
   });
 

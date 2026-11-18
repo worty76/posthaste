@@ -23,8 +23,9 @@ pub async fn settings_get() -> Response<SettingsState> {
     invoke("settings_get", &NoArgs {}).await
 }
 
-/// `None` is the Plain look.
-pub async fn look_active() -> Response<Option<ResolvedLook>> {
+/// The look the user wears. There is always one: the store falls back to
+/// the factory default when a selection cannot resolve.
+pub async fn look_active() -> Response<ResolvedLook> {
     invoke("look_active", &NoArgs {}).await
 }
 

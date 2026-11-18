@@ -1,11 +1,8 @@
 {
   "theme": "Sáng tối",
-  "theme_help": "Dùng cho giao diện Mộc. Mọi giao diện khác tự có nền sáng hoặc tối.",
-  "system": "Theo hệ thống",
   "light": "Sáng",
   "dark": "Tối",
   "gallery": "Giao diện",
-  "plain": "Mộc",
   "share": "Sao chép mã chia sẻ",
   "shared": "Đã sao chép mã chia sẻ",
   "edit": "Sửa",

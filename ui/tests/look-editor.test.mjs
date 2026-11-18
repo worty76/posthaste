@@ -237,7 +237,6 @@ describe("look editor scene", () => {
     const w = await open({
       label: "main",
       store: { fileOpen: payload },
-      settings: { look_id: null },
     });
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
     await w.page.getByRole("button", { name: "Open a look file…" }).click();

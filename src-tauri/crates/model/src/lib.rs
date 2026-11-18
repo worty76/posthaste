@@ -26,7 +26,9 @@ mod tests {
     fn settings_saved_before_languages_existed_load_in_english() {
         let settings: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
         assert_eq!(settings.language, DEFAULT_LANGUAGE);
-        assert_eq!(settings.theme, Theme::Dark);
+        // The old theme key is ignored, and with no usable look the
+        // factory default is worn.
+        assert_eq!(settings.look_id, DEFAULT_LOOK_ID);
     }
 
     #[test]

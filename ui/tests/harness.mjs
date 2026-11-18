@@ -20,7 +20,6 @@ const TYPES = {
 };
 
 export const defaultSettings = {
-  theme: "system",
   launch_at_login: false,
   start_minimized: false,
   capture_shortcut: "CmdOrCtrl+Shift+Space",
@@ -33,7 +32,7 @@ export const defaultSettings = {
   hide_on_blur: true,
   enter_behavior: "save",
   draft_retention: "forever",
-  look_id: null,
+  look_id: "builtin:ink",
   simple_looks: false,
   language: "en",
   ai_provider: "none",
@@ -56,7 +55,7 @@ export function emptyStore() {
     /** What the file dialog answers: an attach report, or null for cancel. */
     pick: null,
     looks: [],
-    /** The resolved scene `look_active_scene` answers, or null for Plain. */
+    /** The resolved scene `look_active_scene` answers, or null for none. */
     scene: null,
     /** The scene edit `look_scene` answers per look id. */
     sceneEdits: {},
@@ -180,7 +179,18 @@ export async function open({
           ...info,
         }),
         settings_get: () => ({ settings: mock.settings, shortcuts }),
-        look_active: () => null,
+        // Every install wears a look: the shell falls back to the factory
+        // default when a selection cannot resolve, and so does this.
+        look_active: () =>
+          store.activeLook ?? {
+            id: mock.settings.look_id,
+            name: "Look",
+            author: null,
+            base: "dark",
+            shape: "soft",
+            font: "system",
+            tokens: { "--bg": "#101010" },
+          },
         look_scene: ({ id }) => store.sceneEdits[id] ?? { scene: {}, assets: [] },
         look_scene_preview: () =>
           store.previewScene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
@@ -373,7 +383,9 @@ export async function open({
         look_export_code: ({ id }) => `posthaste-look:2:${id}`,
         look_delete: ({ id }) => {
           store.looks = store.looks.filter((l) => l.id !== id);
-          if (mock.settings.look_id === id) mock.settings.look_id = null;
+          // The store moves a deleted selected look to the factory
+          // default in the same transaction as the delete.
+          if (mock.settings.look_id === id) mock.settings.look_id = "builtin:ink";
           mock.emit("looks-changed");
           mock.emit("settings-changed", mock.settings);
           return null;

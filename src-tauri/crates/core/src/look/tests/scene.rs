@@ -131,7 +131,7 @@ mod resolve_tests {
         let saved = db.save_look_document(d, None).unwrap();
         db.save_settings(&Settings {
             simple_looks: true,
-            look_id: Some(saved.id),
+            look_id: saved.id,
             ..Settings::default()
         })
         .unwrap();
@@ -154,7 +154,7 @@ mod resolve_tests {
         });
         let saved = db.save_look_document(d, None).unwrap();
         db.save_settings(&Settings {
-            look_id: Some(saved.id),
+            look_id: saved.id,
             ..Settings::default()
         })
         .unwrap();

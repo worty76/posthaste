@@ -161,14 +161,6 @@ pub struct Draft {
     pub updated_at: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Theme {
-    System,
-    Light,
-    Dark,
-}
-
 /// Where a floating window (capture or Today) opens on the display the user
 /// is working on: one spot of a 3×3 grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -209,6 +201,16 @@ impl CapturePosition {
 fn lenient_position<'de, D: serde::Deserializer<'de>>(d: D) -> Result<CapturePosition, D::Error> {
     let value = serde_json::Value::deserialize(d)?;
     Ok(serde_json::from_value(value).unwrap_or_default())
+}
+
+/// A `look_id` the stored row cannot supply usefully — absent, `null`, a
+/// non-string, or empty — wears the factory default.
+fn lenient_look_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    let value = serde_json::Value::deserialize(d)?;
+    Ok(match value {
+        serde_json::Value::String(s) if !s.is_empty() => s,
+        _ => crate::DEFAULT_LOOK_ID.into(),
+    })
 }
 
 /// How big the floating windows (capture, Today, note details) open. Only
@@ -288,7 +290,6 @@ pub const DEFAULT_TODAY_SHORTCUT: &str = if cfg!(target_os = "macos") {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    pub theme: Theme,
     pub launch_at_login: bool,
     pub start_minimized: bool,
     pub capture_shortcut: String,
@@ -311,9 +312,12 @@ pub struct Settings {
     pub hide_on_blur: bool,
     pub enter_behavior: EnterBehavior,
     pub draft_retention: DraftRetention,
-    /// The selected look. `None` is the Plain look (system/light/dark);
-    /// out of the box every install wears Ink.
-    pub look_id: Option<String>,
+    /// The selected look. There is always one: a row with no usable
+    /// `look_id` (an old version, a deleted look) wears the factory
+    /// default, so every install is dressed by a look, never by a bare
+    /// light/dark setting.
+    #[serde(deserialize_with = "lenient_look_id")]
+    pub look_id: String,
     /// Simple looks: keep a look's colours, turn off every scene layer.
     /// Applied in storage, so no window can forget to obey it.
     #[serde(default)]
@@ -346,7 +350,6 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            theme: Theme::System,
             simple_looks: false,
             launch_at_login: false,
             start_minimized: false,
@@ -360,7 +363,7 @@ impl Default for Settings {
             hide_on_blur: true,
             enter_behavior: EnterBehavior::Save,
             draft_retention: DraftRetention::Forever,
-            look_id: Some(crate::DEFAULT_LOOK_ID.into()),
+            look_id: crate::DEFAULT_LOOK_ID.into(),
             language: crate::DEFAULT_LANGUAGE.into(),
             ai_provider: "none".into(),
             ai_models: BTreeMap::new(),

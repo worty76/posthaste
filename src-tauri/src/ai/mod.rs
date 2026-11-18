@@ -663,12 +663,10 @@ mod tests {
             ..Settings::default()
         };
         let from_ui = Settings {
-            theme: posthaste_core::Theme::Dark,
             ..Settings::default()
         };
         let merged = keep_legacy_key(from_ui, &old);
         assert_eq!(merged.ai_api_key, "sk-old");
-        assert_eq!(merged.theme, posthaste_core::Theme::Dark);
     }
 
     #[test]
@@ -724,7 +722,7 @@ mod tests {
             fn set(&self, a: &str, v: &str) -> Result<(), String> {
                 // The user changes a setting while a keychain prompt is up.
                 if let Some(state) = self.1.upgrade() {
-                    state.settings.write().unwrap().theme = posthaste_core::Theme::Dark;
+                    state.settings.write().unwrap().capture_shortcut = "Alt+Space".into();
                 }
                 self.0.set(a, v)
             }
@@ -739,7 +737,8 @@ mod tests {
         )));
         store_raw(&state, r#"{"ai_provider":"openai","ai_api_key":"sk-old"}"#);
         migrate_legacy_key(&state, &secrets).unwrap();
-        assert_eq!(state.settings().theme, posthaste_core::Theme::Dark);
         assert_eq!(state.settings().ai_api_key, "");
+        // The change made during the move is not lost by it.
+        assert_eq!(state.settings().capture_shortcut, "Alt+Space");
     }
 }

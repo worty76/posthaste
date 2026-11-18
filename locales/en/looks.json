@@ -1,11 +1,8 @@
 {
   "theme": "Appearance",
-  "theme_help": "Used by the Plain look. Every other look is light or dark on its own.",
-  "system": "System",
   "light": "Light",
   "dark": "Dark",
   "gallery": "Look",
-  "plain": "Plain",
   "share": "Copy share code",
   "shared": "Copied share code",
   "edit": "Edit",

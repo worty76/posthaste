@@ -432,15 +432,25 @@ describe("appearance", () => {
     assert.equal(await html.getAttribute("data-shape"), "round");
     assert.equal(await html.getAttribute("data-font"), "serif");
     assert.equal(await html.evaluate((el) => el.style.getPropertyValue("--bg")), "rgb(1, 2, 3)");
-    // Back to Plain: the look's token must not be left behind.
-    await w.mock.answer("look_active", null);
+    // A look whose tokens carry no custom font must leave nothing of the
+    // previous one behind.
+    await w.mock.answer("look_active", {
+      id: "builtin:matcha",
+      name: "Matcha",
+      author: null,
+      base: "light",
+      shape: "soft",
+      font: "system",
+      tokens: {},
+    });
     await w.mock.emit("looks-changed");
     await eventually(
       () => html.evaluate((el) => el.style.getPropertyValue("--bg")),
       (v) => v === "",
       "token removed",
     );
-    assert.equal(await html.getAttribute("data-shape"), null);
+    assert.equal(await html.getAttribute("data-shape"), "soft");
+    assert.equal(await html.getAttribute("data-font"), "system");
     await w.close();
   });
 });
