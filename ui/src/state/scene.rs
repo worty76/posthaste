@@ -76,8 +76,12 @@ pub fn seed_assets(urls: RwSignal<HashMap<String, String>>, pairs: &[(String, St
 /// Fetches one asset's URL into the cache. A failed fetch leaves no
 /// entry, so the next render tries again; a pending one holds an empty
 /// string, so it draws nothing until the answer lands.
+///
+/// The cache read is untracked on purpose: the scene host warms the
+/// cache inside an effect, and a tracked read here would make that
+/// effect wait on a signal it also writes, re-running itself forever.
 pub fn fetch_asset(urls: RwSignal<HashMap<String, String>>, id: String) {
-    if urls.with(|map| map.contains_key(&id)) {
+    if urls.get_untracked().contains_key(&id) {
         return;
     }
     urls.update(|map| {
