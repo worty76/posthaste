@@ -17,7 +17,7 @@ use posthaste_core::{
 };
 use posthaste_i18n::key;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -365,19 +365,35 @@ fn attach_paths(
     report
 }
 
+/// Waits for a parented file dialog. The callback API is the one that
+/// honours the parent — the dialog sheets onto the calling window, above
+/// the floating panels — so the answer comes back over a channel instead
+/// of through the parentless blocking run.
+fn dialog_answer<T: Send + Default + 'static>(run: impl FnOnce(std::sync::mpsc::Sender<T>)) -> T {
+    let (tx, rx) = std::sync::mpsc::channel();
+    run(tx);
+    // The dialog always answers, even on cancel (`None`); a dropped
+    // channel means the app is on its way out, which reads as cancelled.
+    rx.recv().unwrap_or_default()
+}
+
 /// Asks which files to attach. `None` means cancelled.
 #[tauri::command]
 pub async fn attachment_add_files(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     note_id: String,
 ) -> AppResult<Option<AttachReport>> {
-    let Some(picked) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_ATTACH))
-        .blocking_pick_files()
-    else {
+    let Some(picked) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_ATTACH))
+            .pick_files(move |picked| {
+                let _ = tx.send(picked);
+            });
+    }) else {
         return Ok(None);
     };
     let paths = picked
@@ -463,17 +479,21 @@ pub fn opened_dir(app: &AppHandle) -> AppResult<std::path::PathBuf> {
 #[tauri::command]
 pub async fn attachment_save_copy(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Option<String>> {
     let (meta, bytes) = state.with_db(|db| db.attachment_bytes(&id))?;
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_SAVE_COPY))
-        .set_file_name(&meta.name)
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_SAVE_COPY))
+            .set_file_name(&meta.name)
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -635,18 +655,22 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 #[tauri::command]
 pub async fn data_export(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     utc_offset_minutes: Option<i32>,
 ) -> AppResult<Option<usize>> {
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT))
-        .set_file_name(format!("posthaste-notes-{}.md", stamp()))
-        .add_filter("Markdown", &["md"])
-        .add_filter("JSON", &["json"])
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT))
+            .set_file_name(format!("posthaste-notes-{}.md", stamp()))
+            .add_filter("Markdown", &["md"])
+            .add_filter("JSON", &["json"])
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -672,18 +696,22 @@ fn export_format(dest: &std::path::Path, utc_offset_minutes: i32) -> ExportForma
 #[tauri::command]
 pub async fn data_import(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<ImportReport>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_IMPORT))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_EXPORT),
-            &["md", "markdown", "json"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_IMPORT))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_EXPORT),
+                &["md", "markdown", "json"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
@@ -696,18 +724,25 @@ pub async fn data_import(
 
 /// Asks where to save, then writes a full copy of the database.
 #[tauri::command]
-pub async fn data_backup(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_BACKUP))
-        .set_file_name(format!("posthaste-backup-{}.db", stamp()))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_DATABASE),
-            &["db"],
-        )
-        .blocking_save_file()
-    else {
+pub async fn data_backup(
+    app: AppHandle,
+    window: Window,
+    state: State<'_, AppState>,
+) -> AppResult<Option<String>> {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_BACKUP))
+            .set_file_name(format!("posthaste-backup-{}.db", stamp()))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_DATABASE),
+                &["db"],
+            )
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -817,18 +852,22 @@ pub fn look_asset(state: State<'_, AppState>, id: String) -> AppResult<String> {
 #[tauri::command]
 pub async fn look_asset_pick(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<AssetRef>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_PICK_IMAGE))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_IMAGES),
-            &["png", "jpg", "jpeg", "webp"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_PICK_IMAGE))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_IMAGES),
+                &["png", "jpg", "jpeg", "webp"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
@@ -912,6 +951,7 @@ fn file_name_for(name: &str) -> String {
 #[tauri::command]
 pub async fn look_file_export(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Option<String>> {
@@ -926,17 +966,20 @@ pub async fn look_file_export(
         })
     })?;
 
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT_LOOK))
-        .set_file_name(format!("{}.phlook", file_name_for(&name)))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_LOOKS),
-            &["phlook"],
-        )
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT_LOOK))
+            .set_file_name(format!("{}.phlook", file_name_for(&name)))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_LOOKS),
+                &["phlook"],
+            )
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -953,18 +996,22 @@ pub async fn look_file_export(
 #[tauri::command]
 pub async fn look_file_open(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<LookFilePreview>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_OPEN_LOOK))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_LOOKS),
-            &["phlook"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_OPEN_LOOK))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_LOOKS),
+                &["phlook"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
