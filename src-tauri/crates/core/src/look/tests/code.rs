@@ -130,6 +130,16 @@ mod code_tests {
     }
 
     #[test]
+    fn a_code_made_on_the_site_imports() {
+        // What the landing page's toy prints for Strawberry Milk. If the
+        // site and the app ever drift apart, this refuses here first.
+        let site_code = "posthaste-look:2:eyJmb3JtYXQiOiJwb3N0aGFzdGUtbG9vayIsInZlcnNpb24iOjIsIm5hbWUiOiJTdHJhd2JlcnJ5IE1pbGsiLCJhdXRob3IiOiJQb3N0aGFzdGUiLCJ0aGVtZSI6eyJiYXNlIjoibGlnaHQiLCJjb2xvcnMiOnsiYmciOiIjZmZmNWY3Iiwic3VyZmFjZSI6IiNmZmZmZmYiLCJ0ZXh0IjoiIzRhMmMzYSIsImFjY2VudCI6IiNmZjhmYjEifSwic2hhcGUiOiJyb3VuZCIsImZvbnQiOiJyb3VuZGVkIn19";
+        let doc = decode_code(site_code).unwrap();
+        assert_eq!(doc.name, "Strawberry Milk");
+        assert_eq!(doc.theme.base, crate::look::Base::Light);
+    }
+
+    #[test]
     fn a_code_for_an_unreadable_look_shows_the_validation_message() {
         let mut bad = doc();
         bad.theme.colors.text = bad.theme.colors.bg.clone();
