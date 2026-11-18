@@ -13,10 +13,13 @@ import { LookTiles } from "@/components/LookTiles";
 import { Moments } from "@/components/Moments";
 import { ReleaseBanner } from "@/components/ReleaseBanner";
 import { ShareCodeRow } from "@/components/ShareCodeRow";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteStateProvider } from "@/components/SiteState";
 import { StarChip } from "@/components/StarChip";
+import { MakerNote, StoryHeroLink } from "@/components/StoryLinks";
 import { PRODUCT, type Download, type Platform } from "@/config";
 import { fetchReleases } from "@/lib/releases";
+import { storyVisible } from "@/lib/story";
 
 interface Installers {
   downloads: Record<Platform, Download | null>;
@@ -99,6 +102,7 @@ export default async function Page() {
           Posthaste
         </a>
         <nav className="head__nav" aria-label="Sections">
+          {storyVisible() && <a href="/story/">Why Posthaste</a>}
           <a href="#features">Features</a>
           <a href="#looks">Looks</a>
           <a href="#compare">Compare</a>
@@ -124,6 +128,11 @@ export default async function Page() {
           <p className="dict">
             <dfn>posthaste</dfn> <span className="dict__pos">adverb</span>
             <span className="dict__def">with great speed; right away.</span>
+            {storyVisible() && (
+              <a className="dict__see" href="/story/">
+                Why it exists
+              </a>
+            )}
           </p>
           <div className="hero__top">
             <h1 className="hero__title" id="hero-title">
@@ -157,6 +166,7 @@ export default async function Page() {
             </li>
           </ul>
           <HeroActions downloads={release.downloads} />
+          <StoryHeroLink />
           <CaptureHero />
         </section>
 
@@ -225,6 +235,8 @@ export default async function Page() {
 
         <Changelog releases={releases} />
 
+        <MakerNote />
+
         <FreeCard />
 
         <section className="page get" id="get" aria-labelledby="get-title">
@@ -263,13 +275,7 @@ npm run tauri build`}
         </section>
       </main>
 
-      <footer className="page foot">
-        <span>This page has no analytics, no cookies, and asks no other site for anything.</span>
-        <span className="foot__meta">
-          <a href={PRODUCT.repoUrl}>Source on GitHub</a>
-          <span>Posthaste {PRODUCT.version}</span>
-        </span>
-      </footer>
+      <SiteFooter />
     </SiteStateProvider>
   );
 }

@@ -1721,3 +1721,84 @@ kbd {
     transition: none;
   }
 }
+
+/* ---- The story page and the links to it ---- */
+.dict__see {
+  color: var(--accent-ink);
+  font-size: var(--t-sm);
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.hero__why {
+  margin: 18px 0 0;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.hero__why a {
+  color: var(--accent-ink);
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.maker {
+  padding-block: calc(var(--section) / 2);
+  border-top: 1px solid var(--border);
+}
+.maker__note {
+  max-width: 56ch;
+  margin: 12px 0 20px;
+  font-size: var(--t-lg);
+}
+
+.story {
+  padding-block: clamp(40px, 7vw, 88px) var(--section);
+}
+.story__title {
+  max-width: 14ch;
+  margin: 0;
+  font-size: var(--t-h1);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-variation-settings:
+    "CASL" var(--casl),
+    "MONO" var(--mono),
+    "slnt" var(--lean);
+}
+.story__lede {
+  max-width: 44ch;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: var(--t-lg);
+}
+.story__beats {
+  margin-top: clamp(48px, 8vw, 96px);
+  border-top: 1px solid var(--border-strong);
+}
+.story__beat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px 40px;
+  padding-block: clamp(28px, 5vw, 48px);
+  border-bottom: 1px solid var(--border);
+}
+.story__heading {
+  margin: 0;
+}
+.story__body p {
+  max-width: 60ch;
+  margin: 0 0 1em;
+}
+.story__body p:last-child {
+  margin-bottom: 0;
+}
+.story__end {
+  margin-top: clamp(40px, 7vw, 72px);
+}
+@media (max-width: 720px) {
+  .story__beat {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

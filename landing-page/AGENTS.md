@@ -69,6 +69,16 @@ with a small working demo), the film, looks, local, compare, changelog
 it. Posthaste is described as a to-do notes app. When a competitor's own page
 does not state a fact, the compare cell says "Not stated" rather than guess.
 
+The story page (`/story/`, copy and switches in `src/lib/story.ts`) is hidden
+until the maker sets `published: true`. While hidden nothing links to it, the
+sitemap omits it and the route builds as a noindex 404; `STORY_PREVIEW=1` shows
+it for review builds. When published it adds a nav link, a line beside the
+hero's dictionary definition, the optional `teaser` under the hero buttons and
+the optional `note` (the maker note above the free card). `teaser` and `note`
+are the maker's own words: never write them on their behalf, and the beats
+state only facts the site already backs (honesty rules above). `trailingSlash`
+is on so `/story/` resolves on any static host. `tests/story.test.ts` pins this.
+
 Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the
 demo is stored or sent.

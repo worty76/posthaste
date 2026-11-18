@@ -3,10 +3,13 @@ import robots from "../src/app/robots";
 import sitemap from "../src/app/sitemap";
 import { PRODUCT } from "../src/config";
 import { jsonLdString, softwareJsonLd } from "../src/lib/seo";
+import { STORY } from "../src/lib/story";
 
 describe("search metadata", () => {
-  it("lists the one page at the canonical address", () => {
-    expect(sitemap()).toEqual([{ url: PRODUCT.siteUrl }]);
+  it("lists the home page at the canonical address, and the story once published", () => {
+    const urls = sitemap().map((p) => p.url);
+    expect(urls[0]).toBe(PRODUCT.siteUrl);
+    expect(urls.includes(`${PRODUCT.siteUrl}/story/`)).toBe(STORY.published);
   });
 
   it("allows crawling and points at the sitemap", () => {
