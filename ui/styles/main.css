@@ -444,6 +444,30 @@
   display: grid;
   gap: var(--s-3);
 }
+/* The font picker previews each preset in its own face. Browsers whose
+   native menus ignore option styling simply list the names. */
+.look-editor__font-option--system {
+  font-family: var(--font-system);
+}
+.look-editor__font-option--rounded {
+  font-family: var(--font-rounded);
+}
+.look-editor__font-option--serif {
+  font-family: var(--font-serif);
+}
+.look-editor__font-option--mono {
+  font-family: var(--font-mono-ui);
+}
+.look-editor__font-option--be-vietnam-pro {
+  font-family: var(--font-be-vietnam-pro);
+}
+.look-editor__font-option--nunito {
+  font-family: var(--font-nunito);
+}
+.look-editor__font-option--quicksand {
+  font-family: var(--font-quicksand);
+}
+
 .look-editor__colors {
   display: grid;
   grid-template-columns: 1fr 1fr;

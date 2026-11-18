@@ -50,6 +50,27 @@ describe("look editor scene", () => {
     await w.close();
   });
 
+  it("offers the seven font presets in order and saves the chosen one", async () => {
+    const w = await editor(null);
+    const picker = w.dialog.getByLabel("Font", { exact: true });
+    const labels = await picker.locator("option").allTextContents();
+    assert.deepEqual(labels, [
+      "System",
+      "Rounded",
+      "Serif",
+      "Mono",
+      "Be Vietnam Pro",
+      "Nunito",
+      "Quicksand",
+    ]);
+    await picker.selectOption({ label: "Nunito" });
+    await w.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font, "nunito");
+    await w.close();
+  });
+
   it("says when a custom font is not installed and saves its name", async () => {
     const w = await editor(null);
     const field = w.dialog.getByLabel("Custom font");

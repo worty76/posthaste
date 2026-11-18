@@ -20,6 +20,9 @@ fn font_stack(face: FontFace) -> &'static str {
         FontFace::Rounded => "--font-rounded",
         FontFace::Serif => "--font-serif",
         FontFace::Mono => "--font-mono-ui",
+        FontFace::BeVietnamPro => "--font-be-vietnam-pro",
+        FontFace::Nunito => "--font-nunito",
+        FontFace::Quicksand => "--font-quicksand",
     }
 }
 

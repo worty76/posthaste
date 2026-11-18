@@ -84,7 +84,10 @@
     "simple_note": "Simple looks is hiding stickers and images in the windows. This preview still shows them.",
     "font_custom": "Custom font",
     "font_custom_hint": "The name of a font installed on this computer, like JetBrains Mono. The font above is used where it isn't installed.",
-    "font_not_installed": "“{name}” isn't installed on this computer, so you see the font above instead."
+    "font_not_installed": "“{name}” isn't installed on this computer, so you see the font above instead.",
+    "font_be_vietnam_pro": "Be Vietnam Pro",
+    "font_nunito": "Nunito",
+    "font_quicksand": "Quicksand"
   },
   "simple": "Simple looks",
   "simple_help": "Keep a look's colours, hide its stickers and images.",

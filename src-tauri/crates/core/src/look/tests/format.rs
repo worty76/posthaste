@@ -156,6 +156,36 @@ mod validation_tests {
     }
 
     #[test]
+    fn font_faces_use_kebab_case_on_the_wire() {
+        use crate::look::FontFace;
+        assert_eq!(
+            serde_json::to_string(&FontFace::System).unwrap(),
+            "\"system\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FontFace::Rounded).unwrap(),
+            "\"rounded\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FontFace::Serif).unwrap(),
+            "\"serif\""
+        );
+        assert_eq!(serde_json::to_string(&FontFace::Mono).unwrap(), "\"mono\"");
+        assert_eq!(
+            serde_json::to_string(&FontFace::BeVietnamPro).unwrap(),
+            "\"be-vietnam-pro\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FontFace::Nunito).unwrap(),
+            "\"nunito\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FontFace::Quicksand).unwrap(),
+            "\"quicksand\""
+        );
+    }
+
+    #[test]
     fn a_bad_font_name_in_a_document_refuses_the_look() {
         let err = LookDoc::from_json(
             r##"{"format":"posthaste-look","version":2,"name":"N",

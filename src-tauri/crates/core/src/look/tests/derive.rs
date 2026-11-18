@@ -302,6 +302,18 @@ mod font_tests {
     }
 
     #[test]
+    fn a_custom_font_falls_back_to_a_bundled_preset() {
+        let mut edit = doc().theme_edit();
+        edit.font = crate::look::FontFace::Nunito;
+        edit.font_family = Some("Not Installed Font".into());
+        let t = resolve("test", &edit).unwrap().tokens;
+        assert_eq!(
+            t.get("--font").unwrap(),
+            "\"Not Installed Font\", var(--font-nunito)"
+        );
+    }
+
+    #[test]
     fn no_custom_font_no_font_token() {
         assert!(!tokens_with(None).contains_key("--font"));
     }

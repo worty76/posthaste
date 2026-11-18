@@ -210,6 +210,27 @@ mod bundled_tests {
     }
 
     #[test]
+    fn the_three_looks_wear_their_bundled_fonts() {
+        use crate::look::FontFace;
+        let font_of = |id: &str| {
+            bundled()
+                .into_iter()
+                .find(|(bid, _)| bid == id)
+                .map(|(_, d)| d.theme.font)
+                .unwrap()
+        };
+        assert_eq!(font_of("builtin:blueberry"), FontFace::BeVietnamPro);
+        assert_eq!(font_of("builtin:sakura-night"), FontFace::Nunito);
+        assert_eq!(font_of("builtin:strawberry-milk"), FontFace::Quicksand);
+        // The looks the maker did not ask for keep their fonts.
+        assert_eq!(font_of("builtin:ink"), FontFace::Mono);
+        assert_eq!(font_of("builtin:paper"), FontFace::Serif);
+        assert_eq!(font_of("builtin:lavender-haze"), FontFace::Rounded);
+        assert_eq!(font_of("builtin:matcha"), FontFace::System);
+        assert_eq!(font_of("builtin:midnight-grape"), FontFace::Rounded);
+    }
+
+    #[test]
     fn the_demo_looks_keep_their_stickers_until_stickers_ship() {
         // Stickers are not shipped yet: the demo looks carry theirs in
         // the document, and nothing draws them.

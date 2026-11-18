@@ -22,6 +22,9 @@
   --font-mono:
     ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "DejaVu Sans Mono", monospace;
   --font-mono-ui: var(--font-mono);
+  --font-be-vietnam-pro: "Be Vietnam Pro", var(--font-system);
+  --font-nunito: "Nunito", var(--font-rounded);
+  --font-quicksand: "Quicksand", var(--font-rounded);
   --font: var(--font-system);
   --t-xs: 11.5px;
   --t-sm: 12.5px;
@@ -144,6 +147,15 @@
 }
 :root[data-font="mono"] {
   --font: var(--font-mono-ui);
+}
+:root[data-font="be-vietnam-pro"] {
+  --font: var(--font-be-vietnam-pro);
+}
+:root[data-font="nunito"] {
+  --font: var(--font-nunito);
+}
+:root[data-font="quicksand"] {
+  --font: var(--font-quicksand);
 }
 :root[data-shape="sharp"] {
   --r-sm: 2px;

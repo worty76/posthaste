@@ -25,14 +25,20 @@ pub enum Shape {
     Round,
 }
 
+/// The font presets a look picks between. The bundled faces name fonts
+/// the app ships (see `ui/styles/fonts/`); the first four name system
+/// stacks. Wire values are kebab-case.
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum FontFace {
     #[default]
     System,
     Rounded,
     Serif,
     Mono,
+    BeVietnamPro,
+    Nunito,
+    Quicksand,
 }
 
 /// The look's colours. Raw hex only; anything else is rejected by

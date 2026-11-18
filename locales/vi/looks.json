@@ -84,7 +84,10 @@
     "simple_note": "Tối giản đang ẩn hình dán và ảnh trong các cửa sổ. Bản xem trước này vẫn hiện chúng.",
     "font_custom": "Phông chữ tùy chỉnh",
     "font_custom_hint": "Tên một phông chữ đã cài trên máy này, ví dụ JetBrains Mono. Phông chữ ở trên sẽ được dùng khi máy chưa cài phông này.",
-    "font_not_installed": "“{name}” chưa được cài trên máy này, nên bạn đang thấy phông chữ ở trên."
+    "font_not_installed": "“{name}” chưa được cài trên máy này, nên bạn đang thấy phông chữ ở trên.",
+    "font_be_vietnam_pro": "Be Vietnam Pro",
+    "font_nunito": "Nunito",
+    "font_quicksand": "Quicksand"
   },
   "simple": "Giao diện tối giản",
   "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh.",

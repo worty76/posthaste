@@ -62,6 +62,9 @@ fn font_name(font: FontFace) -> &'static str {
         FontFace::Rounded => "rounded",
         FontFace::Serif => "serif",
         FontFace::Mono => "mono",
+        FontFace::BeVietnamPro => "be-vietnam-pro",
+        FontFace::Nunito => "nunito",
+        FontFace::Quicksand => "quicksand",
     }
 }
 

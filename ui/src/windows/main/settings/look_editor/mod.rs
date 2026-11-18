@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::key;
+use posthaste_i18n::{key, Key};
 use posthaste_model::{Base, CommandError, FontFace, LookSummary, Shape, ThemeEdit};
 
 use crate::browser::{bind_text, text_widths};
@@ -19,6 +19,33 @@ use scene::{ScenePanel, SceneState};
 
 /// How long typing pauses before the draft goes to the shell for a preview.
 const PREVIEW_PAUSE: Duration = Duration::from_millis(120);
+
+/// The font presets, in the order the picker lists them.
+const FONT_CHOICES: [(FontFace, Key); 7] = [
+    (FontFace::System, key::LOOKS_EDITOR_FONT_SYSTEM),
+    (FontFace::Rounded, key::LOOKS_EDITOR_FONT_ROUNDED),
+    (FontFace::Serif, key::LOOKS_EDITOR_FONT_SERIF),
+    (FontFace::Mono, key::LOOKS_EDITOR_FONT_MONO),
+    (
+        FontFace::BeVietnamPro,
+        key::LOOKS_EDITOR_FONT_BE_VIETNAM_PRO,
+    ),
+    (FontFace::Nunito, key::LOOKS_EDITOR_FONT_NUNITO),
+    (FontFace::Quicksand, key::LOOKS_EDITOR_FONT_QUICKSAND),
+];
+
+/// The wire value of a font preset, as the document stores it.
+fn font_name(font: FontFace) -> &'static str {
+    match font {
+        FontFace::System => "system",
+        FontFace::Rounded => "rounded",
+        FontFace::Serif => "serif",
+        FontFace::Mono => "mono",
+        FontFace::BeVietnamPro => "be-vietnam-pro",
+        FontFace::Nunito => "nunito",
+        FontFace::Quicksand => "quicksand",
+    }
+}
 
 /// Makes or changes a look. Every pause in typing sends the draft to the
 /// shell, which is the only judge of whether a look is valid: its answer is
@@ -201,18 +228,38 @@ pub(super) fn LookEditor(
                     ]
                     on_change=move |shape| theme.update(|t| t.shape = shape)
                 />
-                <Segmented
-                    i18n=i18n
-                    label=key::LOOKS_EDITOR_FONT
-                    value=Signal::derive(move || theme.with(|t| t.font))
-                    options=vec![
-                        (FontFace::System, key::LOOKS_EDITOR_FONT_SYSTEM),
-                        (FontFace::Rounded, key::LOOKS_EDITOR_FONT_ROUNDED),
-                        (FontFace::Serif, key::LOOKS_EDITOR_FONT_SERIF),
-                        (FontFace::Mono, key::LOOKS_EDITOR_FONT_MONO),
-                    ]
-                    on_change=move |font| theme.update(|t| t.font = font)
-                />
+                <select
+                    class="field select"
+                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT)
+                    on:change=move |event| theme.update(|t| {
+                        t.font = match event_target_value(&event).as_str() {
+                            "rounded" => FontFace::Rounded,
+                            "serif" => FontFace::Serif,
+                            "mono" => FontFace::Mono,
+                            "be-vietnam-pro" => FontFace::BeVietnamPro,
+                            "nunito" => FontFace::Nunito,
+                            "quicksand" => FontFace::Quicksand,
+                            _ => FontFace::System,
+                        };
+                    })
+                >
+                    {FONT_CHOICES
+                        .into_iter()
+                        .map(|(face, label)| {
+                            let value = font_name(face);
+                            let selected = move || theme.with(|t| t.font) == face;
+                            view! {
+                                <option
+                                    value=value
+                                    selected=selected
+                                    class=format!("look-editor__font-option--{value}")
+                                >
+                                    {i18n.text(label)}
+                                </option>
+                            }
+                        })
+                        .collect_view()}
+                </select>
                 <input
                     class="field"
                     aria-label=i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)
