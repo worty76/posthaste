@@ -3,11 +3,11 @@ use super::*;
 mod emoji_tests {
     use serde_json::{json, Map, Value};
 
-    use super::v2doc;
+    use super::doc;
     use crate::error::CoreError;
     #[allow(unused_imports)]
-    use crate::look::LookDocV2Ext as _;
-    use crate::look::{Known, LayerRecord, LookDocV2, WindowScene};
+    use crate::look::LookDocExt as _;
+    use crate::look::{Known, LayerRecord, LookDoc, WindowScene};
 
     fn sticker(char: &str, anchor: &str) -> LayerRecord {
         LayerRecord {
@@ -28,8 +28,8 @@ mod emoji_tests {
         layer
     }
 
-    fn with_margin(layer: LayerRecord) -> LookDocV2 {
-        let mut d = v2doc();
+    fn with_margin(layer: LayerRecord) -> LookDoc {
+        let mut d = doc();
         d.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: vec![layer],
@@ -38,7 +38,7 @@ mod emoji_tests {
         d
     }
 
-    fn assert_invalid(d: &LookDocV2, needle: &str) {
+    fn assert_invalid(d: &LookDoc, needle: &str) {
         match d.validate() {
             Ok(()) => panic!("expected refusal with \"{needle}\""),
             Err(CoreError::InvalidLook(msg)) => assert!(msg.contains(needle), "got: {msg}"),
@@ -84,7 +84,7 @@ mod emoji_tests {
 
     #[test]
     fn an_emoji_in_a_backdrop_is_refused() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.all = Some(WindowScene {
             backdrop: vec![sticker("🌸", "top-left")],
             margin: Vec::new(),
@@ -95,7 +95,7 @@ mod emoji_tests {
 
     #[test]
     fn seven_stickers_in_one_window_are_refused() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: (0..7).map(|_| sticker("🌸", "top-left")).collect(),
@@ -106,7 +106,7 @@ mod emoji_tests {
 
     #[test]
     fn joined_and_variant_emoji_are_accepted() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: vec![
@@ -121,7 +121,7 @@ mod emoji_tests {
 
     #[test]
     fn six_stickers_are_accepted() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: (0..6).map(|_| sticker("✨", "bottom-left")).collect(),

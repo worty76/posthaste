@@ -1,39 +1,48 @@
 use super::*;
 
 mod derive_tests {
+    use serde_json::Map;
+
     use super::doc;
     use crate::look::color::contrast;
     use crate::look::derive::{resolve, ResolvedLook};
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
-    use crate::look::{Base, Colors, FontFace, LookDoc, Shape, TEXT_CONTRAST_MIN};
+    use crate::look::{Base, Colors, FontFace, LookDoc, LookTheme, Shape, TEXT_CONTRAST_MIN};
     use crate::CoreError;
 
     fn midnight() -> LookDoc {
         LookDoc {
             format: "posthaste-look".into(),
-            version: 1,
+            version: 2,
             name: "Midnight Grape".into(),
             author: Some("Posthaste".into()),
-            base: Base::Dark,
-            colors: Colors {
-                bg: "#1a1423".into(),
-                surface: "#241b31".into(),
-                text: "#f1e9ff".into(),
-                accent: "#c58bff".into(),
-                bg_sunken: None,
-                surface_raised: None,
-                danger: None,
-                ok: None,
-                extra: serde_json::Map::new(),
+            theme: LookTheme {
+                base: Base::Dark,
+                colors: Colors {
+                    bg: "#1a1423".into(),
+                    surface: "#241b31".into(),
+                    text: "#f1e9ff".into(),
+                    accent: "#c58bff".into(),
+                    bg_sunken: None,
+                    surface_raised: None,
+                    danger: None,
+                    ok: None,
+                    extra: Map::new(),
+                },
+                shape: Shape::Round,
+                font: FontFace::Rounded,
+                font_family: None,
+                extra: Map::new(),
             },
-            shape: Shape::Round,
-            font: FontFace::Rounded,
+            scene: Default::default(),
+            assets: Vec::new(),
+            extra: Default::default(),
         }
     }
 
     fn tokens(d: &LookDoc) -> std::collections::BTreeMap<String, String> {
-        resolve("test", d).unwrap().tokens
+        resolve("test", &d.theme_edit()).unwrap().tokens
     }
 
     #[test]
@@ -90,7 +99,7 @@ mod derive_tests {
 
     #[test]
     fn the_resolved_look_carries_its_identity() {
-        let r: ResolvedLook = resolve("builtin:ink", &doc()).unwrap();
+        let r: ResolvedLook = resolve("builtin:ink", &doc().theme_edit()).unwrap();
         assert_eq!(r.id, "builtin:ink");
         assert_eq!(r.name, "Strawberry Milk");
         assert_eq!(r.author.as_deref(), Some("Posthaste"));
@@ -108,9 +117,9 @@ mod derive_tests {
         }
 
         let mut d = doc();
-        d.colors.danger = Some("#ff0000".into());
-        d.colors.ok = Some("#00ff00".into());
-        d.colors.bg_sunken = Some("#123456".into());
+        d.theme.colors.danger = Some("#ff0000".into());
+        d.theme.colors.ok = Some("#00ff00".into());
+        d.theme.colors.bg_sunken = Some("#123456".into());
         let t = tokens(&d);
         assert_eq!(t.get("--danger").unwrap(), "#ff0000");
         assert_eq!(t.get("--danger-soft").unwrap(), "rgba(255, 0, 0, 0.12)");
@@ -121,18 +130,18 @@ mod derive_tests {
     #[test]
     fn colours_are_normalised_to_lowercase_six_digit_hex() {
         let mut d = doc();
-        d.colors.bg = "#FFF".into();
-        d.colors.accent = "#FF8FB1".into();
+        d.theme.colors.bg = "#FFF".into();
+        d.theme.colors.accent = "#FF8FB1".into();
         let t = tokens(&d);
         assert_eq!(t.get("--bg").unwrap(), "#ffffff");
         assert_eq!(t.get("--accent").unwrap(), "#ff8fb1");
     }
 
     #[test]
-    fn an_invalid_document_is_rejected_without_tokens() {
+    fn an_invalid_edit_is_rejected_without_tokens() {
         let mut d = doc();
-        d.colors.text = d.colors.bg.clone();
-        let err = resolve("test", &d).unwrap_err();
+        d.theme.colors.text = d.theme.colors.bg.clone();
+        let err = resolve("test", &d.theme_edit()).unwrap_err();
         assert!(matches!(err, CoreError::InvalidLook(_)));
     }
 
@@ -194,25 +203,32 @@ mod derive_tests {
             let accent = rng.color(0, 255);
             let d = LookDoc {
                 format: "posthaste-look".into(),
-                version: 1,
+                version: 2,
                 name: "Property".into(),
                 author: None,
-                base: if dark { Base::Dark } else { Base::Light },
-                colors: Colors {
-                    bg: hex(bg),
-                    surface: hex(surface),
-                    text: hex(text),
-                    accent: hex(accent),
-                    bg_sunken: None,
-                    surface_raised: None,
-                    danger: None,
-                    ok: None,
-                    extra: serde_json::Map::new(),
+                theme: LookTheme {
+                    base: if dark { Base::Dark } else { Base::Light },
+                    colors: Colors {
+                        bg: hex(bg),
+                        surface: hex(surface),
+                        text: hex(text),
+                        accent: hex(accent),
+                        bg_sunken: None,
+                        surface_raised: None,
+                        danger: None,
+                        ok: None,
+                        extra: Map::new(),
+                    },
+                    shape: Shape::Soft,
+                    font: FontFace::System,
+                    font_family: None,
+                    extra: Map::new(),
                 },
-                shape: Shape::Soft,
-                font: FontFace::System,
+                scene: Default::default(),
+                assets: Vec::new(),
+                extra: Default::default(),
             };
-            let Ok(r) = resolve("test", &d) else {
+            let Ok(r) = resolve("test", &d.theme_edit()) else {
                 continue; // accent or surface out of range: not a valid look
             };
             checked += 1;
@@ -248,7 +264,7 @@ mod derive_tests {
                     "token value {v:?}"
                 );
             }
-            let again = resolve("test", &d).unwrap();
+            let again = resolve("test", &d.theme_edit()).unwrap();
             assert_eq!(again, r, "resolve is deterministic, set {i}");
         }
         assert!(checked > 0, "the generator produced valid sets");

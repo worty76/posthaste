@@ -1,9 +1,8 @@
 //! Look storage: the user's looks in SQLite, the bundled ones from data.
 //! Follows the `transfer.rs` pattern of keeping `impl Db` beside the feature
 //! and using the connection accessors from `db.rs`. Documents are stored as
-//! JSON text in the format they were saved in; since this build, saves write
-//! v2, and a save never rebuilds a stored document from typed structs, so
-//! fields this build does not model survive every edit.
+//! JSON text, and a save never rebuilds a stored document from typed
+//! structs, so fields this build does not model survive every edit.
 
 use rusqlite::{params, OptionalExtension};
 use uuid::Uuid;
@@ -13,23 +12,23 @@ use crate::error::{CoreError, Result};
 use crate::look::bundled::bundled;
 use crate::look::code::decode_code;
 use crate::look::derive::{resolve, ResolvedLook};
-use crate::look::migrate::v1_to_v2;
 use crate::look::resolve;
 use crate::look::{
-    LookDocExt as _, LookDocument, ResolvedScene, SceneEdit, DEFAULT_LOOK_ID, MAX_USER_LOOKS,
+    parse_stored, LookDoc, LookDocExt as _, ResolvedScene, SceneEdit, ThemeEdit, DEFAULT_LOOK_ID,
+    MAX_USER_LOOKS,
 };
 
 pub use posthaste_model::LookSummary;
 
-fn summary(id: String, doc: &LookDocument, builtin: bool) -> LookSummary {
-    let theme = doc.v1_view();
+fn summary(id: String, doc: &LookDoc, builtin: bool) -> LookSummary {
     LookSummary {
         id,
-        name: theme.name.clone(),
-        author: theme.author.clone(),
+        name: doc.name.clone(),
+        author: doc.author.clone(),
         builtin,
-        base: theme.base,
-        preview: theme.preview(),
+        base: doc.theme.base,
+        preview: doc.preview(),
+        font_family: doc.theme.font_family.clone(),
     }
 }
 
@@ -52,7 +51,7 @@ impl Db {
         let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
         for row in rows {
             let (id, json): (String, String) = row?;
-            match LookDocument::parse_stored(&json) {
+            match parse_stored(&json) {
                 Ok(doc) if doc.validate().is_ok() => out.push(summary(id, &doc, false)),
                 Err(e) => log::warn!("stored look {id} unreadable, skipping: {e}"),
                 Ok(_) => log::warn!("stored look {id} invalid, skipping"),
@@ -61,18 +60,10 @@ impl Db {
         Ok(out)
     }
 
-    /// The look document behind an id, bundled or stored, as the v1 view
-    /// the editor edits. `NotFound` when the id is unknown or the stored
-    /// row is unreadable.
-    pub fn look_doc(&self, id: &str) -> Result<posthaste_model::LookDoc> {
-        Ok(self.look_document(id)?.v1_view())
-    }
-
-    /// The document behind an id in the format it is stored in. A stored
-    /// v2 look keeps every field this build does not model, so export can
-    /// carry them; the v1 view is only a projection. `NotFound` when the
-    /// id is unknown or the stored row is unreadable.
-    pub fn look_document(&self, id: &str) -> Result<LookDocument> {
+    /// The document behind an id, bundled or stored. A stored look keeps
+    /// every field this build does not model, so export can carry them.
+    /// `NotFound` when the id is unknown or the stored row is unreadable.
+    pub fn look_document(&self, id: &str) -> Result<LookDoc> {
         if is_builtin(id) {
             return bundled()
                 .into_iter()
@@ -83,23 +74,29 @@ impl Db {
         self.stored_document(id)?.ok_or(CoreError::NotFound)
     }
 
+    /// The theme part of the look behind an id, as the editor edits it.
+    /// `NotFound` when the id is unknown or the stored row is unreadable.
+    pub fn look_theme(&self, id: &str) -> Result<ThemeEdit> {
+        Ok(self.look_document(id)?.theme_edit())
+    }
+
     /// The stored document behind a user id, keeping "missing" (`None`)
     /// separate from "unreadable" (an error), so a save can refuse to
     /// overwrite a row it cannot read instead of replacing it blindly.
-    fn stored_document(&self, id: &str) -> Result<Option<LookDocument>> {
+    fn stored_document(&self, id: &str) -> Result<Option<LookDoc>> {
         let json: Option<String> = self
             .conn()
             .query_row("SELECT doc FROM looks WHERE id = ?1", [id], |r| r.get(0))
             .optional()?;
         match json {
             None => Ok(None),
-            Some(json) => LookDocument::parse_stored(&json).map(Some),
+            Some(json) => parse_stored(&json).map(Some),
         }
     }
 
     /// The scene of the look the user selected, ready to draw. Simple
-    /// looks answers an empty scene, as does Plain and every colour-only
-    /// (v1) look: the setting is applied here, so no window can forget it.
+    /// looks answers an empty scene, as does Plain: the setting is
+    /// applied here, so no window can forget it.
     pub fn active_scene(&self) -> Result<ResolvedScene> {
         let settings = self.load_settings()?;
         if settings.simple_looks {
@@ -109,27 +106,24 @@ impl Db {
             return Ok(ResolvedScene::default());
         };
         Ok(match self.look_document(&id) {
-            Ok(LookDocument::V2(doc)) => resolve::resolve_scene(&doc),
+            Ok(doc) => resolve::resolve_scene(&doc),
             _ => ResolvedScene::default(),
         })
     }
 
     /// The scene and asset list of a look, as the editor edits them.
-    /// Colour-only looks answer an empty edit.
     pub fn look_scene(&self, id: &str) -> Result<SceneEdit> {
-        match self.look_document(id)? {
-            LookDocument::V1(_) => Ok(SceneEdit::default()),
-            LookDocument::V2(doc) => Ok(SceneEdit {
-                scene: doc.scene,
-                assets: doc.assets,
-            }),
-        }
+        let doc = self.look_document(id)?;
+        Ok(SceneEdit {
+            scene: doc.scene,
+            assets: doc.assets,
+        })
     }
 
     /// The look's full token map, validated and derived.
     pub fn resolve_look(&self, id: &str) -> Result<ResolvedLook> {
-        let doc = self.look_doc(id)?;
-        resolve(id, &doc)
+        let doc = self.look_document(id)?;
+        resolve(id, &doc.theme_edit())
     }
 
     /// The look the user selected, or `None` for Plain. A selection that no
@@ -146,11 +140,8 @@ impl Db {
             .ok())
     }
 
-    /// Saves a new user look, or updates one by id. The document is
-    /// validated again here, so nothing reaches SQLite unchecked. The
-    /// stored format is v2: a v1 document migrates on this save, and an
-    /// update over a stored v2 look keeps the parts the v1 editor does
-    /// not model.
+    /// Saves a new user look, or updates one by id. The edit is validated
+    /// again here, so nothing reaches SQLite unchecked.
     ///
     /// The scene edit decides what happens to the look's scene and
     /// assets: `None` keeps them exactly as stored (a save from the
@@ -158,21 +149,21 @@ impl Db {
     /// `Some` replaces them with the edit, unknown layers included.
     pub fn save_look(
         &mut self,
-        doc: posthaste_model::LookDoc,
+        edit: ThemeEdit,
         scene: Option<SceneEdit>,
         id: Option<&str>,
     ) -> Result<LookSummary> {
-        self.save_look_at(doc, scene, id, now_ms())
+        self.save_look_at(edit, scene, id, now_ms())
     }
 
     pub fn save_look_at(
         &mut self,
-        doc: posthaste_model::LookDoc,
+        edit: ThemeEdit,
         scene: Option<SceneEdit>,
         id: Option<&str>,
         now: i64,
     ) -> Result<LookSummary> {
-        doc.validate()?;
+        crate::look::validate_theme(&edit)?;
         // The editor only edits identity and theme. Keep the rest by
         // editing the stored document instead of rebuilding one — and if
         // the row exists but this build cannot read it, stop: writing a
@@ -181,36 +172,34 @@ impl Db {
             Some(id) if !is_builtin(id) => self.stored_document(id)?,
             _ => None,
         };
-        let mut to_store = match stored {
-            Some(LookDocument::V2(mut v2)) => {
-                v2.set_theme_from(&doc);
-                LookDocument::V2(v2)
+        let mut doc = match stored {
+            Some(mut doc) => {
+                doc.set_theme_from(&edit);
+                doc
             }
-            _ => LookDocument::V2(v1_to_v2(&doc)),
+            None => {
+                let mut doc = new_document(&edit);
+                doc.set_theme_from(&edit);
+                doc
+            }
         };
         if let Some(edit) = scene {
-            if let LookDocument::V2(v2) = &mut to_store {
-                v2.scene = edit.scene;
-                v2.assets = edit.assets;
-            }
+            doc.scene = edit.scene;
+            doc.assets = edit.assets;
         }
-        self.save_look_document_at(to_store, id, now)
+        self.save_look_document_at(doc, id, now)
     }
 
-    /// Saves a parsed document of either format as (or over) a user look,
-    /// keeping every part this build does not model. Import and the
-    /// compatibility tests use this path; the editor uses `save_look`.
-    pub fn save_look_document(
-        &mut self,
-        doc: LookDocument,
-        id: Option<&str>,
-    ) -> Result<LookSummary> {
+    /// Saves a parsed document as (or over) a user look, keeping every
+    /// part this build does not model. Import and the compatibility tests
+    /// use this path; the editor uses `save_look`.
+    pub fn save_look_document(&mut self, doc: LookDoc, id: Option<&str>) -> Result<LookSummary> {
         self.save_look_document_at(doc, id, now_ms())
     }
 
     fn save_look_document_at(
         &mut self,
-        doc: LookDocument,
+        doc: LookDoc,
         id: Option<&str>,
         now: i64,
     ) -> Result<LookSummary> {
@@ -251,13 +240,9 @@ impl Db {
         }
     }
 
-    /// Stores the look behind a share code as a new user look. A v1 code
-    /// migrates to v2 here, so the stored copy is v2 from the first save.
+    /// Stores the look behind a share code as a new user look.
     pub fn import_look(&mut self, code: &str) -> Result<LookSummary> {
-        let doc = match decode_code(code)? {
-            LookDocument::V1(v1) => LookDocument::V2(v1_to_v2(&v1)),
-            v2 => v2,
-        };
+        let doc = decode_code(code)?;
         self.save_look_document(doc, None)
     }
 
@@ -273,5 +258,26 @@ impl Db {
             return Err(CoreError::NotFound);
         }
         Ok(())
+    }
+}
+
+/// A fresh document for an edit: envelope filled, theme from the edit.
+fn new_document(edit: &ThemeEdit) -> LookDoc {
+    LookDoc {
+        format: crate::look::LOOK_FORMAT.into(),
+        version: crate::look::LOOK_VERSION,
+        name: String::new(),
+        author: None,
+        theme: posthaste_model::LookTheme {
+            base: edit.base,
+            colors: Default::default(),
+            shape: Default::default(),
+            font: Default::default(),
+            font_family: None,
+            extra: Default::default(),
+        },
+        scene: Default::default(),
+        assets: Vec::new(),
+        extra: Default::default(),
     }
 }

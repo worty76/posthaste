@@ -1,15 +1,17 @@
 {
   "format": "posthaste-look",
-  "version": 1,
+  "version": 2,
   "name": "Ink",
   "author": "Posthaste",
-  "base": "dark",
-  "colors": {
-    "bg": "#0f0f0f",
-    "surface": "#181818",
-    "text": "#f2f2f2",
-    "accent": "#ffffff"
-  },
-  "shape": "sharp",
-  "font": "mono"
+  "theme": {
+    "base": "dark",
+    "colors": {
+      "bg": "#0f0f0f",
+      "surface": "#181818",
+      "text": "#f2f2f2",
+      "accent": "#ffffff"
+    },
+    "shape": "sharp",
+    "font": "mono"
+  }
 }

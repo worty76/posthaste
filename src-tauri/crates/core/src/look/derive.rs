@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use crate::error::Result;
 use crate::look::color::{contrast, mix, Rgb};
-use crate::look::{Base, LookDoc, LookDocExt, TEXT_CONTRAST_MIN};
+use crate::look::{validate_theme, Base, ThemeEdit, TEXT_CONTRAST_MIN};
 
 /// Faint text is for hints, so it only has to stay noticeable, not readable.
 const FAINT_CONTRAST_MIN: f64 = 3.0;
@@ -21,10 +21,10 @@ const WHITE: Rgb = Rgb {
 
 pub use posthaste_model::ResolvedLook;
 
-pub fn resolve(id: &str, doc: &LookDoc) -> Result<ResolvedLook> {
-    doc.validate()?;
-    let c = &doc.colors;
-    let dark = doc.base == Base::Dark;
+pub fn resolve(id: &str, edit: &ThemeEdit) -> Result<ResolvedLook> {
+    validate_theme(edit)?;
+    let c = &edit.colors;
+    let dark = edit.base == Base::Dark;
     let bg = parsed(&c.bg);
     let surface = parsed(&c.surface);
     let text = parsed(&c.text);
@@ -50,11 +50,11 @@ pub fn resolve(id: &str, doc: &LookDoc) -> Result<ResolvedLook> {
 
     Ok(ResolvedLook {
         id: id.to_string(),
-        name: doc.name.clone(),
-        author: doc.author.clone(),
-        base: doc.base,
-        shape: doc.shape,
-        font: doc.font,
+        name: edit.name.clone(),
+        author: edit.author.clone(),
+        base: edit.base,
+        shape: edit.shape,
+        font: edit.font,
         tokens,
     })
 }

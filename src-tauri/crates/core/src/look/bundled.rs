@@ -1,9 +1,9 @@
 //! The eight looks that ship with the app, in gallery order. They are
 //! data: parsed here, validated by the tests, never edited at runtime.
-//! Ink, the factory default, comes first. The six colour looks are v1
-//! documents; Sakura night and Paper are v2, with emoji stickers.
+//! Ink, the factory default, comes first. Sakura night and Paper carry
+//! emoji stickers, which are not shipped yet and stay undrawn.
 
-use crate::look::LookDocument;
+use crate::look::{LookDoc, LookDocExt as _};
 
 const SOURCES: [(&str, &str); 8] = [
     ("ink", include_str!("../../looks/ink.json")),
@@ -32,10 +32,10 @@ const SOURCES: [(&str, &str); 8] = [
 /// in gallery order. A file that no longer parses is skipped and logged
 /// rather than breaking the app; the bundled-look tests are what catch
 /// that.
-pub fn bundled() -> Vec<(String, LookDocument)> {
+pub fn bundled() -> Vec<(String, LookDoc)> {
     SOURCES
         .iter()
-        .filter_map(|(slug, json)| match LookDocument::from_json(json) {
+        .filter_map(|(slug, json)| match LookDoc::from_json(json) {
             Ok(doc) => Some((format!("builtin:{slug}"), doc)),
             Err(e) => {
                 log::error!("bundled look {slug} does not parse: {e}");

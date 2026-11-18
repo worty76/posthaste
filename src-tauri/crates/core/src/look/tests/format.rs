@@ -1,5 +1,34 @@
 use super::*;
 
+mod one_format_tests {
+    use super::OLD_VERSION;
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
+
+    #[test]
+    fn a_version_1_document_is_refused() {
+        let raw = format!(
+            r##"{{"format":"posthaste-look","version":{OLD_VERSION},"name":"X","base":"light",
+            "colors":{{"bg":"#ffffff","surface":"#f2f2f2","text":"#111111","accent":"#3366cc"}}}}"##
+        );
+        let err = crate::look::LookDoc::from_json(&raw)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("This isn't a Posthaste look file."),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn every_bundled_look_is_version_2() {
+        for (id, doc) in crate::look::bundled::bundled() {
+            assert_eq!(doc.version, 2, "{id}");
+            assert_eq!(doc.format, "posthaste-look", "{id}");
+        }
+    }
+}
+
 mod validation_tests {
     use super::doc;
     use crate::look::LookDoc;
@@ -22,7 +51,7 @@ mod validation_tests {
     #[test]
     fn uppercase_three_digit_hex_is_accepted() {
         let mut d = doc();
-        d.colors.bg = "#FFF".into();
+        d.theme.colors.bg = "#FFF".into();
         assert!(d.validate().is_ok());
     }
 
@@ -36,7 +65,7 @@ mod validation_tests {
     #[test]
     fn a_newer_version_is_rejected() {
         let mut d = doc();
-        d.version = 2;
+        d.version = 3;
         assert_invalid(&d, "newer version");
     }
 
@@ -85,7 +114,7 @@ mod validation_tests {
     fn only_hex_colours_are_accepted() {
         for bad in ["red", "#ff8fb1ff", "rgb(1,2,3)", "url(x)"] {
             let mut d = doc();
-            d.colors.bg = bad.into();
+            d.theme.colors.bg = bad.into();
             let err = d.validate().unwrap_err().to_string();
             assert!(err.contains("Color \"bg\""), "got: {err}");
             assert!(err.contains(bad), "got: {err}");
@@ -95,7 +124,7 @@ mod validation_tests {
     #[test]
     fn text_matching_the_background_is_rejected_with_the_ratio() {
         let mut d = doc();
-        d.colors.text = d.colors.bg.clone();
+        d.theme.colors.text = d.theme.colors.bg.clone();
         let err = d.validate().unwrap_err().to_string();
         assert!(err.contains("too similar to read"), "got: {err}");
         assert!(err.contains("1.0:1"), "got: {err}");
@@ -104,55 +133,32 @@ mod validation_tests {
     #[test]
     fn text_matching_the_surface_is_rejected() {
         let mut d = doc();
-        d.colors.bg = "#222222".into();
-        d.colors.text = "#ffffff".into();
-        d.colors.surface = "#ffffff".into();
+        d.theme.colors.bg = "#222222".into();
+        d.theme.colors.text = "#ffffff".into();
+        d.theme.colors.surface = "#ffffff".into();
         assert_invalid(&d, "Text and surface");
     }
 
     #[test]
     fn an_accent_invisible_on_the_background_is_rejected() {
         let mut d = doc();
-        d.colors.accent = d.colors.bg.clone();
+        d.theme.colors.accent = d.theme.colors.bg.clone();
         assert_invalid(&d, "almost invisible");
-    }
-
-    #[test]
-    fn an_unknown_field_rejects_the_whole_look() {
-        let err = LookDoc::from_json(
-            r##"{"format":"posthaste-look","version":1,"name":"x","base":"light",
-                "colors":{"bg":"#ffffff","surface":"#ffffff","text":"#000000","accent":"#000000"},
-                "extra":true}"##,
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(err.contains("unknown field"), "got: {err}");
-    }
-
-    #[test]
-    fn an_unknown_colour_field_rejects_the_whole_look() {
-        let err = LookDoc::from_json(
-            r##"{"format":"posthaste-look","version":1,"name":"x","base":"light",
-                "colors":{"bg":"#ffffff","surface":"#ffffff","text":"#000000","accent":"#000000","glow":"#ffffff"}}"##,
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(err.contains("unknown field"), "got: {err}");
     }
 
     #[test]
     fn a_missing_accent_rejects_the_look() {
         assert!(LookDoc::from_json(
-            r##"{"format":"posthaste-look","version":1,"name":"x","base":"light",
-                "colors":{"bg":"#ffffff","surface":"#ffffff","text":"#000000"}}"##,
+            r##"{"format":"posthaste-look","version":2,"name":"x","theme":{"base":"light",
+                "colors":{"bg":"#ffffff","surface":"#ffffff","text":"#000000"}}}"##
         )
         .is_err());
     }
 
     #[test]
-    fn a_document_over_4096_bytes_is_too_large() {
+    fn a_document_over_the_limit_is_too_large() {
         let mut d = doc();
-        d.name = "y".repeat(5000);
+        d.name = "y".repeat(20_000);
         let err = LookDoc::from_json(&d.to_json()).unwrap_err().to_string();
         assert!(err.contains("too large"), "got: {err}");
     }
@@ -166,68 +172,27 @@ mod validation_tests {
         assert!(!json.contains("bg_sunken"));
 
         let mut with_optional = doc();
-        with_optional.colors.danger = Some("#ff0000".into());
+        with_optional.theme.colors.danger = Some("#ff0000".into());
         let json = with_optional.to_json();
         assert!(json.contains("danger"));
         assert_eq!(LookDoc::from_json(&json).unwrap(), with_optional);
     }
 }
 
-mod migrate_tests {
-    use super::doc;
-    use crate::look::bundled::bundled;
-    use crate::look::derive::resolve;
-    use crate::look::migrate::v1_to_v2;
-    #[allow(unused_imports)]
-    use crate::look::LookDocV2Ext as _;
-    use crate::look::LookDocument;
-
-    #[test]
-    fn every_bundled_look_migrates_to_v2_and_resolves_identically() {
-        for (id, doc) in bundled() {
-            // The colour looks are v1 documents; migrating them must not
-            // move a single token. The demo looks are already v2.
-            let LookDocument::V1(v1) = doc else {
-                continue;
-            };
-            let before = resolve(&id, &v1).unwrap();
-            let v2 = v1_to_v2(&v1);
-            if let Err(e) = v2.validate() {
-                panic!("{id} fails v2 validation: {e}");
-            }
-            let after = resolve(&id, &v2.v1_view()).unwrap();
-            assert_eq!(before, after, "{id}");
-        }
-    }
-
-    #[test]
-    fn migration_moves_the_theme_fields_and_starts_an_empty_scene() {
-        let v1 = doc();
-        let v2 = v1_to_v2(&v1);
-        assert_eq!(v2.format, "posthaste-look");
-        assert_eq!(v2.version, 2);
-        assert_eq!(v2.name, v1.name);
-        assert_eq!(v2.author, v1.author);
-        assert_eq!(v2.theme.base, v1.base);
-        assert_eq!(v2.theme.colors, v1.colors);
-        assert_eq!(v2.theme.shape, v1.shape);
-        assert_eq!(v2.theme.font, v1.font);
-        assert!(v2.scene.is_empty());
-        assert!(v2.assets.is_empty());
-        assert!(v2.extra.is_empty());
-        assert!(v2.theme.extra.is_empty());
-    }
-}
-
-mod v2_validation_tests {
+mod format_layer_tests {
     use serde_json::{json, Map};
 
     use crate::error::CoreError;
     #[allow(unused_imports)]
-    use crate::look::LookDocV2Ext as _;
-    use crate::look::{LayerRecord, LookDocV2, WindowScene};
+    use crate::look::LookDocExt as _;
+    use crate::look::{LayerRecord, LookDoc, WindowScene};
 
-    use super::v2doc;
+    use super::doc;
+
+    /// A document whose colours carry a key this build does not model.
+    const FUTURE_LOOK: &str = r##"{"format":"posthaste-look","version":2,"name":"N",
+        "theme":{"base":"light","colors":{"bg":"#ffffff","surface":"#f2f2f2",
+        "text":"#111111","accent":"#3366cc","border":"#999999"}}}"##;
 
     fn image_layer(dim: f64) -> LayerRecord {
         LayerRecord {
@@ -239,7 +204,7 @@ mod v2_validation_tests {
         }
     }
 
-    fn assert_invalid(d: &LookDocV2, needle: &str) {
+    fn assert_invalid(d: &LookDoc, needle: &str) {
         match d.validate() {
             Ok(()) => panic!("expected refusal with \"{needle}\""),
             Err(CoreError::InvalidLook(msg)) => assert!(msg.contains(needle), "got: {msg}"),
@@ -248,10 +213,10 @@ mod v2_validation_tests {
     }
 
     #[test]
-    fn a_theme_only_v2_document_is_valid_and_round_trips() {
-        let d = v2doc();
+    fn a_theme_only_document_is_valid_and_round_trips() {
+        let d = doc();
         d.validate().unwrap();
-        let back = LookDocV2::from_json(&d.to_json()).unwrap();
+        let back = LookDoc::from_json(&d.to_json()).unwrap();
         assert_eq!(back, d);
         // The empty scene and asset list are not written out.
         assert!(!d.to_json().contains("\"scene\""));
@@ -259,35 +224,42 @@ mod v2_validation_tests {
     }
 
     #[test]
-    fn a_document_newer_than_v2_is_refused() {
-        let mut d = v2doc();
+    fn an_unknown_colour_key_survives_a_round_trip() {
+        let doc = crate::look::LookDoc::from_json(FUTURE_LOOK).unwrap();
+        let back: serde_json::Value = serde_json::from_str(&doc.to_json()).unwrap();
+        assert_eq!(back["theme"]["colors"]["border"], "#999999");
+    }
+
+    #[test]
+    fn a_document_newer_than_this_build_is_refused() {
+        let mut d = doc();
         d.version = 3;
         assert_invalid(&d, "Update the app");
     }
 
     #[test]
-    fn an_oversized_v2_document_is_refused_before_it_is_parsed() {
-        let mut d = v2doc();
+    fn an_oversized_document_is_refused_before_it_is_parsed() {
+        let mut d = doc();
         d.extra.insert("pad".into(), json!("x".repeat(20_000)));
-        let err = LookDocV2::from_json(&d.to_json()).unwrap_err().to_string();
+        let err = LookDoc::from_json(&d.to_json()).unwrap_err().to_string();
         assert!(err.contains("too large"), "got: {err}");
     }
 
     #[test]
     fn a_document_nested_deeper_than_16_is_refused() {
-        let mut d = v2doc();
+        let mut d = doc();
         let mut deep = json!(true);
         for _ in 0..20 {
             deep = json!([deep]);
         }
         d.extra.insert("deep".into(), deep);
-        let err = LookDocV2::from_json(&d.to_json()).unwrap_err().to_string();
+        let err = LookDoc::from_json(&d.to_json()).unwrap_err().to_string();
         assert!(err.contains("levels deep"), "got: {err}");
     }
 
     #[test]
-    fn a_v2_look_with_more_than_64_layers_is_refused() {
-        let mut d = v2doc();
+    fn a_look_with_more_than_64_layers_is_refused() {
+        let mut d = doc();
         d.scene.all = Some(WindowScene {
             backdrop: (0..65).map(|_| image_layer(0.5)).collect(),
             margin: Vec::new(),
@@ -298,7 +270,7 @@ mod v2_validation_tests {
 
     #[test]
     fn sixty_four_layers_are_accepted() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.all = Some(WindowScene {
             backdrop: (0..64).map(|_| image_layer(0.5)).collect(),
             margin: Vec::new(),
@@ -310,7 +282,7 @@ mod v2_validation_tests {
 
     #[test]
     fn an_image_layer_outside_the_backdrop_is_refused() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: vec![image_layer(0.5)],
@@ -321,7 +293,7 @@ mod v2_validation_tests {
 
     #[test]
     fn an_image_dimmed_out_of_range_is_refused() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.main = Some(WindowScene {
             backdrop: vec![image_layer(1.5)],
             margin: Vec::new(),
@@ -332,7 +304,7 @@ mod v2_validation_tests {
 
     #[test]
     fn an_unknown_layer_kind_is_kept_untouched() {
-        let mut d = v2doc();
+        let mut d = doc();
         let mut extra = Map::new();
         extra.insert("custom".into(), json!("keep"));
         d.scene.capture = Some(WindowScene {
@@ -356,7 +328,7 @@ mod v2_validation_tests {
 
     #[test]
     fn a_known_kind_with_a_higher_v_is_kept() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.main = Some(WindowScene {
             backdrop: vec![LayerRecord {
                 kind: "image".into(),
@@ -379,7 +351,7 @@ mod v2_validation_tests {
 
     #[test]
     fn an_unknown_window_entry_is_kept() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene
             .extra
             .insert("laterWindow".into(), json!({"backdrop": []}));
@@ -392,7 +364,7 @@ mod v2_validation_tests {
 
     #[test]
     fn unknown_fields_at_every_level_survive_a_round_trip() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.extra.insert("futureTop".into(), json!({"a": 1}));
         d.theme.extra.insert("laterTheme".into(), json!(7));
         d.scene.extra.insert("laterWindow".into(), json!({}));
@@ -404,76 +376,8 @@ mod v2_validation_tests {
             extra: Map::new(),
         });
         d.assets = vec![super::listed_asset(&super::asset_id())];
-        let back = LookDocV2::from_json(&d.to_json()).unwrap();
+        let back = LookDoc::from_json(&d.to_json()).unwrap();
         assert_eq!(back, d);
-    }
-}
-
-mod document_tests {
-    #[allow(unused_imports)]
-    use crate::look::{LookDocExt as _, LookDocV2Ext as _, LookDocument};
-
-    #[test]
-    fn from_json_dispatches_on_the_version() {
-        let v1 = r##"{"format":"posthaste-look","version":1,"name":"A","base":"light","colors":{"bg":"#fff5f7","surface":"#ffffff","text":"#4a2c3a","accent":"#ff8fb1"}}"##;
-        let v2 = r##"{"format":"posthaste-look","version":2,"name":"B","theme":{"base":"dark","colors":{"bg":"#120d18","surface":"#1d1526","text":"#f3e9f7","accent":"#ff7eb6"}}}"##;
-        assert!(matches!(
-            LookDocument::from_json(v1),
-            Ok(LookDocument::V1(_))
-        ));
-        assert!(matches!(
-            LookDocument::from_json(v2),
-            Ok(LookDocument::V2(_))
-        ));
-    }
-
-    #[test]
-    fn a_document_from_a_newer_version_is_refused_with_the_update_message() {
-        let json = r##"{"format":"posthaste-look","version":9,"name":"X"}"##;
-        let err = LookDocument::from_json(json).unwrap_err().to_string();
-        assert!(err.contains("Update the app"), "got: {err}");
-    }
-
-    #[test]
-    fn a_v1_document_keeps_its_own_size_limit() {
-        let mut d = super::doc();
-        d.name = "x".repeat(5_000);
-        let err = LookDocument::from_json(&d.to_json())
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("4096"), "got: {err}");
-    }
-
-    #[test]
-    fn garbage_is_not_a_look() {
-        let err = LookDocument::from_json("not json at all")
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("isn't a valid look"), "got: {err}");
-    }
-}
-
-mod part_a_tests {
-    use serde_json::Map;
-
-    use super::super::store::v2_store_tests::FUTURE_LOOK;
-    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
-
-    #[test]
-    fn an_unknown_colour_key_survives_a_v2_round_trip() {
-        let doc = crate::look::LookDocV2::from_json(FUTURE_LOOK).unwrap();
-        let back: serde_json::Value = serde_json::from_str(&doc.to_json()).unwrap();
-        assert_eq!(back["theme"]["colors"]["border"], "#999999");
-    }
-
-    #[test]
-    fn a_v1_look_with_an_unknown_colour_key_is_still_refused() {
-        let raw = r##"{"format":"posthaste-look","version":1,"name":"N","base":"light",
-              "colors":{"bg":"#ffffff","surface":"#f2f2f2","text":"#111111","accent":"#3366cc","border":"#999999"}}"##;
-        let err = crate::look::LookDoc::from_json(raw)
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("border"), "{err}");
     }
 
     #[test]
@@ -489,7 +393,7 @@ mod part_a_tests {
         // over the limit, so the next import refused the app's own save.
         let mut pad = 20_000usize;
         let json = loop {
-            let mut d = super::v2doc();
+            let mut d = doc();
             d.extra
                 .insert("pad".into(), serde_json::json!("x".repeat(pad)));
             let layers: Vec<crate::look::LayerRecord> = (0..64)
@@ -527,8 +431,40 @@ mod part_a_tests {
             }
             pad -= 50;
         };
-        let parsed = crate::look::LookDocV2::from_json(&json).unwrap();
-        let again = crate::look::LookDocV2::from_json(&parsed.to_json()).unwrap();
+        let parsed = crate::look::LookDoc::from_json(&json).unwrap();
+        let again = crate::look::LookDoc::from_json(&parsed.to_json()).unwrap();
         assert_eq!(again, parsed);
+    }
+}
+
+mod document_tests {
+    use super::OLD_VERSION;
+    #[allow(unused_imports)]
+    use crate::look::LookDocExt as _;
+
+    #[test]
+    fn a_document_from_a_newer_version_is_refused_with_the_update_message() {
+        let json = r##"{"format":"posthaste-look","version":9,"name":"X"}"##;
+        let err = crate::look::LookDoc::from_json(json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("Update the app"), "got: {err}");
+    }
+
+    #[test]
+    fn a_version_below_two_is_not_a_look_file() {
+        let json = format!(r##"{{"format":"posthaste-look","version":{OLD_VERSION},"name":"X"}}"##);
+        let err = crate::look::LookDoc::from_json(&json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("isn't a Posthaste look file"), "got: {err}");
+    }
+
+    #[test]
+    fn garbage_is_not_a_look() {
+        let err = crate::look::LookDoc::from_json("not json at all")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("isn't a valid look"), "got: {err}");
     }
 }

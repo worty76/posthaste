@@ -54,14 +54,14 @@ mod tests {
     }
 
     #[test]
-    fn a_v2_look_keeps_fields_it_does_not_model_through_serde() {
+    fn a_look_keeps_fields_it_does_not_model_through_serde() {
         let raw = r##"{"format":"posthaste-look","version":2,"name":"N","author":"A",
             "theme":{"base":"light","colors":{"bg":"#ffffff","surface":"#f2f2f2",
-            "text":"#111111","accent":"#3366cc"},"shape":"round","laterTheme":7},
+            "text":"#111111","accent":"#3366cc"},"shape":"round","font":"system","font_family":null,"laterTheme":7},
             "scene":{"all":{"backdrop":[{"kind":"shader","v":9,"config":{"src":"x"},
             "custom":"keep"}]}},"assets":[{"id":"sha256:ab12","type":"image/png",
             "bytes":1,"width":2,"height":3,"future":true}],"futureTop":{"a":1}}"##;
-        let doc: LookDocV2 = serde_json::from_str(raw).unwrap();
+        let doc: LookDoc = serde_json::from_str(raw).unwrap();
         assert_eq!(
             doc.extra.get("futureTop"),
             Some(&serde_json::json!({"a":1}))

@@ -1,20 +1,135 @@
-use super::*;
+//! Storage tests: the gallery, saving, limits, deletion, the active
+//! look, and what the editor's save keeps.
+
+use super::{asset_id, doc, listed_asset, theme, OLD_VERSION};
+use crate::look::LookDoc;
+
+/// A Strawberry-Milk-shaped document with another name.
+fn named(name: &str) -> LookDoc {
+    let mut d = doc();
+    d.name = name.into();
+    d
+}
+
+mod one_format_store_tests {
+    use serde_json::{json, Map};
+
+    use super::{asset_id, doc, listed_asset, theme, OLD_VERSION};
+    use crate::{Db, Settings};
+
+    #[test]
+    fn a_stored_version_1_row_is_skipped() {
+        let mut db = Db::open_in_memory().unwrap();
+        let row = json!({
+            "format": "posthaste-look",
+            "version": OLD_VERSION,
+            "name": "Old",
+            "base": "light",
+            "colors": {
+                "bg": "#ffffff", "surface": "#f2f2f2",
+                "text": "#111111", "accent": "#3366cc"
+            }
+        });
+        db.conn()
+            .execute(
+                "INSERT INTO looks (id, doc, created_at, updated_at)
+                 VALUES ('user:v1', ?1, 1, 1)",
+                [&row.to_string()],
+            )
+            .unwrap();
+        let looks = db.list_looks().unwrap();
+        assert_eq!(looks.len(), 8, "the eight bundled looks only");
+        assert!(looks.iter().all(|l| l.id != "user:v1"));
+        db.save_settings(&Settings {
+            look_id: Some("user:v1".into()),
+            ..Settings::default()
+        })
+        .unwrap();
+        assert_eq!(
+            db.active_look().unwrap().map(|l| l.id),
+            Some(crate::look::DEFAULT_LOOK_ID.into())
+        );
+    }
+
+    #[test]
+    fn an_editor_save_keeps_unknown_theme_and_colour_fields() {
+        let mut db = Db::open_in_memory().unwrap();
+        let mut d = doc();
+        d.theme.extra.insert("glow".into(), serde_json::json!(1));
+        d.theme
+            .colors
+            .extra
+            .insert("link".into(), serde_json::json!("#123456"));
+        let saved = db.save_look_document(d, None).unwrap();
+
+        let mut edit = db.look_theme(&saved.id).unwrap();
+        edit.colors.accent = "#3366cc".into();
+        db.save_look(edit, None, Some(&saved.id)).unwrap();
+
+        let stored: String = db
+            .conn()
+            .query_row("SELECT doc FROM looks WHERE id = ?1", [&saved.id], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(stored.contains(r#""glow":1"#), "theme.extra kept: {stored}");
+        assert!(
+            stored.contains(r##""link":"#123456""##),
+            "colors.extra kept: {stored}"
+        );
+        assert!(
+            stored.contains("#3366cc"),
+            "the new accent landed: {stored}"
+        );
+    }
+
+    #[test]
+    fn look_theme_answers_the_edit_the_editor_sends() {
+        let mut db = Db::open_in_memory().unwrap();
+        let id = db.save_look(theme(), None, None).unwrap().id;
+        let edit = db.look_theme(&id).unwrap();
+        assert_eq!(edit, theme());
+        assert!(edit.font_family.is_none());
+    }
+
+    #[test]
+    fn a_scene_and_its_assets_survive_an_editor_save() {
+        use crate::look::{LayerRecord, WindowScene};
+
+        let mut db = Db::open_in_memory().unwrap();
+        let mut d = doc();
+        d.scene.all = Some(WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 1,
+                on: true,
+                config: json!({"asset": asset_id(), "dim": 0.45}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        d.assets = vec![listed_asset(&asset_id())];
+        let saved = db.save_look_document(d, None).unwrap();
+
+        let mut edit = db.look_theme(&saved.id).unwrap();
+        edit.name = "Renamed".into();
+        db.save_look(edit, None, Some(&saved.id)).unwrap();
+
+        let stored = db.look_document(&saved.id).unwrap();
+        assert_eq!(stored.name, "Renamed");
+        assert_eq!(stored.scene.all.as_ref().unwrap().backdrop.len(), 1);
+        assert_eq!(stored.assets.len(), 1);
+    }
+}
 
 mod store_tests {
-    use super::doc;
+    use super::{doc, named};
     use crate::error::CoreError;
     use crate::look::code::encode_code;
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
     use crate::{Db, Settings};
-
-    /// The Strawberry Milk look with a different name, so saved looks are
-    /// distinguishable in the list.
-    fn named(name: &str) -> crate::look::LookDoc {
-        let mut d = doc();
-        d.name = name.into();
-        d
-    }
 
     #[test]
     fn a_fresh_database_lists_the_eight_bundled_looks() {
@@ -30,8 +145,12 @@ mod store_tests {
     #[test]
     fn saved_looks_get_user_ids_and_list_after_the_bundled_ones_newest_first() {
         let mut db = Db::open_in_memory().unwrap();
-        let a = db.save_look_at(named("Alpha"), None, None, 1_000).unwrap();
-        let b = db.save_look_at(named("Beta"), None, None, 2_000).unwrap();
+        let a = db
+            .save_look_at(named("Alpha").theme_edit(), None, None, 1_000)
+            .unwrap();
+        let b = db
+            .save_look_at(named("Beta").theme_edit(), None, None, 2_000)
+            .unwrap();
         assert!(a.id.starts_with("user:"));
         assert!(b.id.starts_with("user:"));
         assert_ne!(a.id, b.id);
@@ -46,8 +165,8 @@ mod store_tests {
     fn the_summary_preview_is_normalised() {
         let mut db = Db::open_in_memory().unwrap();
         let mut d = named("Upper");
-        d.colors.bg = "#FFF".into();
-        let s = db.save_look(d, None, None).unwrap();
+        d.theme.colors.bg = "#FFF".into();
+        let s = db.save_look(d.theme_edit(), None, None).unwrap();
         assert!(!s.builtin);
         assert_eq!(s.preview.bg, "#ffffff");
     }
@@ -55,9 +174,11 @@ mod store_tests {
     #[test]
     fn saving_with_an_existing_id_updates_in_place() {
         let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look_at(named("First"), None, None, 1_000).unwrap();
+        let s = db
+            .save_look_at(named("First").theme_edit(), None, None, 1_000)
+            .unwrap();
         let updated = db
-            .save_look_at(named("Second"), None, Some(&s.id), 2_000)
+            .save_look_at(named("Second").theme_edit(), None, Some(&s.id), 2_000)
             .unwrap();
         assert_eq!(updated.id, s.id);
         assert_eq!(updated.name, "Second");
@@ -83,7 +204,7 @@ mod store_tests {
                 [broken],
             )
             .unwrap();
-        let result = db.save_look(named("New"), None, Some("user:broken"));
+        let result = db.save_look(named("New").theme_edit(), None, Some("user:broken"));
         assert!(result.is_err(), "the save must be refused");
         let doc: String = db
             .conn()
@@ -97,13 +218,13 @@ mod store_tests {
     #[test]
     fn updating_an_unknown_or_builtin_look_is_refused() {
         let mut db = Db::open_in_memory().unwrap();
-        let d = named("X");
+        let edit = named("X").theme_edit();
         assert!(matches!(
-            db.save_look(d.clone(), None, Some("user:missing")),
+            db.save_look(edit.clone(), None, Some("user:missing")),
             Err(CoreError::NotFound)
         ));
         assert!(matches!(
-            db.save_look(d, None, Some("builtin:ink")),
+            db.save_look(edit, None, Some("builtin:ink")),
             Err(CoreError::BuiltinLook)
         ));
     }
@@ -111,10 +232,10 @@ mod store_tests {
     #[test]
     fn an_invalid_document_is_rejected_and_the_list_is_unchanged() {
         let mut db = Db::open_in_memory().unwrap();
-        let mut d = named("Bad");
-        d.colors.text = d.colors.bg.clone();
+        let mut edit = named("Bad").theme_edit();
+        edit.colors.text = edit.colors.bg.clone();
         assert!(matches!(
-            db.save_look(d, None, None),
+            db.save_look(edit, None, None),
             Err(CoreError::InvalidLook(_))
         ));
         assert_eq!(db.list_looks().unwrap().len(), 8);
@@ -126,15 +247,20 @@ mod store_tests {
         let mut last = String::new();
         for i in 0..50 {
             last = db
-                .save_look_at(named(&format!("Look {i}")), None, None, i as i64)
+                .save_look_at(
+                    named(&format!("Look {i}")).theme_edit(),
+                    None,
+                    None,
+                    i as i64,
+                )
                 .unwrap()
                 .id;
         }
         assert!(matches!(
-            db.save_look_at(named("One too many"), None, None, 100),
+            db.save_look_at(named("One too many").theme_edit(), None, None, 100),
             Err(CoreError::TooManyLooks)
         ));
-        db.save_look_at(named("Renamed"), None, Some(&last), 200)
+        db.save_look_at(named("Renamed").theme_edit(), None, Some(&last), 200)
             .unwrap();
         assert_eq!(db.list_looks().unwrap().len(), 58);
     }
@@ -142,9 +268,11 @@ mod store_tests {
     #[test]
     fn deleting_removes_user_looks_and_refuses_builtins() {
         let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look(named("Doomed"), None, None).unwrap();
+        let s = db
+            .save_look(named("Doomed").theme_edit(), None, None)
+            .unwrap();
         db.delete_look(&s.id).unwrap();
-        assert!(matches!(db.look_doc(&s.id), Err(CoreError::NotFound)));
+        assert!(matches!(db.look_document(&s.id), Err(CoreError::NotFound)));
         assert!(matches!(
             db.delete_look("builtin:ink"),
             Err(CoreError::BuiltinLook)
@@ -181,7 +309,9 @@ mod store_tests {
         .unwrap();
         assert_eq!(db.active_look().unwrap(), None);
 
-        let s = db.save_look(named("Mine"), None, None).unwrap();
+        let s = db
+            .save_look(named("Mine").theme_edit(), None, None)
+            .unwrap();
         db.save_settings(&Settings {
             look_id: Some(s.id.clone()),
             ..Default::default()
@@ -198,7 +328,8 @@ mod store_tests {
     #[test]
     fn a_corrupt_stored_row_is_skipped_without_breaking_the_list() {
         let mut db = Db::open_in_memory().unwrap();
-        db.save_look(named("Good"), None, None).unwrap();
+        db.save_look(named("Good").theme_edit(), None, None)
+            .unwrap();
         db.conn()
             .execute(
                 "INSERT INTO looks (id, doc, created_at, updated_at)
@@ -237,7 +368,8 @@ mod store_tests {
     #[test]
     fn clear_all_removes_user_looks() {
         let mut db = Db::open_in_memory().unwrap();
-        db.save_look(named("Mine"), None, None).unwrap();
+        db.save_look(named("Mine").theme_edit(), None, None)
+            .unwrap();
         db.clear_all().unwrap();
         assert_eq!(db.list_looks().unwrap().len(), 8);
     }
@@ -268,214 +400,5 @@ mod store_tests {
             )
             .unwrap();
         assert_eq!(db.load_settings().unwrap().look_id, None);
-    }
-}
-
-pub(super) mod v2_store_tests {
-    use serde_json::{json, Map};
-
-    use super::{doc, v2doc};
-    use crate::look::code::{decode_code, encode_code, encode_code_v2, encode_document};
-    use crate::look::derive::resolve;
-    use crate::look::{LayerRecord, LookDocV2, LookDocument, WindowScene};
-    #[allow(unused_imports)]
-    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
-    use crate::Db;
-
-    /// A look written as if by a future build: an unknown top-level field,
-    /// an unknown layer kind, and an unknown key inside a known layer.
-    pub(crate) const FUTURE_LOOK: &str = r##"{
-      "format": "posthaste-look",
-      "version": 2,
-      "name": "Future build",
-      "author": "Someone newer",
-      "theme": {
-        "base": "light",
-        "colors": { "bg": "#fff5f7", "surface": "#ffffff", "text": "#4a2c3a", "accent": "#ff8fb1", "border": "#999999" },
-        "shape": "round",
-        "font": "rounded",
-        "futureTheme": { "that": "stays" }
-      },
-      "scene": {
-        "all": { "backdrop": [ { "kind": "image", "v": 1, "config": { "asset": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "fit": "cover", "dim": 0.45, "futureKey": "keep" } } ] },
-        "capture": { "margin": [ { "kind": "shader", "v": 9, "on": false, "config": { "source": "spiral" }, "custom": "keep" } ] },
-        "laterWindow": { "backdrop": [ { "kind": "mystery", "v": 1 } ] }
-      },
-      "assets": [ { "id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "type": "image/png", "bytes": 412000, "width": 1920, "height": 1080, "future": true } ],
-      "futureTop": { "still": "here" }
-    }"##;
-
-    fn scene_with_layers() -> WindowScene {
-        WindowScene {
-            backdrop: vec![LayerRecord {
-                kind: "image".into(),
-                v: 1,
-                on: true,
-                config: json!({"asset": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "dim": 0.45}),
-                extra: Map::new(),
-            }],
-            margin: Vec::new(),
-            extra: Map::new(),
-        }
-    }
-
-    /// A valid v2 document: the scene plus its listed asset.
-    pub(crate) fn scene_doc() -> LookDocV2 {
-        let mut d = v2doc();
-        d.scene.all = Some(scene_with_layers());
-        d.assets = vec![super::listed_asset(&super::asset_id())];
-        d
-    }
-
-    #[test]
-    fn a_future_look_survives_parse_edit_save_export_and_reimport() {
-        let mut db = Db::open_in_memory().unwrap();
-        let mut parsed = LookDocV2::from_json(FUTURE_LOOK).unwrap();
-        // The edit an editor makes: one colour.
-        parsed.theme.colors.bg = "#eef2f7".into();
-        parsed.validate().unwrap();
-
-        // Save, export, and import into a fresh database.
-        let saved = db
-            .save_look_document(LookDocument::V2(parsed.clone()), None)
-            .unwrap();
-        let code = encode_document(&db.look_document(&saved.id).unwrap());
-        let mut other = Db::open_in_memory().unwrap();
-        let imported = other.import_look(&code).unwrap();
-        let back = match other.look_document(&imported.id).unwrap() {
-            LookDocument::V2(d) => d,
-            _ => panic!("expected a v2 document"),
-        };
-
-        // The edited colour came through, and the whole document is
-        // otherwise identical: every unknown part keeps its content.
-        assert_eq!(back, parsed);
-        assert_eq!(back.theme.colors.bg, "#eef2f7");
-        assert_eq!(
-            back.theme.colors.extra.get("border"),
-            Some(&json!("#999999"))
-        );
-        assert_eq!(back.extra.get("futureTop"), Some(&json!({"still": "here"})));
-        assert_eq!(
-            back.theme.extra.get("futureTheme"),
-            Some(&json!({"that": "stays"}))
-        );
-        let shader = &back.scene.capture.as_ref().unwrap().margin[0];
-        assert_eq!(shader.kind, "shader");
-        assert!(!shader.on);
-        assert_eq!(shader.extra.get("custom"), Some(&json!("keep")));
-        let image = &back.scene.all.as_ref().unwrap().backdrop[0];
-        assert_eq!(image.config.get("futureKey"), Some(&json!("keep")));
-        assert_eq!(back.assets[0].extra.get("future"), Some(&true.into()));
-    }
-
-    #[test]
-    fn saving_a_v1_look_stores_a_v2_document_that_resolves_identically() {
-        let mut db = Db::open_in_memory().unwrap();
-        let s = db.save_look(doc(), None, None).unwrap();
-        let stored = match db.look_document(&s.id).unwrap() {
-            LookDocument::V2(d) => d,
-            _ => panic!("expected the stored copy to be v2"),
-        };
-        assert_eq!(
-            resolve(&s.id, &doc()).unwrap(),
-            resolve(&s.id, &stored.v1_view()).unwrap()
-        );
-    }
-
-    #[test]
-    fn editing_an_imported_v2_look_from_the_editor_keeps_its_scene() {
-        let d = scene_doc();
-        let mut db = Db::open_in_memory().unwrap();
-        let imported = db.import_look(&encode_code_v2(&d)).unwrap();
-
-        // The editor only knows the v1 view: it renames and saves back.
-        let mut edited = db.look_doc(&imported.id).unwrap();
-        edited.name = "Renamed".into();
-        db.save_look(edited, None, Some(&imported.id)).unwrap();
-
-        let back = match db.look_document(&imported.id).unwrap() {
-            LookDocument::V2(d) => d,
-            _ => panic!("expected v2"),
-        };
-        assert_eq!(back.name, "Renamed");
-        assert_eq!(back.scene.all.as_ref().unwrap().backdrop[0].kind, "image");
-    }
-
-    #[test]
-    fn updating_a_stored_v1_look_migrates_it_to_v2() {
-        let mut db = Db::open_in_memory().unwrap();
-        db.conn()
-            .execute(
-                "INSERT INTO looks (id, doc, created_at, updated_at) VALUES ('user:v1', ?1, 1, 1)",
-                [doc().to_json()],
-            )
-            .unwrap();
-        let mut edited = doc();
-        edited.name = "Updated".into();
-        db.save_look_at(edited, None, Some("user:v1"), 2).unwrap();
-        match db.look_document("user:v1").unwrap() {
-            LookDocument::V2(d) => assert_eq!(d.name, "Updated"),
-            _ => panic!("expected the save to migrate the row to v2"),
-        }
-    }
-
-    #[test]
-    fn a_stored_v1_row_still_lists_and_resolves_until_its_next_save() {
-        let db = Db::open_in_memory().unwrap();
-        db.conn()
-            .execute(
-                "INSERT INTO looks (id, doc, created_at, updated_at) VALUES ('user:v1', ?1, 1, 1)",
-                [doc().to_json()],
-            )
-            .unwrap();
-        let looks = db.list_looks().unwrap();
-        assert!(looks.iter().any(|l| l.id == "user:v1"));
-        assert!(matches!(
-            db.look_document("user:v1").unwrap(),
-            LookDocument::V1(_)
-        ));
-        assert_eq!(
-            resolve("user:v1", &db.look_doc("user:v1").unwrap()).unwrap(),
-            resolve("user:v1", &doc()).unwrap()
-        );
-    }
-
-    #[test]
-    fn importing_a_v1_code_stores_v2_and_a_v2_code_stays_v2() {
-        let mut db = Db::open_in_memory().unwrap();
-        let from_v1 = db.import_look(&encode_code(&doc())).unwrap();
-        assert!(matches!(
-            db.look_document(&from_v1.id).unwrap(),
-            LookDocument::V2(_)
-        ));
-        let d = scene_doc();
-        let from_v2 = db.import_look(&encode_code_v2(&d)).unwrap();
-        match db.look_document(&from_v2.id).unwrap() {
-            LookDocument::V2(stored) => assert!(stored.scene.all.is_some()),
-            _ => panic!("expected v2"),
-        }
-        // Both resolve to the same tokens as the v1 original.
-        assert_eq!(
-            resolve(&from_v1.id, &doc()).unwrap().tokens,
-            resolve(&from_v2.id, &v2doc().v1_view()).unwrap().tokens
-        );
-    }
-
-    #[test]
-    fn a_cut_v2_code_reports_incomplete() {
-        let d = scene_doc();
-        let code = encode_code_v2(&d);
-        let cut = &code[..code.len() - 10];
-        let err = decode_code(cut).unwrap_err().to_string();
-        assert!(err.contains("incomplete"), "got: {err}");
-    }
-
-    #[test]
-    fn a_document_with_a_v2_scene_survives_a_decode_cycle_verbatim() {
-        let raw =
-            decode_code(&encode_code_v2(&LookDocV2::from_json(FUTURE_LOOK).unwrap())).unwrap();
-        let original = LookDocument::V2(LookDocV2::from_json(FUTURE_LOOK).unwrap());
-        assert_eq!(raw, original);
     }
 }

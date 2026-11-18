@@ -1,21 +1,44 @@
 use super::*;
 
+mod one_format_code_tests {
+    use super::OLD_VERSION;
+    use crate::look::code::decode_code;
+
+    #[test]
+    fn a_version_1_code_is_not_a_look_code() {
+        let code = format!("posthaste-look:{}:abcd", OLD_VERSION);
+        let err = decode_code(&code).unwrap_err().to_string();
+        assert!(
+            err.contains(r#"It should start with "posthaste-look:2:""#),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn a_newer_code_says_update() {
+        let err = decode_code("posthaste-look:3:abcd")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains(
+                "This look was made with a newer version of Posthaste. Update the app to use it."
+            ),
+            "got: {err}"
+        );
+    }
+}
+
 mod code_tests {
-    use super::doc;
-    use crate::look::code::{
-        b64_decode, b64_encode, decode_code, encode_code, encode_document, CODE_PREFIX,
-    };
+    use serde_json::{json, Map};
+
+    use super::{asset_id, doc, listed_asset};
+    use crate::look::code::{b64_decode, b64_encode, decode_code, encode_code, CODE_PREFIX};
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
-    use crate::look::LookDocument;
+    use crate::look::{LayerRecord, WindowScene};
 
     fn coded() -> String {
         encode_code(&doc())
-    }
-
-    /// A v1 code decodes to the v1 document it names.
-    fn decoded_v1(code: &str) -> LookDocument {
-        decode_code(code).unwrap()
     }
 
     #[test]
@@ -42,7 +65,27 @@ mod code_tests {
     fn a_code_encodes_and_decodes_back_to_the_same_document() {
         let code = coded();
         assert!(code.starts_with(CODE_PREFIX));
-        assert_eq!(decoded_v1(&code), LookDocument::V1(doc()));
+        assert_eq!(decode_code(&code).unwrap(), doc());
+    }
+
+    #[test]
+    fn a_code_round_trips_a_document_with_a_scene_and_its_assets() {
+        let mut d = doc();
+        d.scene.all = Some(WindowScene {
+            backdrop: vec![LayerRecord {
+                kind: "image".into(),
+                v: 1,
+                on: true,
+                config: json!({"asset": asset_id(), "dim": 0.45}),
+                extra: Map::new(),
+            }],
+            margin: Vec::new(),
+            extra: Map::new(),
+        });
+        d.assets = vec![listed_asset(&asset_id())];
+        let code = encode_code(&d);
+        assert!(code.starts_with(CODE_PREFIX));
+        assert_eq!(decode_code(&code).unwrap(), d);
     }
 
     #[test]
@@ -58,15 +101,12 @@ mod code_tests {
                 wrapped.push('\n');
             }
         }
-        assert_eq!(decoded_v1(&wrapped), LookDocument::V1(doc()));
-        assert_eq!(decoded_v1(&format!("\"{code}\"")), LookDocument::V1(doc()));
-        assert_eq!(decoded_v1(&format!("`{code}`")), LookDocument::V1(doc()));
-        assert_eq!(
-            decoded_v1(&format!("  \n{code}  \n")),
-            LookDocument::V1(doc())
-        );
+        assert_eq!(decode_code(&wrapped).unwrap(), doc());
+        assert_eq!(decode_code(&format!("\"{code}\"")).unwrap(), doc());
+        assert_eq!(decode_code(&format!("`{code}`")).unwrap(), doc());
+        assert_eq!(decode_code(&format!("  \n{code}  \n")).unwrap(), doc());
         // A raw document pasted as JSON reads the same way.
-        assert_eq!(decoded_v1(&doc().to_json()), LookDocument::V1(doc()));
+        assert_eq!(decode_code(&doc().to_json()).unwrap(), doc());
     }
 
     #[test]
@@ -79,16 +119,7 @@ mod code_tests {
     #[test]
     fn something_else_entirely_reports_the_missing_prefix() {
         let err = decode_code("hello").unwrap_err().to_string();
-        assert!(err.contains("posthaste-look:1:"), "got: {err}");
-    }
-
-    #[test]
-    fn a_code_from_a_newer_version_reports_just_that() {
-        // Version 2 is this build's own format; version 3 is not.
-        let err = decode_code("posthaste-look:3:AAAA")
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("newer version"), "got: {err}");
+        assert!(err.contains("posthaste-look:2:"), "got: {err}");
     }
 
     #[test]
@@ -101,63 +132,18 @@ mod code_tests {
     #[test]
     fn a_code_for_an_unreadable_look_shows_the_validation_message() {
         let mut bad = doc();
-        bad.colors.text = bad.colors.bg.clone();
+        bad.theme.colors.text = bad.theme.colors.bg.clone();
         let err = decode_code(&encode_code(&bad)).unwrap_err().to_string();
         assert!(err.contains("too similar to read"), "got: {err}");
         assert!(!err.contains("incomplete"), "got: {err}");
-    }
-
-    #[test]
-    fn every_bundled_look_round_trips_through_its_code() {
-        for (id, d) in crate::look::bundled::bundled() {
-            assert_eq!(decode_code(&encode_document(&d)).unwrap(), d, "{id}");
-        }
-    }
-}
-
-mod v2_code_tests {
-    use serde_json::{json, Map};
-
-    use super::{doc, v2doc};
-    use crate::look::code::{decode_code, encode_code, encode_document, CODE_PREFIX_V2};
-    #[allow(unused_imports)]
-    use crate::look::LookDocV2Ext as _;
-    use crate::look::{LayerRecord, LookDocument, WindowScene};
-
-    #[test]
-    fn a_v1_code_still_decodes_to_a_v1_document() {
-        assert_eq!(
-            decode_code(&encode_code(&doc())).unwrap(),
-            LookDocument::V1(doc())
-        );
-    }
-
-    #[test]
-    fn a_v2_code_round_trips_the_whole_document() {
-        let mut d = v2doc();
-        d.scene.all = Some(WindowScene {
-            backdrop: vec![LayerRecord {
-                kind: "image".into(),
-                v: 1,
-                on: true,
-                config: json!({"asset": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "dim": 0.45}),
-                extra: Map::new(),
-            }],
-            margin: Vec::new(),
-            extra: Map::new(),
-        });
-        d.assets = vec![super::listed_asset(&super::asset_id())];
-        let code = encode_document(&LookDocument::V2(d.clone()));
-        assert!(code.starts_with(CODE_PREFIX_V2));
-        assert_eq!(decode_code(&code).unwrap(), LookDocument::V2(d));
     }
 }
 
 mod bundled_tests {
     use crate::look::bundled::bundled;
-    use crate::look::code::{decode_code, encode_document};
+    use crate::look::code::{decode_code, encode_code};
     use crate::look::derive::resolve;
-    use crate::look::LookDocument;
+    use crate::look::LookDocExt as _;
 
     #[test]
     fn the_bundled_looks_ship_in_gallery_order() {
@@ -185,11 +171,11 @@ mod bundled_tests {
             if let Err(e) = d.validate() {
                 panic!("{id} fails validation: {e}");
             }
-            if let Err(e) = resolve(id, &d.v1_view()) {
+            if let Err(e) = resolve(id, &d.theme_edit()) {
                 panic!("{id} fails to resolve: {e}");
             }
         }
-        let mut names: Vec<String> = looks.iter().map(|(_, d)| d.v1_view().name).collect();
+        let mut names: Vec<String> = looks.iter().map(|(_, d)| d.theme_edit().name).collect();
         names.sort();
         let unique = names.len() == names.iter().len() && names.windows(2).all(|w| w[0] != w[1]);
         assert!(unique, "names are unique: {names:?}");
@@ -202,14 +188,14 @@ mod bundled_tests {
             .find(|(id, _)| id == "builtin:ink")
             .map(|(_, d)| d)
             .expect("ink ships with the app");
-        let tokens = resolve("builtin:ink", &ink.v1_view()).unwrap().tokens;
+        let tokens = resolve("builtin:ink", &ink.theme_edit()).unwrap().tokens;
         assert_eq!(tokens.get("--on-accent").unwrap(), "#0f0f0f");
     }
 
     #[test]
     fn every_bundled_look_survives_its_share_code() {
         for (id, d) in bundled() {
-            assert_eq!(decode_code(&encode_document(&d)).unwrap(), d, "{id}");
+            assert_eq!(decode_code(&encode_code(&d)).unwrap(), d, "{id}");
         }
     }
 
@@ -219,9 +205,6 @@ mod bundled_tests {
         // the document, and nothing draws them.
         let looks = bundled();
         for (id, doc) in &looks {
-            let LookDocument::V2(doc) = doc else {
-                continue;
-            };
             if !id.contains("sakura") && !id.contains("paper") {
                 continue;
             }
