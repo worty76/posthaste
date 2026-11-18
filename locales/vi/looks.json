@@ -81,7 +81,10 @@
     "sticker_faded": "Mờ",
     "remove_layer": "Bỏ",
     "needs_newer": "Một phần của giao diện này cần Posthaste mới hơn.",
-    "simple_note": "Tối giản đang ẩn hình dán và ảnh trong các cửa sổ. Bản xem trước này vẫn hiện chúng."
+    "simple_note": "Tối giản đang ẩn hình dán và ảnh trong các cửa sổ. Bản xem trước này vẫn hiện chúng.",
+    "font_custom": "Phông chữ tùy chỉnh",
+    "font_custom_hint": "Tên một phông chữ đã cài trên máy này, ví dụ JetBrains Mono. Phông chữ ở trên sẽ được dùng khi máy chưa cài phông này.",
+    "font_not_installed": "“{name}” chưa được cài trên máy này, nên bạn đang thấy phông chữ ở trên."
   },
   "simple": "Giao diện tối giản",
   "simple_help": "Giữ màu của giao diện, ẩn hình dán và ảnh.",
@@ -91,5 +94,6 @@
   "file_title": "Nhập giao diện",
   "file_text": "Mọi thứ trong tệp đã được kiểm tra. Bản xem trước nằm sau hộp thoại này; thêm sẽ lưu giao diện và ảnh của nó trên máy này.",
   "file_install": "Thêm vào giao diện của tôi",
-  "exported": "Đã xuất ra tệp"
+  "exported": "Đã xuất ra tệp",
+  "shared_with_font": "Đã sao chép mã. Giao diện này dùng phông chữ “{font}”: hãy cài phông đó trước để thấy đúng như thiết kế."
 }

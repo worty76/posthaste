@@ -278,3 +278,97 @@ mod derive_tests {
         crate::look::color::Rgb::parse(r.tokens.get("--surface").unwrap()).unwrap()
     }
 }
+
+mod font_tests {
+    use super::doc;
+    use crate::look::code::{decode_code, encode_code};
+    use crate::look::derive::resolve;
+    use crate::look::{validate_theme, FontFace};
+
+    fn tokens_with(name: Option<&str>) -> std::collections::BTreeMap<String, String> {
+        let mut edit = doc().theme_edit();
+        edit.font = FontFace::Mono;
+        edit.font_family = name.map(String::from);
+        resolve("test", &edit).unwrap().tokens
+    }
+
+    #[test]
+    fn a_custom_font_becomes_the_font_token() {
+        let t = tokens_with(Some("JetBrains Mono"));
+        assert_eq!(
+            t.get("--font").unwrap(),
+            "\"JetBrains Mono\", var(--font-mono-ui)"
+        );
+    }
+
+    #[test]
+    fn no_custom_font_no_font_token() {
+        assert!(!tokens_with(None).contains_key("--font"));
+    }
+
+    #[test]
+    fn a_custom_font_round_trips_in_a_share_code() {
+        let mut d = doc();
+        d.theme.font_family = Some("JetBrains Mono".into());
+        let code = encode_code(&d);
+        assert_eq!(decode_code(&code).unwrap(), d);
+    }
+
+    #[test]
+    fn font_names_are_checked() {
+        for name in [
+            "Fira Code",
+            "Noto Sans CJK JP",
+            "Hiragino Kaku Gothic ProN",
+            "游ゴシック",
+        ] {
+            let mut edit = doc().theme_edit();
+            edit.font_family = Some(name.into());
+            assert!(
+                validate_theme(&edit).is_ok(),
+                "{name} is a font name: {:?}",
+                validate_theme(&edit)
+            );
+        }
+        let long = "x".repeat(65);
+        for (name, needle) in [
+            ("", "can't be empty, or start or end with a space"),
+            (" Inter", "can't be empty, or start or end with a space"),
+            ("Inter ", "can't be empty, or start or end with a space"),
+            (long.as_str(), "at most 64 characters"),
+            (
+                "Inter\"",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "Inter;",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "a\\b",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "x(y)",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "{x}",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "a,b",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "url(x)",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+        ] {
+            let mut edit = doc().theme_edit();
+            edit.font_family = Some(name.into());
+            let err = validate_theme(&edit).unwrap_err().to_string();
+            assert!(err.contains(needle), "{name:?}: got {err}");
+        }
+    }
+}

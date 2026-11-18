@@ -89,9 +89,12 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
     let share = move |look: LookSummary| {
         spawn_local(async move {
             match api::look_export_code(&look.id).await {
-                Ok(code) if browser::copy_text(&code).await => {
-                    toaster.info(Message::Plain(key::LOOKS_SHARED));
-                }
+                Ok(code) if browser::copy_text(&code).await => match look.font_family.as_deref() {
+                    Some(font) => {
+                        toaster.info(Message::with(key::LOOKS_SHARED_WITH_FONT, "font", font))
+                    }
+                    None => toaster.info(Message::Plain(key::LOOKS_SHARED)),
+                },
                 Ok(_) => toaster.error(Message::Plain(key::INBOX_TOAST_COPY_FAILED)),
                 Err(error) => toaster.fail(error),
             }

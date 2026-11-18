@@ -276,6 +276,19 @@ describe("looks", () => {
     await w.close();
   });
 
+  it("tells the receiver to install a look's custom font", async () => {
+    const store = looks();
+    store.looks[1].font_family = "Fira Code";
+    const w = await settings({ store, settings: { look_id: "user:1" } });
+    await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
+    await w.page.getByRole("button", { name: "Copy share code" }).click();
+    await text(
+      w.toast,
+      'Copied the code. This look uses the font \u201cFira Code\u201d: install it first to see the look as made.',
+    );
+    await w.close();
+  });
+
   it("copies a bundled look into the editor, previews it, and saves", async () => {
     const w = await settings({ store: looks(), settings: { look_id: "builtin:ink" } });
     await w.page.getByRole("button", { name: "Make a copy" }).click();

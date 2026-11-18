@@ -30,6 +30,8 @@ pub use posthaste_model::{
 pub use resolve::{resolve_live, resolve_parts, resolve_scene};
 pub const LOOK_VERSION: u32 = 2;
 pub const MAX_NAME_CHARS: usize = 40;
+/// Longest font name a look can name.
+pub const MAX_FONT_FAMILY_CHARS: usize = 64;
 pub const MAX_DOC_BYTES: usize = 16 * 1024;
 pub const MAX_DEPTH: usize = 16;
 pub const MAX_LAYERS: usize = 64;
@@ -77,6 +79,7 @@ impl LookDocExt for LookDoc {
         }
         check_identity(&self.name, self.author.as_deref())?;
         check_colors(&self.theme.colors)?;
+        check_font_family(self.theme.font_family.as_deref())?;
         scene::check(&self.scene, &self.assets)
     }
 
@@ -119,6 +122,35 @@ pub fn check_identity(name: &str, author: Option<&str>) -> Result<()> {
                 "The author name can't contain control characters.".into(),
             ));
         }
+    }
+    Ok(())
+}
+
+/// The font-name checks, shared by the document and the editor edit. A
+/// font is only a name, drawn after the preset stack as `"<name>",
+/// var(<stack>)`: the character rule is what keeps rule text out of it.
+pub fn check_font_family(name: Option<&str>) -> Result<()> {
+    let Some(name) = name else {
+        return Ok(());
+    };
+    if name.trim().is_empty() || name.trim() != name {
+        return Err(CoreError::InvalidLook(
+            "The font name can't be empty, or start or end with a space.".into(),
+        ));
+    }
+    if name
+        .chars()
+        .any(|c| !(c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.')))
+    {
+        return Err(CoreError::InvalidLook(
+            "The font name can only use letters, numbers, spaces, hyphens, underscores and dots."
+                .into(),
+        ));
+    }
+    if name.chars().count() > MAX_FONT_FAMILY_CHARS {
+        return Err(CoreError::InvalidLook(format!(
+            "The font name can be at most {MAX_FONT_FAMILY_CHARS} characters."
+        )));
     }
     Ok(())
 }
@@ -166,11 +198,11 @@ fn check_colors(colors: &Colors) -> Result<()> {
     Ok(())
 }
 
-/// Checks what the look editor edits: identity and colours. Task 3 adds
-/// the font-name check here.
+/// Checks what the look editor edits: identity, colours, font name.
 pub fn validate_theme(edit: &ThemeEdit) -> Result<()> {
     check_identity(&edit.name, edit.author.as_deref())?;
-    check_colors(&edit.colors)
+    check_colors(&edit.colors)?;
+    check_font_family(edit.font_family.as_deref())
 }
 
 /// Normalized hex of the four main colours, for gallery cards.

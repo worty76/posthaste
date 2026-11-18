@@ -8,10 +8,10 @@ use leptos::task::spawn_local;
 use posthaste_i18n::key;
 use posthaste_model::{Base, CommandError, FontFace, LookSummary, Shape, ThemeEdit};
 
-use crate::browser::bind_text;
+use crate::browser::{bind_text, text_widths};
 use crate::components::{Button, Dialog, Segmented, Variant};
 use crate::ipc::{self, api};
-use crate::logic::look::MAX_NAME_CHARS;
+use crate::logic::look::{font_seems_installed, MAX_FONT_FAMILY_CHARS, MAX_NAME_CHARS};
 use crate::state::{use_scene_preview, Appearance, I18n};
 
 use colors::{Color, ColorRow};
@@ -39,6 +39,9 @@ pub(super) fn LookEditor(
 ) -> impl IntoView {
     let theme = RwSignal::new(initial);
     let error = RwSignal::new(None::<CommandError>);
+    // Whether the typed font name names a font this computer has; the
+    // name is only checked here, never judged by the interface.
+    let font_installed = RwSignal::new(true);
     let busy = RwSignal::new(false);
     let open = RwSignal::new(true);
     // Counts drafts, so only the newest one is checked and shown.
@@ -67,6 +70,13 @@ pub(super) fn LookEditor(
                     if draft.try_get_value() != Some(number) || !open.get_untracked() {
                         return;
                     }
+                    font_installed.set(match current.font_family.as_deref() {
+                        None => true,
+                        Some(name) => match (text_widths(Some(name)), text_widths(None)) {
+                            (Some(with), Some(fallback)) => font_seems_installed(with, fallback),
+                            _ => true,
+                        },
+                    });
                     match answer {
                         Ok(look) => {
                             error.set(None);
@@ -203,6 +213,36 @@ pub(super) fn LookEditor(
                     ]
                     on_change=move |font| theme.update(|t| t.font = font)
                 />
+                <input
+                    class="field"
+                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)
+                    aria-describedby="look-editor-font-custom-hint"
+                    maxlength=MAX_FONT_FAMILY_CHARS.to_string()
+                    spellcheck="false"
+                    use:bind_text=Signal::derive(move || {
+                        theme.with(|t| t.font_family.clone().unwrap_or_default())
+                    })
+                    on:input=move |event| theme.update(|t| {
+                        let name = event_target_value(&event);
+                        let trimmed = name.trim().to_string();
+                        t.font_family = (!trimmed.is_empty()).then_some(trimmed);
+                    })
+                />
+                <p id="look-editor-font-custom-hint" class="row__help">
+                    {i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM_HINT)}
+                </p>
+                {move || (!font_installed.get()).then(|| {
+                    let name = theme
+                        .with_untracked(|t| t.font_family.clone().unwrap_or_default());
+                    view! {
+                        <p class="dialog__status" role="status">
+                            {i18n.translator().format(
+                                key::LOOKS_EDITOR_FONT_NOT_INSTALLED,
+                                &[("name", name.as_str())],
+                            )}
+                        </p>
+                    }
+                })}
                 <ScenePanel i18n=i18n state=scene />
                 {move || simple_looks.get().then(|| view! {
                     <p class="dialog__status" role="status">

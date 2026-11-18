@@ -156,6 +156,21 @@ mod validation_tests {
     }
 
     #[test]
+    fn a_bad_font_name_in_a_document_refuses_the_look() {
+        let err = LookDoc::from_json(
+            r##"{"format":"posthaste-look","version":2,"name":"N",
+            "theme":{"base":"light","colors":{"bg":"#ffffff","surface":"#f2f2f2",
+            "text":"#111111","accent":"#3366cc"},"font_family":"x;}"}}"##,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            err.contains("letters, numbers, spaces, hyphens, underscores and dots"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
     fn a_document_over_the_limit_is_too_large() {
         let mut d = doc();
         d.name = "y".repeat(20_000);

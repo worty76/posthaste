@@ -50,6 +50,42 @@ describe("look editor scene", () => {
     await w.close();
   });
 
+  it("says when a custom font is not installed and saves its name", async () => {
+    const w = await editor(null);
+    const field = w.dialog.getByLabel("Custom font");
+    await field.fill("Definitely Not A Font 123");
+    await eventually(
+      () => w.dialog.locator(".dialog__status").count(),
+      (n) => n === 2,
+      "the not-installed note to appear beside the ok one",
+    );
+    await text(w.dialog.locator(".dialog__status").first(), "isn't installed");
+    await w.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font_family, "Definitely Not A Font 123");
+    await w.close();
+  });
+
+  it("trims the custom font name and clears it", async () => {
+    const w = await editor(null);
+    await w.dialog.getByLabel("Custom font").fill(" Inter ");
+    await w.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font_family, "Inter");
+    await w.close();
+
+    const w2 = await editor(null);
+    await w2.dialog.getByLabel("Custom font").fill("Inter");
+    await w2.dialog.getByLabel("Custom font").fill("");
+    await w2.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w2.toast, 'Saved "Mine"');
+    const cleared = (await w2.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(cleared.font_family ?? null, null);
+    await w2.close();
+  });
+
   it("sends an unknown layer back untouched", async () => {
     const sceneEdit = {
       scene: {
