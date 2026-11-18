@@ -5,7 +5,14 @@
 
 export type Base = "light" | "dark";
 export type Shape = "sharp" | "soft" | "round";
-export type FontMode = "system" | "rounded" | "serif" | "mono";
+export type FontMode =
+  | "system"
+  | "rounded"
+  | "serif"
+  | "mono"
+  | "be-vietnam-pro"
+  | "nunito"
+  | "quicksand";
 
 export interface Look {
   /** Stable slug, also the key used to remember the choice. */
@@ -24,7 +31,7 @@ export const LOOKS: Look[] = [
     base: "light",
     colors: { bg: "#fff5f7", surface: "#ffffff", text: "#4a2c3a", accent: "#ff8fb1" },
     shape: "round",
-    font: "rounded",
+    font: "quicksand",
   },
   {
     id: "matcha",
@@ -56,7 +63,7 @@ export const LOOKS: Look[] = [
     base: "dark",
     colors: { bg: "#121826", surface: "#1a2236", text: "#e6edff", accent: "#6ea8ff" },
     shape: "soft",
-    font: "system",
+    font: "be-vietnam-pro",
   },
   {
     id: "ink",

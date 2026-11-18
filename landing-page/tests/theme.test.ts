@@ -36,8 +36,17 @@ describe("look switching", () => {
 
   it("maps the app's font modes to Recursive's axes", () => {
     const byId = Object.fromEntries(LOOKS.map((l) => [l.id, lookVariables(l)]));
-    expect(byId["strawberry-milk"]!["--casl"]).toBe("1");
     expect(byId["ink"]!["--mono"]).toBe("1");
-    expect(byId["blueberry"]!["--casl"]).toBe("0");
+    expect(byId["matcha"]!["--casl"]).toBe("0");
+  });
+
+  it("wears the bundled fonts the app ships, by name", () => {
+    const byId = Object.fromEntries(LOOKS.map((l) => [l.id, l.font]));
+    expect(byId["blueberry"]).toBe("be-vietnam-pro");
+    expect(byId["strawberry-milk"]).toBe("quicksand");
+    const vars = Object.fromEntries(LOOKS.map((l) => [l.id, lookVariables(l)]));
+    expect(vars["blueberry"]!["--font"]).toContain('"Be Vietnam Pro"');
+    expect(vars["strawberry-milk"]!["--font"]).toContain('"Quicksand"');
+    expect(vars["strawberry-milk"]!["--font"]).toContain("sans-serif");
   });
 });

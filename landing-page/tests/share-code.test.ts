@@ -25,6 +25,7 @@ describe("share codes", () => {
     expect(decoded?.theme.base).toBe("light");
     expect(decoded?.theme.colors.accent).toBe(LOOKS[0]!.colors.accent);
     expect(decoded?.theme.shape).toBe("round");
+    expect(decoded?.theme.font).toBe("quicksand");
     expect(decodeLookCode("posthaste-look:1:AAAA")).toBeNull();
   });
 
