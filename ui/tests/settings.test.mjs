@@ -260,10 +260,7 @@ describe("looks", () => {
     // wears a look.
     assert.equal(await w.page.getByRole("radio", { name: "Plain" }).count(), 0);
     // The light/dark/system control is gone; the gallery's own group stays.
-    assert.equal(
-      await w.page.getByRole("radiogroup", { name: "Appearance" }).count(),
-      0,
-    );
+    assert.equal(await w.page.getByRole("radiogroup", { name: "Appearance" }).count(), 0);
     await w.close();
   });
 

@@ -39,8 +39,10 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
 - **Local-first** — one database file (attachments included), backup-able from
   Settings. Export your notes as a Markdown checklist that opens in any editor
   (or as JSON), and import it back without losing anything
-- **Looks** — six built-in colour themes, or make your own with a live editor
-  that refuses anything hard to read; share any look with a one-line code
+- **Looks** — built-in looks that always dress the app, or make your own
+  with a live editor that refuses anything hard to read; share any look
+  with a one-line code. Three fonts ship inside the app under the SIL Open
+  Font License (`ui/styles/fonts/`), so the same faces render on every OS
 - **AI polish** — optional. Off by default; when you turn it on, your note goes
   straight to the provider you picked: Claude, OpenAI, Gemini,
   OpenRouter, any OpenAI-compatible server, or Ollama on your own computer.
