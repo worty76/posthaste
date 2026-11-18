@@ -73,6 +73,9 @@ export default function StoryPage() {
             <a className="btn btn--ghost" href={PRODUCT.discordUrl} rel="noopener noreferrer">
               Say hello on Discord
             </a>
+            <a className="btn btn--ghost" href={PRODUCT.repoUrl} rel="noopener noreferrer">
+              Star on GitHub
+            </a>
           </div>
         </div>
       </main>
