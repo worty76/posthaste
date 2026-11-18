@@ -27,9 +27,9 @@ export const STORY: Story = {
   title: "Why Posthaste",
   description:
     "I type fast and live on my computer, and I could not find a to-do app that felt right. So I built one.",
-  lede: "I built Posthaste for myself. This is why, and how it turned out.",
-  teaser: "I built Posthaste for myself, to manage tasks without leaving the keyboard.",
-  note: "I'm always on my computer and I type fast, so I didn't want to reach for the mouse just to open a to-do app. I couldn't find one that felt right, so I built Posthaste for myself. I hope you enjoy it too.",
+  lede: "I built Posthaste to manage my tasks. This is why, and how it turned out.",
+  teaser: "I built Posthaste, to help manage tasks efficiently, fast, and beautifully.",
+  note: "I'm always on my computer and I type fast, so I didn't want to reach for the mouse just to open a to-do app. I couldn't find one that felt right, so I built Posthaste.",
   beats: [
     {
       id: "why",
@@ -75,7 +75,7 @@ export const STORY: Story = {
       id: "join",
       heading: "Help make it better",
       body: [
-        "I built Posthaste for myself. Now, I hope you'll enjoy using it too.",
+        "I built Posthaste to help manage task lists efficiently and fast. Now, I hope you'll enjoy using it too.",
         "If you find it useful, I'd love your ideas, bug reports, or help making it better for future users. And if you like the project, a star on GitHub would mean a lot and give me extra motivation to keep working on it.",
       ],
     },
