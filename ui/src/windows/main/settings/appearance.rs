@@ -5,7 +5,7 @@ use leptos::ev::KeyboardEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::key;
-use posthaste_model::{CommandError, LookDoc, LookPreview, LookSummary, Theme};
+use posthaste_model::{CommandError, LookPreview, LookSummary, Theme, ThemeEdit};
 
 use super::look_editor::LookEditor;
 use super::Context;
@@ -24,7 +24,7 @@ const START_LIGHT: &str = "builtin:strawberry-milk";
 /// A look open in the editor.
 #[derive(Clone)]
 struct Editing {
-    doc: LookDoc,
+    theme: ThemeEdit,
     /// The look being changed, or `None` for a new one.
     id: Option<String>,
 }
@@ -202,17 +202,17 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                 None if appearance.is_dark() => START_DARK.to_owned(),
                 None => START_LIGHT.to_owned(),
             };
-            match api::look_doc(&start).await {
-                Ok(mut doc) => {
+            match api::look_theme(&start).await {
+                Ok(mut theme) => {
                     let copying = look.as_ref().is_some_and(|look| look.builtin);
                     if copying {
                         let copy = i18n
                             .translator()
-                            .format(key::LOOKS_COPY_NAME, &[("name", &doc.name)]);
-                        doc.name = fit_name(&copy);
+                            .format(key::LOOKS_COPY_NAME, &[("name", &theme.name)]);
+                        theme.name = fit_name(&copy);
                     }
                     let id = look.filter(|look| !look.builtin).map(|look| look.id);
-                    editor.set(Some(Editing { doc, id }));
+                    editor.set(Some(Editing { theme, id }));
                 }
                 Err(error) => toaster.fail(error),
             }
@@ -406,7 +406,7 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
             <LookEditor
                 i18n=i18n
                 appearance=appearance
-                initial=editing.doc
+                initial=editing.theme
                 simple_looks=context.read(|s| s.simple_looks)
                 editing_id=editing.id
                 on_close=move |()| editor.set(None)

@@ -331,39 +331,38 @@ export async function open({
           return { settings: mock.settings, shortcuts: mock.shortcuts };
         },
         look_list: () => store.looks,
-        look_doc: ({ id }) => {
+        look_theme: ({ id }) => {
           const look = store.looks.find((l) => l.id === id);
           return {
-            format: "posthaste-look",
-            version: 1,
             name: look?.name ?? "Look",
             author: null,
             base: look?.base ?? "dark",
             shape: "soft",
             font: "system",
+            font_family: null,
             colors: { bg: "#101010", surface: "#202020", text: "#f0f0f0", accent: "#ff8800" },
           };
         },
-        look_preview: ({ doc }) =>
-          /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(doc.colors.bg)
+        look_preview: ({ theme }) =>
+          /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(theme.colors.bg)
             ? {
                 id: "preview",
-                name: doc.name,
+                name: theme.name,
                 author: null,
-                base: doc.base,
-                shape: doc.shape,
-                font: doc.font,
-                tokens: { "--bg": doc.colors.bg },
+                base: theme.base,
+                shape: theme.shape,
+                font: theme.font,
+                tokens: { "--bg": theme.colors.bg },
               }
             : Promise.reject({ code: "look_invalid", message: "Background is not a colour." }),
-        look_save: ({ doc, id }) => {
-          const saved = summary(id ?? `user:${store.looks.length}`, doc.name, doc.base);
+        look_save: ({ theme, id }) => {
+          const saved = summary(id ?? `user:${store.looks.length}`, theme.name, theme.base);
           store.looks = store.looks.filter((l) => l.id !== saved.id).concat(saved);
           mock.emit("looks-changed");
           return saved;
         },
         look_import: ({ code }) => {
-          if (!code.startsWith("posthaste-look:")) {
+          if (!code.startsWith("posthaste-look:2:")) {
             return Promise.reject({ code: "look_invalid", message: "That is not a look code." });
           }
           const saved = summary(`user:${store.looks.length}`, "Imported", "dark");
@@ -371,7 +370,7 @@ export async function open({
           mock.emit("looks-changed");
           return saved;
         },
-        look_export_code: ({ id }) => `posthaste-look:${id}`,
+        look_export_code: ({ id }) => `posthaste-look:2:${id}`,
         look_delete: ({ id }) => {
           store.looks = store.looks.filter((l) => l.id !== id);
           if (mock.settings.look_id === id) mock.settings.look_id = null;

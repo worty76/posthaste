@@ -45,7 +45,7 @@ describe("settings", () => {
     const w = await settings();
     await w.page.getByRole("switch", { name: "Simple looks" }).click();
     await eventually(
-      () => w.saved().simple_looks,
+      async () => (await w.saved()).simple_looks,
       (on) => on === true,
       "Simple looks to be saved on",
     );
@@ -262,14 +262,14 @@ describe("looks", () => {
     await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
     await w.page.getByRole("button", { name: "Copy share code" }).click();
     await text(w.toast, "Copied share code");
-    assert.equal(await w.page.evaluate(() => window.copied), "posthaste-look:user:1");
+    assert.equal(await w.page.evaluate(() => window.copied), "posthaste-look:2:user:1");
 
     await w.page.getByRole("button", { name: "Add from code…" }).click();
     const dialog = w.page.getByRole("dialog");
     await dialog.getByLabel("Look code").fill("nonsense");
     await dialog.getByRole("button", { name: "Add look" }).click();
     await text(dialog.getByRole("alert"), "That is not a look code.");
-    await dialog.getByLabel("Look code").fill("posthaste-look:abc");
+    await dialog.getByLabel("Look code").fill("posthaste-look:2:abc");
     await dialog.getByRole("button", { name: "Add look" }).click();
     await text(w.toast.last(), 'Added "Imported"');
     await eventually(w.saved, (s) => s?.look_id === "user:2", "new look selected");

@@ -34,7 +34,8 @@ async function editor(sceneEdit, extra = {}, settings = {}) {
     (n) => n === 1,
     "the editor to open",
   );
-  return { ...w, dialog };
+  const toast = w.page.locator(".toast");
+  return { ...w, dialog, toast };
 }
 
 /** The scene the editor last sent to `look_save`. */
@@ -43,15 +44,9 @@ async function savedScene(w) {
 }
 
 describe("look editor scene", () => {
-  it("adds a sticker and saves it in the chosen window", async () => {
+  it("hides the sticker controls while stickers are unshipped", async () => {
     const w = await editor(null);
-    await w.dialog.getByRole("button", { name: "Add sticker" }).click();
-    await w.dialog.getByRole("button", { name: "Save" }).click();
-    await text(w.toast, 'Saved "Mine"');
-    const scene = await savedScene(w);
-    assert.equal(scene.scene.all.margin.length, 1);
-    assert.equal(scene.scene.all.margin[0].config.char, "🌸");
-    assert.equal(scene.scene.all.margin[0].kind, "emoji");
+    assert.equal(await w.dialog.getByRole("button", { name: "Add sticker" }).count(), 0);
     await w.close();
   });
 
@@ -130,6 +125,7 @@ describe("look editor scene", () => {
       ],
     };
     const w = await open({ label: "main", store, settings: { look_id: "user:1" } });
+    const toast = w.page.locator(".toast");
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
     // The scene load is held, so the editor cannot know the real scene.
     await w.mock.hold("look_scene");
@@ -153,7 +149,7 @@ describe("look editor scene", () => {
       "Save to come on after the scene loads",
     );
     await dialog.getByRole("button", { name: "Save" }).click();
-    await text(w.toast, 'Saved "Mine"');
+    await text(toast, 'Saved "Mine"');
     const scene = (await w.mock.calls("look_save")).at(-1)?.args.scene;
     assert.equal(scene.scene.all.margin[0].config.char, "🌸");
     await w.close();
@@ -205,18 +201,18 @@ describe("look editor scene", () => {
     // Cancel: the file is discarded, nothing added.
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await eventually(
-      () => w.mock.calls("look_file_discard").length,
+      async () => (await w.mock.calls("look_file_discard")).length,
       (n) => n === 1,
       "the file to be discarded",
     );
-    assert.deepEqual(w.mock.store.looks, []);
+    assert.deepEqual((await w.mock.store()).looks ?? [], []);
     await w.close();
   });
 
   it("notes when Simple looks hides the scene in the windows", async () => {
     const w = await editor(null, {}, { simple_looks: true });
     await text(
-      w.dialog.getByRole("status"),
+      w.dialog.getByRole("status").first(),
       "Simple looks is hiding stickers and images in the windows.",
     );
     await w.close();
@@ -225,7 +221,7 @@ describe("look editor scene", () => {
   it("says when part of the look needs a newer Posthaste", async () => {
     const previewScene = { main: {}, capture: {}, today: {}, details: {}, skipped: 2 };
     const w = await editor(null, { previewScene });
-    await text(w.dialog.getByRole("status"), "Part of this look needs a newer Posthaste.");
+    await text(w.dialog.getByRole("status").first(), "Part of this look needs a newer Posthaste.");
     await w.close();
   });
 });

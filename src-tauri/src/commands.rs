@@ -3,12 +3,12 @@
 
 use std::sync::atomic::Ordering;
 
-use posthaste_core::look::code::{b64_encode_std, encode_document};
+use posthaste_core::look::code::{b64_encode_std, encode_code};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::package::{read_package, write_package};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocV2Ext};
-use posthaste_core::look::{AssetRef, LookDoc, LookDocument, ResolvedScene, SceneEdit};
+use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocExt as _};
+use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdit};
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
@@ -760,26 +760,26 @@ pub fn look_active(state: State<'_, AppState>) -> AppResult<Option<ResolvedLook>
 }
 
 #[tauri::command]
-pub fn look_doc(state: State<'_, AppState>, id: String) -> AppResult<LookDoc> {
-    state.with_db(|db| db.look_doc(&id))
+pub fn look_theme(state: State<'_, AppState>, id: String) -> AppResult<ThemeEdit> {
+    state.with_db(|db| db.look_theme(&id))
 }
 
 /// Validates and derives a draft for the editor's live preview. Stores
 /// nothing.
 #[tauri::command]
-pub fn look_preview(doc: LookDoc) -> AppResult<ResolvedLook> {
-    Ok(resolve("preview", &doc)?)
+pub fn look_preview(theme: ThemeEdit) -> AppResult<ResolvedLook> {
+    Ok(resolve("preview", &theme)?)
 }
 
 #[tauri::command]
 pub fn look_save(
     app: AppHandle,
     state: State<'_, AppState>,
-    doc: LookDoc,
+    theme: ThemeEdit,
     scene: Option<SceneEdit>,
     id: Option<String>,
 ) -> AppResult<LookSummary> {
-    let summary = state.with_db(|db| db.save_look(doc, scene, id.as_deref()))?;
+    let summary = state.with_db(|db| db.save_look(theme, scene, id.as_deref()))?;
     looks_changed(&app);
     Ok(summary)
 }
@@ -864,8 +864,8 @@ pub fn look_import(
 
 #[tauri::command]
 pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<String> {
-    // The document as stored, not the v1 view: a shared look keeps its
-    // scene and every field this build does not model.
+    // The document as stored: a shared look keeps its scene and every
+    // field this build does not model.
     let doc = state.with_db(|db| db.look_document(&id))?;
     if look_has_images(&doc) {
         // A code carries no image bytes, so a look that lists images
@@ -878,16 +878,13 @@ pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<Str
                 .to_string(),
         ));
     }
-    Ok(encode_document(&doc))
+    Ok(encode_code(&doc))
 }
 
 /// True when the document lists look images, which a share code cannot
 /// carry.
-fn look_has_images(doc: &LookDocument) -> bool {
-    match doc {
-        LookDocument::V2(doc) => !doc.assets.is_empty(),
-        LookDocument::V1(_) => false,
-    }
+fn look_has_images(doc: &LookDoc) -> bool {
+    !doc.assets.is_empty()
 }
 
 /// A look's name as a file's base name: separators out, never empty.
@@ -918,18 +915,12 @@ pub async fn look_file_export(
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Option<String>> {
-    let v2 = {
-        let doc = state.with_db(|db| db.look_document(&id))?;
-        match doc {
-            LookDocument::V2(doc) => doc,
-            LookDocument::V1(v1) => posthaste_core::look::migrate::v1_to_v2(&v1),
-        }
-    };
-    let name = v2.name.clone();
+    let doc = state.with_db(|db| db.look_document(&id))?;
+    let name = doc.name.clone();
     // Every listed image must be in storage: write_package refuses a
     // dangling reference, and its error is what the UI shows.
     let file = state.with_db(|db| {
-        write_package(&v2, |asset_id| {
+        write_package(&doc, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
             Ok(bytes)
         })
@@ -984,15 +975,17 @@ pub async fn look_file_open(
     pending.doc.validate()?;
 
     let doc = pending.doc.clone();
+    let theme = doc.theme_edit();
     let summary = posthaste_core::look::store::LookSummary {
         id: String::new(),
-        name: doc.name.clone(),
-        author: doc.author.clone(),
+        name: theme.name.clone(),
+        author: theme.author.clone(),
         builtin: false,
-        base: doc.theme.base,
-        preview: posthaste_core::look::LookDocExt::preview(&doc.v1_view()),
+        base: theme.base,
+        preview: doc.preview(),
+        font_family: theme.font_family.clone(),
     };
-    let tokens = resolve("file:preview", &doc.v1_view())?;
+    let tokens = resolve("file:preview", &theme)?;
     let scene = resolve_live(&doc.scene, &doc.assets);
     let asset_urls = pending
         .assets
@@ -1053,13 +1046,13 @@ mod tests {
     use super::look_has_images;
     use super::percent_decode;
     use super::valid_day;
-    use posthaste_core::look::{LookDoc, LookDocument};
+
     use posthaste_core::ExportFormat;
     use posthaste_i18n::key;
 
     #[test]
     fn a_look_with_images_cannot_travel_as_a_code() {
-        let mut v2 = posthaste_core::look::LookDocV2 {
+        let mut doc = posthaste_core::look::LookDoc {
             format: "posthaste-look".into(),
             version: 2,
             name: "With image".into(),
@@ -1075,6 +1068,7 @@ mod tests {
                 },
                 shape: Default::default(),
                 font: Default::default(),
+                font_family: None,
                 extra: Default::default(),
             },
             scene: Default::default(),
@@ -1088,25 +1082,9 @@ mod tests {
             }],
             extra: Default::default(),
         };
-        assert!(look_has_images(&LookDocument::V2(v2.clone())));
-        v2.assets.clear();
-        assert!(!look_has_images(&LookDocument::V2(v2)));
-        assert!(!look_has_images(&LookDocument::V1(LookDoc {
-            format: "posthaste-look".into(),
-            version: 1,
-            name: "Colour only".into(),
-            author: None,
-            base: posthaste_core::look::Base::Dark,
-            colors: posthaste_core::look::Colors {
-                bg: "#120d18".into(),
-                surface: "#1d1526".into(),
-                text: "#f3e9f7".into(),
-                accent: "#ff7eb6".into(),
-                ..Default::default()
-            },
-            shape: Default::default(),
-            font: Default::default(),
-        })));
+        assert!(look_has_images(&doc));
+        doc.assets.clear();
+        assert!(!look_has_images(&doc));
     }
 
     #[test]
