@@ -20,9 +20,6 @@ pub fn text_widths(family: Option<&str>) -> Option<[f64; 2]> {
         .dyn_into::<web_sys::HtmlElement>()
         .ok()?;
     span.set_text_content(Some(MEASURE_SAMPLE));
-    span.style().set_css_text(
-        "position:absolute;top:0;left:0;visibility:hidden;white-space:nowrap;font-size:72px;",
-    );
     let body = document.body()?;
     body.append_child(&span).ok()?;
     let measured = |stack: &str| {
@@ -30,7 +27,10 @@ pub fn text_widths(family: Option<&str>) -> Option<[f64; 2]> {
             Some(name) => format!("\"{name}\", {stack}"),
             None => stack.to_string(),
         };
-        span.style().set_property("font-family", &font).ok();
+        span.style().set_css_text(&format!(
+            "position:absolute;top:0;left:0;visibility:hidden;\
+             white-space:nowrap;font-size:72px;font-family:{font};"
+        ));
         span.offset_width() as f64
     };
     let widths = [measured("monospace"), measured("serif")];

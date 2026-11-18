@@ -284,7 +284,7 @@ describe("looks", () => {
     await w.page.getByRole("button", { name: "Copy share code" }).click();
     await text(
       w.toast,
-      'Copied the code. This look uses the font \u201cFira Code\u201d: install it first to see the look as made.',
+      "Copied the code. This look uses the font \u201cFira Code\u201d: install it first to see the look as made.",
     );
     await w.close();
   });

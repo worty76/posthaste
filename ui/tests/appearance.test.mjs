@@ -31,11 +31,10 @@ async function root(page) {
 describe("appearance", () => {
   it("main: a custom font token is drained when Plain is chosen", async () => {
     const withFont = resolved("builtin:ink", "dark", "#101010");
-    withFont.tokens["--font"] = "\"JetBrains Mono\", var(--font-mono-ui)";
+    withFont.tokens["--font"] = '"JetBrains Mono", var(--font-mono-ui)';
     const w = await open({ label: "main", settings: { look_id: "builtin:ink" } });
     await w.page.evaluate((look) => {
-      window.__mock.handlers.look_active = () =>
-        window.__mock.settings.look_id ? look : null;
+      window.__mock.handlers.look_active = () => (window.__mock.settings.look_id ? look : null);
     }, withFont);
     await w.mock.changeSettings({ look_id: null });
     await w.mock.changeSettings({ look_id: "builtin:ink" });

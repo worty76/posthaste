@@ -83,5 +83,12 @@ rule "CLAUDE.md copies are out of date; run: npm run sync:rules (AGENTS.md)" \
 rule "No match on Known may have a _ => arm (crates/core/AGENTS.md)" \
   "$(grep -rn '_ =>' src-tauri/crates/core/src/look/scene.rs src-tauri/crates/core/src/look/resolve.rs ui/src/components/scene 2>/dev/null)"
 
+# Looks have one format. The v1 names and wire values are gone; anything
+# reintroducing them (a type, a converter, a :1: code) must fail the check.
+rule "Looks have one format; no v1 remnants (crates/core/AGENTS.md)" \
+  "$(grep -rnE 'LookDocV2|LookDocument|v1_view|v1_to_v2|posthaste-look:1' \
+      src-tauri ui/src ui/tests landing-page/src \
+      --include='*.rs' --include='*.ts' --include='*.tsx' --include='*.mjs' 2>/dev/null)"
+
 if [ "$FAIL" -eq 0 ]; then echo "rules: ok"; fi
 exit "$FAIL"
