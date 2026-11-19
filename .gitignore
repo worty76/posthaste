@@ -15,3 +15,6 @@ ui/pkg
 
 # Agent-private docs (server setup notes etc.): local only, never pushed.
 /.agents/
+
+# TypeScript incremental build cache, regenerated on every build.
+landing-page/tsconfig.tsbuildinfo
