@@ -12,6 +12,7 @@ import { KeyboardBackdrop } from "@/components/KeyboardBackdrop";
 import { LookTiles } from "@/components/LookTiles";
 import { Moments } from "@/components/Moments";
 import { ReleaseBanner } from "@/components/ReleaseBanner";
+import { ScrollChoreography } from "@/components/ScrollChoreography";
 import { ShareCodeRow } from "@/components/ShareCodeRow";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteStateProvider } from "@/components/SiteState";
@@ -95,6 +96,7 @@ export default async function Page() {
 
   return (
     <SiteStateProvider>
+      <ScrollChoreography />
       <ReleaseBanner release={releases[0]} />
       <header className="page head">
         <a className="wordmark" href="/">

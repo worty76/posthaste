@@ -7,12 +7,7 @@
 /** The day the competitor cells were last checked. ISO date. */
 export const COMPARE_CHECKED_ON = "2026-11-19";
 
-export type CompareId =
-  | "posthaste"
-  | "apple-notes"
-  | "notion"
-  | "obsidian"
-  | "todoglow";
+export type CompareId = "posthaste" | "apple-notes" | "notion" | "obsidian" | "todoglow";
 
 export interface CompareApp {
   id: CompareId;
