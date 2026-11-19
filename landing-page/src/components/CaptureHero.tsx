@@ -60,6 +60,12 @@ export function CaptureHero() {
       const steps = demoScript(copy.demo.notes);
       for (const step of steps) {
         at(step.at + delay, () => {
+          // The backdrop keyboard plays along with every scripted key.
+          window.dispatchEvent(
+            new CustomEvent("posthaste-demo-key", {
+              detail: step.save ? { enter: true } : { char: step.text.slice(-1) },
+            }),
+          );
           dispatch({
             type: step.save ? "save" : "input",
             text: step.text,

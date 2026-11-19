@@ -215,6 +215,13 @@ kbd {
 
 /* ---- Buttons ---- */
 
+/* Keys and buttons press like physical switches. */
+kbd:active,
+.btn:active {
+  transform: translateY(1px);
+  background: var(--active);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1431,6 +1438,11 @@ kbd {
 }
 .facts a:hover {
   background: var(--hover);
+  transform: translateY(1px);
+}
+.facts a:active {
+  background: var(--active);
+  transform: translateY(2px);
 }
 
 .hero__actions {

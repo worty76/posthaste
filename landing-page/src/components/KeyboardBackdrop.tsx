@@ -63,28 +63,48 @@ function keysFor(e: KeyboardEvent): string[] {
   return [k];
 }
 
+/** Which keys a scripted character lights: the base key the character
+    lives on, so a Vietnamese mark lights its letter's key too. Enter
+    arrives as "\n". */
+function keysForChar(char: string): string[] {
+  if (char === "\n") return ["enter"];
+  if (char === " ") return [" "];
+  const base = char.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return /^[a-z0-9]$/.test(base) || ROWS.some((row) => row.includes(base)) ? [base] : [];
+}
+
 export function KeyboardBackdrop() {
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timers = new Map<Element, number>();
-    const onKey = (e: KeyboardEvent) => {
+    const light = (keys: string[], ms: number) => {
       const el = root.current;
       if (!el) return;
-      for (const k of keysFor(e)) {
+      for (const k of keys) {
         const key = el.querySelector(`[data-k="${CSS.escape(k)}"]`);
         if (!key) continue;
         key.classList.add("is-lit");
         window.clearTimeout(timers.get(key));
         timers.set(
           key,
-          window.setTimeout(() => key.classList.remove("is-lit"), 140),
+          window.setTimeout(() => key.classList.remove("is-lit"), ms),
         );
       }
     };
+    const onKey = (e: KeyboardEvent) => light(keysFor(e), 140);
+    // The hero's scripted typing plays the board too, so the whole
+    // keyboard comes alive with the demo. Enter lands harder.
+    const onDemoKey = (e: Event) => {
+      const detail = (e as CustomEvent<{ char?: string; enter?: boolean }>).detail;
+      if (detail?.enter) light(["enter"], 260);
+      else if (detail?.char) light(keysForChar(detail.char), 140);
+    };
     window.addEventListener("keydown", onKey);
+    window.addEventListener("posthaste-demo-key", onDemoKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("posthaste-demo-key", onDemoKey);
       timers.forEach((t) => window.clearTimeout(t));
     };
   }, []);

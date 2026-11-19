@@ -6,7 +6,6 @@ import { ContrastToy } from "./ContrastToy";
 import { Downloads } from "./Downloads";
 import { HeroActions } from "./HeroActions";
 import { KeyboardBackdrop } from "./KeyboardBackdrop";
-import { LangToggle } from "./LangToggle";
 import { LookTiles } from "./LookTiles";
 import { ShareCodeRow } from "./ShareCodeRow";
 import { useSite } from "./SiteState";
@@ -31,7 +30,8 @@ export function SiteHeader({ stars }: { stars: number | null }) {
         <a href="#changelog">{copy.nav.changelog}</a>
       </nav>
       <span className="head__spacer" />
-      <LangToggle />
+      {/* The EN/VI switcher is parked until the Vietnamese copy ships:
+          <LangToggle /> stays in components/LangToggle.tsx. */}
       <a className="head__link" href={PRODUCT.discordUrl} rel="noopener noreferrer">
         <ChatIcon />
         Discord
