@@ -9,7 +9,7 @@ import { TodayCount, TodayDemo } from "./TodayDemo";
 import { doneNotes, savedStack } from "@/lib/demo";
 
 export function Moments() {
-  const { demo, dispatch } = useSite();
+  const { demo, dispatch, copy } = useSite();
   const os = useOs() ?? "mac";
   const caught = savedStack(demo).length;
   const done = doneNotes(demo);
@@ -17,36 +17,34 @@ export function Moments() {
   return (
     <section className="page moments" id="loop" aria-labelledby="loop-title">
       <h2 className="h2" id="loop-title">
-        Catch it. See what&apos;s left. Tick it off.
+        {copy.moments.heading}
       </h2>
       <ol className="moments__row">
         <li className="moment">
-          <p className="moment__step">Catch it</p>
+          <p className="moment__step">{copy.moments.step1}</p>
           <p className="moment__keys">
             <Keys keys={SHORTCUTS[os].capture} />
           </p>
-          <p>Over any app. Type, press Enter, and you&apos;re back.</p>
+          <p>{copy.moments.step1Desc}</p>
           <p className="quiet" aria-live="polite">
-            {caught === 0
-              ? "Try the box at the top: notes you save there land in Today."
-              : `You caught ${caught} ${caught === 1 ? "note" : "notes"} on this page.`}
+            {caught === 0 ? copy.moments.step1Empty : copy.moments.step1Count(caught)}
           </p>
         </li>
         <li className="moment moment--today">
-          <p className="moment__step">See what&apos;s left</p>
+          <p className="moment__step">{copy.moments.step2}</p>
           <p className="moment__keys">
             <Keys keys={SHORTCUTS[os].today} />
           </p>
           <TodayDemo />
         </li>
         <li className="moment">
-          <p className="moment__step">Tick it off</p>
+          <p className="moment__step">{copy.moments.step3}</p>
           <p className="moment__keys">
             <Keys keys={["X"]} />
           </p>
           <TodayCount />
           {done.length === 0 ? (
-            <p className="quiet">Select a note in Today and press X.</p>
+            <p className="quiet">{copy.moments.step3Hint}</p>
           ) : (
             <ul className="done-list">
               {done.map((n) => (
@@ -57,7 +55,7 @@ export function Moments() {
                     className="link-button"
                     onClick={() => dispatch({ type: "toggle", id: n.id })}
                   >
-                    Undo
+                    {copy.moments.undo}
                   </button>
                 </li>
               ))}

@@ -1,27 +1,31 @@
+"use client";
+
+import { useSite } from "./SiteState";
 import {
   COMPARE_APPS,
   COMPARE_CHECKED_ON,
   COMPARE_ROWS,
+  COMPARE_VI,
   PICK_OTHERS,
   PICK_POSTHASTE,
 } from "@/lib/compare";
-
 import { formatIsoDate as formatChecked } from "@/lib/dates";
 
 /** How Posthaste sits next to other note and capture apps. Plain table, no script: on a
     narrow screen the table scrolls sideways inside its own region. */
 export function Compare() {
+  const { lang, copy } = useSite();
   const others = COMPARE_APPS.slice(1);
+  const rows = lang === "vi" ? COMPARE_VI.rows : COMPARE_ROWS;
+  const pickUs = lang === "vi" ? COMPARE_VI.pickPosthaste : PICK_POSTHASTE;
+  const pickOthers = lang === "vi" ? COMPARE_VI.pickOthers : PICK_OTHERS;
+
   return (
     <section className="page compare" id="compare" aria-labelledby="compare-title">
       <h2 className="h2" id="compare-title">
-        Next to the apps you already use.
+        {copy.compare.heading}
       </h2>
-      <p className="compare__lede">
-        Posthaste catches a thought and keeps it on a short to-do list until it&apos;s done. It
-        doesn&apos;t replace a notebook, so this is where it differs, and where the others are the
-        better pick.
-      </p>
+      <p className="compare__lede">{copy.compare.lede}</p>
 
       <div
         className="compare__scroll"
@@ -51,7 +55,7 @@ export function Compare() {
             </tr>
           </thead>
           <tbody>
-            {COMPARE_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr key={row.label}>
                 <th scope="row">{row.label}</th>
                 {COMPARE_APPS.map((app) => (
@@ -66,7 +70,7 @@ export function Compare() {
       </div>
 
       <p className="quiet compare__note">
-        Checked {formatChecked(COMPARE_CHECKED_ON)}. Plans change, so check the source:{" "}
+        {copy.compare.checkedPrefix} {formatChecked(COMPARE_CHECKED_ON)}:{" "}
         {others.map((app, i) => (
           <span key={app.id}>
             <a href={app.url} rel="noopener noreferrer">
@@ -79,17 +83,17 @@ export function Compare() {
 
       <div className="compare__picks">
         <div>
-          <h3 className="h3">Pick Posthaste when</h3>
+          <h3 className="h3">{copy.compare.pickUs}</h3>
           <ul className="ledger">
-            {PICK_POSTHASTE.map((line) => (
+            {pickUs.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
         </div>
         <div>
-          <h3 className="h3">Pick the others when</h3>
+          <h3 className="h3">{copy.compare.pickOthers}</h3>
           <ul className="ledger">
-            {PICK_OTHERS.map((line) => (
+            {pickOthers.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
@@ -97,8 +101,7 @@ export function Compare() {
       </div>
 
       <p className="quiet compare__both">
-        Using both works. In the inbox, <kbd>C</kbd> copies a note, ready to paste into the app you
-        keep.
+        {copy.compare.bothNote1} <kbd>C</kbd> {copy.compare.bothNote2}
       </p>
     </section>
   );

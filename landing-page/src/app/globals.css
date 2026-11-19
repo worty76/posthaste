@@ -1767,6 +1767,264 @@ kbd {
   .backdrop__key {
     transition: none;
   }
+  .scroll-progress,
+  .ambient-stage {
+    display: none;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .hero__top,
+  .facts,
+  .hero__actions,
+  .capture-wrap {
+    animation: none !important;
+  }
+  .backdrop {
+    transform: none !important;
+  }
+}
+
+/* ---- Scroll choreography & tactile hover motion ---- */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  z-index: 60;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Fixed ambient layer behind page content: soft look-aware glow orbs, a subtle
+   angled speed streak ("haste"), and ghostly floating keycaps that drift on
+   scroll. Never intercepts clicks and stays below all content. */
+.ambient-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+header,
+main,
+footer,
+.banner {
+  position: relative;
+  z-index: 1;
+}
+
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(88px);
+  will-change: transform;
+  transition: background 240ms ease;
+}
+
+.ambient-glow--primary {
+  width: min(56vw, 620px);
+  height: min(56vw, 620px);
+  left: var(--glow-x, 22%);
+  top: var(--glow-y, 14%);
+  transform: translate3d(-50%, -50%, 0);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 42%,
+    transparent 72%
+  );
+  opacity: calc(0.45 + var(--scroll-p, 0) * 0.45);
+}
+
+.ambient-glow--secondary {
+  width: min(44vw, 480px);
+  height: min(44vw, 480px);
+  right: calc(8% + var(--scroll-p, 0) * 18%);
+  bottom: calc(6% + var(--scroll-p, 0) * 26%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent-ink) 14%, transparent) 0%,
+    transparent 70%
+  );
+  opacity: calc(0.25 + var(--scroll-p, 0) * 0.45);
+}
+
+/* Faint slanted speed line echoing the -9° headline lean ("haste"). */
+.ambient-streak {
+  position: absolute;
+  inset-inline: -10%;
+  height: 1px;
+  top: calc(18% + var(--scroll-p, 0) * 68%);
+  transform: rotate(-4deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 32%, transparent) 38%,
+    color-mix(in srgb, var(--accent) 45%, transparent) 52%,
+    transparent 85%
+  );
+  opacity: calc(0.15 + var(--scroll-p, 0) * 0.55);
+}
+
+.ambient-key {
+  position: absolute;
+  padding: 5px 11px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  background: color-mix(in srgb, var(--surface) 52%, transparent);
+  color: color-mix(in srgb, var(--accent-ink) 55%, var(--muted));
+  font-family: var(--font);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.22;
+  will-change: transform;
+}
+
+.ambient-key--1 {
+  top: 24%;
+  right: 6%;
+  transform: translate3d(0, calc(var(--scroll-p, 0) * -140px), 0) rotate(-6deg);
+}
+.ambient-key--2 {
+  top: 52%;
+  left: 4%;
+  transform: translate3d(0, calc(var(--scroll-p, 0) * -200px), 0) rotate(5deg);
+}
+.ambient-key--3 {
+  top: 76%;
+  right: 9%;
+  transform: translate3d(0, calc(var(--scroll-p, 0) * -180px), 0) rotate(-8deg);
+}
+.ambient-key--4 {
+  top: 38%;
+  left: 90%;
+  transform: translate3d(0, calc(var(--scroll-p, 0) * -110px), 0) rotate(7deg);
+}
+.ambient-key--5 {
+  top: 88%;
+  left: 8%;
+  transform: translate3d(0, calc(var(--scroll-p, 0) * -160px), 0) rotate(-4deg);
+}
+
+@media (max-width: 900px) {
+  .ambient-key {
+    display: none;
+  }
+}
+
+/* Recursive is subset to Latin only, so Vietnamese diacritics would fall back
+   glyph-by-glyph to a mismatched system font on Ink / Paper / Espresso.
+   Switch the base stack to our bundled Be Vietnam Pro when lang="vi". */
+html[lang="vi"],
+html[lang="vi"] body,
+html[lang="vi"] [data-look="builtin:ink"],
+html[lang="vi"] [data-look="builtin:paper"],
+html[lang="vi"] [data-look="builtin:espresso"] {
+  --font: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---- Language switcher (EN / VI) ---- */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  gap: 2px;
+}
+
+.lang-toggle__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 650;
+  padding: 3px 7px;
+  border-radius: calc(var(--r-sm, 6px) - 2px);
+  cursor: pointer;
+}
+
+.lang-toggle__btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-on, var(--bg));
+}
+
+.hero__side {
+  display: grid;
+  gap: 12px;
+}
+
+.backdrop {
+  transform: translate3d(0, calc(var(--scroll-y, 0px) * 0.14), 0);
+  will-change: transform;
+}
+
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.hero__top {
+  animation: hero-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.facts {
+  animation: hero-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) 70ms both;
+}
+.hero__actions {
+  animation: hero-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) 130ms both;
+}
+.capture-wrap {
+  animation: hero-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0);
+  transition:
+    opacity 540ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    transform 540ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal][data-revealed="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+.feature,
+.moment,
+.look-tile {
+  transition:
+    opacity 540ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.feature:hover,
+.look-tile:hover {
+  border-color: var(--border-strong);
+  transform: translate3d(0, -2px, 0);
 }
 
 /* ---- The story page and the links to it ---- */

@@ -7,12 +7,7 @@
 /** The day the competitor cells were last checked. ISO date. */
 export const COMPARE_CHECKED_ON = "2026-11-19";
 
-export type CompareId =
-  | "posthaste"
-  | "apple-notes"
-  | "notion"
-  | "obsidian"
-  | "todoglow";
+export type CompareId = "posthaste" | "apple-notes" | "notion" | "obsidian" | "todoglow";
 
 export interface CompareApp {
   id: CompareId;
@@ -102,3 +97,74 @@ export const PICK_OTHERS: string[] = [
   "You build a linked library of long Markdown notes (Obsidian).",
   "You want a focus timer or coding agents over MCP (TodoGlow).",
 ];
+
+/** Vietnamese translation of the comparison table and pick lists. */
+export const COMPARE_VI: {
+  rows: CompareRow[];
+  pickPosthaste: string[];
+  pickOthers: string[];
+} = {
+  rows: [
+    {
+      label: "Tài khoản",
+      cells: {
+        posthaste: "Không cần",
+        "apple-notes": "Cần Apple ID để đồng bộ",
+        notion: "Bắt buộc",
+        obsidian: "Không cần nếu dùng cục bộ",
+        todoglow: "Cần để đồng bộ",
+      },
+    },
+    {
+      label: "Lưu trữ",
+      cells: {
+        posthaste: "Một tệp SQLite trên máy",
+        "apple-notes": "iCloud hoặc máy Mac",
+        notion: "Máy chủ của Notion",
+        obsidian: "Thư mục Markdown trên máy",
+        todoglow: "Trên máy, đồng bộ đám mây tùy chọn",
+      },
+    },
+    {
+      label: "Chi phí",
+      cells: {
+        posthaste: "Miễn phí, mã nguồn mở MIT",
+        "apple-notes": "Miễn phí (iCloud thêm trả phí)",
+        notion: "Bản miễn phí; AI đầy đủ trả phí",
+        obsidian: "Miễn phí cá nhân; đồng bộ trả phí",
+        todoglow: "Dùng thử, sau đó trả phí",
+      },
+    },
+    {
+      label: "AI",
+      cells: {
+        posthaste: "Tùy chọn, dùng khóa riêng",
+        "apple-notes": "Apple Intelligence",
+        notion: "Gói trả phí",
+        obsidian: "Qua plugin cộng đồng",
+        todoglow: "Khóa Gemini riêng + MCP",
+      },
+    },
+    {
+      label: "Đồng bộ & điện thoại",
+      cells: {
+        posthaste: "Đồng bộ P2P máy tính (thử nghiệm); chưa có app điện thoại",
+        "apple-notes": "Mac, iPhone, iPad, web",
+        notion: "Máy tính, điện thoại, web",
+        obsidian: "Máy tính & điện thoại (trả phí hoặc tự làm)",
+        todoglow: "Mac & Windows; chưa có app điện thoại",
+      },
+    },
+  ],
+  pickPosthaste: [
+    "Bạn muốn ghi nhanh bằng phím tắt và xem danh sách việc hôm nay thật gọn trên macOS, Windows hoặc Linux.",
+    "Bạn muốn dữ liệu nằm trên máy mình, có đồng bộ mã hóa P2P tùy chọn và không cần tài khoản.",
+    "Bạn chỉ muốn dùng AI khi tự bấm, bằng khóa riêng của mình.",
+  ],
+  pickOthers: [
+    "Bạn cần ghi chú trên điện thoại hoặc vẽ Apple Pencil (Apple Notes).",
+    "Bạn làm việc nhóm trên tài liệu chung và bảng dữ liệu (Notion).",
+    "Bạn xây kho ghi chú Markdown liên kết dài hạn (Obsidian).",
+    "Bạn cần đồng hồ tập trung hoặc kết nối coding agent qua MCP (TodoGlow).",
+  ],
+};

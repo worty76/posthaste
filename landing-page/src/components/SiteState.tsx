@@ -7,11 +7,16 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useState } f
 import { DEFAULT_LOOK_ID, LOOKS } from "@/lib/looks";
 import { applyLook } from "@/lib/theme";
 import { demoReducer, initialDemo, type DemoAction, type DemoState } from "@/lib/demo";
+import { COPY, type Lang, type SiteCopy } from "@/lib/i18n";
 
 interface SiteState {
   /** The look the page wears. */
   lookId: string;
   setLook: (id: string) => void;
+  /** Current interface language ("en" or "vi"). */
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+  copy: SiteCopy;
   demo: DemoState;
   dispatch: (action: DemoAction) => void;
 }
@@ -22,6 +27,12 @@ export function useSite(): SiteState {
   const value = useContext(Ctx);
   if (!value) throw new Error("useSite outside SiteStateProvider");
   return value;
+}
+
+/** The interface copy alone, for pages that render parts of the shell
+    without the provider (the story page's footer): English there. */
+export function useCopy(): SiteCopy {
+  return useContext(Ctx)?.copy ?? COPY.en;
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -35,10 +46,15 @@ export function SiteStateProvider({ children }: { children: React.ReactNode }) {
   // the visitor picks another look.
   const [lookId, setLookId] = useState<string>(DEFAULT_LOOK_ID);
   const [chosen, setChosen] = useState(false);
+  const [lang, setLang] = useState<Lang>("en");
 
   useEffect(() => {
     if (chosen) applyLook(lookId);
   }, [chosen, lookId]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // 1 to 6 switch looks, like picking from the app's gallery, whenever the
   // visitor is not typing somewhere.
@@ -62,10 +78,13 @@ export function SiteStateProvider({ children }: { children: React.ReactNode }) {
         setChosen(true);
         setLookId(id);
       },
+      lang,
+      setLang,
+      copy: COPY[lang],
       demo,
       dispatch,
     }),
-    [lookId, demo],
+    [lookId, lang, demo],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

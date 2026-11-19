@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEMO_ENTER_PAUSE,
+  DEMO_HOLD,
+  DEMO_NOTE_PAUSE,
+  DEMO_START_DELAY,
+  DEMO_TYPE_MS,
   MAX_NOTE_CHARS,
   demoReducer,
+  demoScript,
   formatSeconds,
   initialDemo,
+  nextCycleDelay,
   savedStack,
   todayView,
+} from "@/lib/demo";
+import {
   type DemoState,
 } from "@/lib/demo";
 
@@ -66,6 +75,70 @@ describe("capture demo", () => {
     for (let i = 1; i <= 6; i++) s = typeThenSave(s, `note ${i}`, i * 1000, i * 1000 + 500);
     expect(savedStack(s).map((n) => n.text)).toEqual(["note 6", "note 5", "note 4", "note 3"]);
   });
+});
+
+describe("the self-playing capture script", () => {
+  it("types one step per character, then presses Enter per note", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    const saves = steps.filter((s) => s.save);
+    const inputs = steps.filter((s) => !s.save);
+    expect(inputs).toHaveLength(4);
+    expect(saves).toHaveLength(2);
+  });
+
+  it("builds the text up character by character and clears after each save", () => {
+    const steps = demoScript(["Hey"]);
+    const texts = steps.map((s) => s.text);
+    expect(texts).toEqual(["H", "He", "Hey", "Hey"]);
+    expect(steps[2]!.save).toBe(false);
+    expect(steps[3]!.save).toBe(true);
+    expect(steps[3]!.text).toBe("Hey");
+  });
+
+  it("paces typing, Enter, and the breath between notes", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    expect(steps[0]!.at).toBe(DEMO_START_DELAY);
+    expect(steps[1]!.at).toBe(DEMO_START_DELAY + DEMO_TYPE_MS);
+    expect(steps[2]!.at).toBe(DEMO_START_DELAY + 2 * DEMO_TYPE_MS + DEMO_ENTER_PAUSE);
+    expect(steps[2]!.save).toBe(true);
+    expect(steps[3]!.at).toBe(steps[2]!.at + DEMO_NOTE_PAUSE);
+    expect(steps[3]!.text).toBe("H");
+  });
+
+  it("never slows down or speeds up: steps stay in order", () => {
+    const steps = demoScript(["Buy oat milk on the way home", "Send Minh the demo link"]);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]!.at).toBeGreaterThan(steps[i - 1]!.at);
+    }
+  });
+
+  it("an empty script does nothing", () => {
+    expect(demoScript([])).toEqual([]);
+  });
+});
+
+describe("the loop between scripted cycles", () => {
+  it("resets to the seeded state, throwing away scripted notes", () => {
+    let state = initialDemo();
+    state = demoReducer(state, {
+      type: "input",
+      text: "Buy oat milk on the way home",
+      now: 1_000,
+    });
+    state = demoReducer(state, { type: "save", now: 2_500 });
+    expect(savedStack(state)).toHaveLength(1);
+    state = demoReducer(state, { type: "reset" });
+    expect(state).toEqual(initialDemo());
+    expect(savedStack(state)).toEqual([]);
+  });
+
+  it("holds the finished stack, then a breath before typing again", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    const save = steps.at(-1)!.at;
+    // Steps at(-1) is always a save; the hold runs from there.
+    expect(nextCycleDelay(steps)).toBe(save + DEMO_HOLD);
+  });
+
 });
 
 describe("formatSeconds", () => {
