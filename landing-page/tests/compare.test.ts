@@ -54,7 +54,7 @@ describe("comparison data", () => {
   it("includes a row where Posthaste is the one giving something up", () => {
     const sync = COMPARE_ROWS.find((r) => /sync|phone/i.test(r.label));
     expect(sync).toBeDefined();
-    expect(sync?.cells.posthaste).toMatch(/no sync|no phone/i);
+    expect(sync?.cells.posthaste).toMatch(/in development|no sync|no phone/i);
   });
 
   it("says where the other apps are the better pick, as well as where Posthaste is", () => {

@@ -12,3 +12,9 @@ ui/pkg
 
 # Another planning doc that stays local.
 /docs/website-master-prompt.md
+
+# Agent-private docs (server setup notes etc.): local only, never pushed.
+/.agents/
+
+# TypeScript incremental build cache, regenerated on every build.
+landing-page/tsconfig.tsbuildinfo

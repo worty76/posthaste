@@ -17,7 +17,8 @@ const recursive = localFont({
   display: "swap",
 });
 
-const TITLE = "Posthaste | A fast, free, customizable note app with AI you switch on yourself";
+const TITLE =
+  "Posthaste | Free, fast, local-first, keyboard-first, customizable todo note app with AI you switch on yourself";
 const DESCRIPTION =
   "Press a shortcut anywhere, type, press Enter, and you are back where you were. Fast, free and customizable, with AI polish you turn on yourself using your own key. Notes stay on your computer.";
 

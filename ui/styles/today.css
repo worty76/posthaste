@@ -5,6 +5,21 @@ html.is-today body {
   background: transparent;
 }
 
+/* Linux: same as the capture window — paint edge to edge. */
+html.is-linux.is-today,
+html.is-linux.is-today body,
+html.is-linux.is-today .today {
+  background: var(--surface-raised);
+}
+html.is-linux.is-today .today {
+  padding: 0;
+}
+html.is-linux.is-today .today__panel {
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
 .today {
   height: 100%;
   /* Room for the shadow; the OS window itself is invisible. */

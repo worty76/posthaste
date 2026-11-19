@@ -83,10 +83,28 @@
 }
 .sidebar__new {
   justify-content: space-between;
+  gap: var(--s-2);
   width: 100%;
   margin-bottom: var(--s-2);
   padding: 0 var(--s-2) 0 var(--s-3);
   overflow: hidden;
+}
+/* System fonts on Linux and Windows run wider than the macOS metrics the
+   sizes assume, so the label yields and the key cap never clips. */
+.sidebar__new__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.sidebar__new .kbd {
+  flex: none;
+}
+.sidebar__new .kbd kbd {
+  padding-inline: 0.3em;
+  min-width: 1.3em;
 }
 
 /* ---- Content ---- */

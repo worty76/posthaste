@@ -7,6 +7,7 @@ import {
   GetSection,
   HeroSection,
   LocalSection,
+  SyncSection,
   LooksSection,
   SiteHeader,
 } from "@/components/LocalizedSections";
@@ -104,6 +105,7 @@ export default async function Page() {
         <DemoVideo />
         <LooksSection />
         <LocalSection />
+        <SyncSection />
         <Compare />
         <Changelog releases={releases} />
         <MakerNote />

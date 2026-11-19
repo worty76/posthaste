@@ -26,6 +26,15 @@ pub fn mount() {
     if let Some(root) = document().document_element() {
         // Stylesheets size and paint each window through this class.
         let _ = root.class_list().add_1(&format!("is-{label}"));
+        // Stylesheets also branch on the platform: Linux (WebKitGTK) cannot
+        // reliably composite transparent windows, so there the windows paint
+        // edge to edge instead of floating on an invisible margin.
+        let os_class = match guess_os() {
+            Os::Macos => "is-macos",
+            Os::Windows => "is-windows",
+            Os::Linux => "is-linux",
+        };
+        let _ = root.class_list().add_1(os_class);
     }
     // Leptos starts its own task runner when it mounts; this runs before.
     wasm_bindgen_futures::spawn_local(async move {
@@ -93,7 +102,9 @@ fn show<V: IntoView + 'static>(view: impl FnOnce() -> V + 'static) {
     }
 }
 
-/// Only for when the shell cannot be asked: shortcuts still need a modifier.
+/// The platform, from the user agent. Used for the stylesheet's platform
+/// class before the shell is asked, and for the few things that must work
+/// without it (shortcuts still need a modifier).
 fn guess_os() -> Os {
     let agent = window().navigator().user_agent().unwrap_or_default();
     if agent.contains("Mac") {
