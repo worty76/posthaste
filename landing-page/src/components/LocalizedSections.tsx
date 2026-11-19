@@ -47,6 +47,17 @@ export function SiteHeader({ stars }: { stars: number | null }) {
   );
 }
 
+/** Where each hero fact links, in the same order as the words in i18n. */
+const FACT_ANCHORS = [
+  "#free",
+  "#features",
+  "#features",
+  "#local",
+  "#looks",
+  "#ai",
+  "#features",
+];
+
 export function HeroSection({
   downloads,
 }: {
@@ -78,19 +89,13 @@ export function HeroSection({
           </noscript>
         </div>
       </div>
+      {/* One anchor per fact, in the same order as the words in i18n. */}
       <ul className="facts" aria-label="Posthaste in short">
-        <li>
-          <a href="#features">{copy.hero.facts[0]}</a>
-        </li>
-        <li>
-          <a href="#free">{copy.hero.facts[1]}</a>
-        </li>
-        <li>
-          <a href="#ai">{copy.hero.facts[2]}</a>
-        </li>
-        <li>
-          <a href="#looks">{copy.hero.facts[3]}</a>
-        </li>
+        {copy.hero.facts.map((label, i) => (
+          <li key={label}>
+            <a href={FACT_ANCHORS[i]}>{label}</a>
+          </li>
+        ))}
       </ul>
       <HeroActions downloads={downloads} />
       <StoryHeroLink />
@@ -126,7 +131,7 @@ export function LooksSection() {
 export function LocalSection() {
   const { copy } = useSite();
   return (
-    <section className="page local" aria-labelledby="local-title">
+    <section className="page local" id="local" aria-labelledby="local-title">
       <h2 className="h2" id="local-title">
         {copy.local.heading}
       </h2>

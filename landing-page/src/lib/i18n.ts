@@ -20,7 +20,7 @@ export interface SiteCopy {
     sub1: string;
     sub2: string;
     sub3: string;
-    facts: [string, string, string, string];
+    facts: string[];
     downloadFor: (os: string) => string;
     downloadFree: string;
     watchDemo: string;
@@ -107,7 +107,7 @@ export const COPY: Record<Lang, SiteCopy> = {
       sub1: "Press a shortcut over any app to jot a thought down.",
       sub2: "Hit Enter and go right back to what you were doing.",
       sub3: "Private on your computer, with optional encrypted sync between your own devices.",
-      facts: ["Local", "Free", "Optional AI", "Customizable"],
+      facts: ["Free", "Minimal", "Fast", "Local", "Customizable", "AI optional", "Keyboard-first"],
       downloadFor: (os) => `Download for ${os}`,
       downloadFree: "Download free",
       watchDemo: "Watch the demo",
@@ -198,7 +198,7 @@ export const COPY: Record<Lang, SiteCopy> = {
       sub1: "Nhấn phím tắt ngay trên mọi ứng dụng để ghi lại ý nghĩ.",
       sub2: "Nhấn Enter để lưu và quay lại công việc ngay lập tức.",
       sub3: "Lưu riêng tư trên máy của bạn, có thể đồng bộ mã hóa giữa các máy tính của chính bạn.",
-      facts: ["Local", "Miễn phí", "AI tùy chọn", "Tùy biến đẹp"],
+      facts: ["Miễn phí", "Tối giản", "Nhanh", "Local", "Tùy biến", "AI tùy chọn", "Ưu tiên bàn phím"],
       downloadFor: (os) => `Tải cho ${os}`,
       downloadFree: "Tải miễn phí",
       watchDemo: "Xem video demo",
