@@ -331,4 +331,35 @@ describe("trash", () => {
     assert.deepEqual((await w.calls("trash_empty"))[0].args, { upTo: at("2026-11-15T10:00:00") });
     await w.close();
   });
+
+  it("offers one-click update when the database is from a newer version", async () => {
+    const w = await open({
+      label: "main",
+      info: {
+        startup_error: {
+          code: "db_newer_schema",
+          message:
+            "This database was created by a newer version of Posthaste (schema 7, this version understands up to 6).",
+        },
+      },
+      store: {
+        update: {
+          version: "0.6.0",
+          current_version: "0.5.0",
+          notes: null,
+        },
+      },
+    });
+    const fatal = w.page.locator(".fatal");
+    await text(fatal, "Update Posthaste to the latest version to open your notes again.");
+    const btn = fatal.getByRole("button", { name: "Update to 0.6.0" });
+    await btn.click();
+    await eventually(
+      async () => (await w.mock.calls("update_install")).length,
+      (n) => n === 1,
+      "update_install called",
+    );
+    assert.deepEqual(w.errors, []);
+    await w.close();
+  });
 });

@@ -73,8 +73,10 @@ fn show_main(info: Result<AppInfo, posthaste_model::CommandError>) {
         // the sidebar's buttons.
         (Ok(info), None) => show(move || view! { <main::MainWindow info=info /> }),
         (_, failure) => {
-            let message = failure.map(|error| error.message).unwrap_or_default();
-            show(move || view! { <fatal::Fatal message=message /> });
+            let (code, message) = failure
+                .map(|error| (error.code, error.message))
+                .unwrap_or_default();
+            show(move || view! { <fatal::Fatal code=code message=message /> });
         }
     }
 }

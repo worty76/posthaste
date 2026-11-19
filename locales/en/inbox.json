@@ -112,6 +112,10 @@
   },
   "fatal": {
     "title": "Posthaste can't open its database",
-    "text": "Nothing has been deleted. Your notes file was left exactly as it was. Fix the problem above (for example free some disk space, or check the file's permissions), then start Posthaste again."
+    "text": "Nothing has been deleted. Your notes file was left exactly as it was. Fix the problem above (for example free some disk space, or check the file's permissions), then start Posthaste again.",
+    "newer_schema_text": "Nothing has been deleted. Update Posthaste to the latest version to open your notes again.",
+    "check_updates": "Check for updates",
+    "update_to": "Update to {version}",
+    "no_update": "No newer release was found automatically. Download the latest Posthaste from the releases page and open it instead."
   }
 }
