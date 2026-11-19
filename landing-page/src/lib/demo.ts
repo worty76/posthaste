@@ -26,7 +26,8 @@ export type DemoAction =
   | { type: "input"; text: string; now: number }
   | { type: "save"; now: number }
   | { type: "clear" }
-  | { type: "toggle"; id: number };
+  | { type: "toggle"; id: number }
+  | { type: "reset" };
 
 /** Notes the visitor did not write: obviously made up, never quotes. */
 const SEEDED: Omit<DemoNote, "id">[] = [
@@ -77,6 +78,8 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     }
     case "clear":
       return { ...state, draft: "", startedAt: null };
+    case "reset":
+      return initialDemo();
     case "toggle":
       return {
         ...state,
@@ -124,6 +127,8 @@ export const DEMO_TYPE_MS = 55;
 export const DEMO_ENTER_PAUSE = 400;
 /** Delay from a save to the first character of the next note. */
 export const DEMO_NOTE_PAUSE = 1900;
+/** How long a finished cycle's stack stays up before it is cleared. */
+export const DEMO_HOLD = 2400;
 
 /** One scripted moment: the draft text at `at` ms from start, and whether
     Enter is pressed with it. */
@@ -152,6 +157,12 @@ export function demoScript(notes: string[]): ScriptStep[] {
     text = "";
   }
   return steps;
+}
+
+/** When the next cycle should start typing, from the moment the last one
+    saved: the stack holds a beat, is cleared, then a breath. */
+export function nextCycleDelay(steps: ScriptStep[]): number {
+  return (steps.at(-1)?.at ?? 0) - (steps.at(-1)?.save ? 0 : DEMO_ENTER_PAUSE) + DEMO_HOLD;
 }
 
 /** Notes the visitor ticked off, for the Done column. */

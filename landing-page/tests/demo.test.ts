@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   DEMO_ENTER_PAUSE,
+  DEMO_HOLD,
   DEMO_NOTE_PAUSE,
   DEMO_START_DELAY,
   DEMO_TYPE_MS,
-  demoScript,
-} from "@/lib/demo";
-import {
   MAX_NOTE_CHARS,
   demoReducer,
+  demoScript,
   formatSeconds,
   initialDemo,
+  nextCycleDelay,
   savedStack,
   todayView,
+} from "@/lib/demo";
+import {
   type DemoState,
 } from "@/lib/demo";
 
@@ -113,6 +115,30 @@ describe("the self-playing capture script", () => {
   it("an empty script does nothing", () => {
     expect(demoScript([])).toEqual([]);
   });
+});
+
+describe("the loop between scripted cycles", () => {
+  it("resets to the seeded state, throwing away scripted notes", () => {
+    let state = initialDemo();
+    state = demoReducer(state, {
+      type: "input",
+      text: "Buy oat milk on the way home",
+      now: 1_000,
+    });
+    state = demoReducer(state, { type: "save", now: 2_500 });
+    expect(savedStack(state)).toHaveLength(1);
+    state = demoReducer(state, { type: "reset" });
+    expect(state).toEqual(initialDemo());
+    expect(savedStack(state)).toEqual([]);
+  });
+
+  it("holds the finished stack, then a breath before typing again", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    const save = steps.at(-1)!.at;
+    // Steps at(-1) is always a save; the hold runs from there.
+    expect(nextCycleDelay(steps)).toBe(save + DEMO_HOLD);
+  });
+
 });
 
 describe("formatSeconds", () => {
