@@ -2,9 +2,11 @@
 
 // Subtle, high-craft scroll choreography for the landing page:
 // 1. A 2px reading progress bar pinned to the top edge (driven by scrollY).
-// 2. Smooth, theme-aware IntersectionObserver reveals for sections and staggered
-//    children (moments, feature cards, look tiles, comparison, changelog).
-// 3. Respects prefers-reduced-motion and never blocks initial visibility if JS
+// 2. A Posthaste ambient glow + floating keycap glyphs that drift and illuminate
+//    gently in the background as you scroll, adapting automatically to the
+//    active Look's `--accent` token.
+// 3. Smooth IntersectionObserver reveals for sections and staggered cards.
+// 4. Respects prefers-reduced-motion and never blocks initial visibility if JS
 //    has not hydrated or is disabled.
 
 import { useEffect, useRef } from "react";
@@ -19,6 +21,14 @@ const REVEAL_SELECTOR = [
   ".release",
   ".free-card",
 ].join(", ");
+
+const FLOATING_KEYS = [
+  { label: "⌘⇧Space", cls: "ambient-key ambient-key--1" },
+  { label: "Enter ↵", cls: "ambient-key ambient-key--2" },
+  { label: "X", cls: "ambient-key ambient-key--3" },
+  { label: "L", cls: "ambient-key ambient-key--4" },
+  { label: "Esc", cls: "ambient-key ambient-key--5" },
+];
 
 export function ScrollChoreography() {
   const barRef = useRef<HTMLDivElement>(null);
@@ -35,10 +45,15 @@ export function ScrollChoreography() {
       if (barRef.current) {
         barRef.current.style.transform = `scaleX(${ratio})`;
       }
-      // Parallax drift on the hero keyboard backdrop while hero is in view.
       if (!reduce) {
         const y = Math.min(window.scrollY, 700);
         doc.style.setProperty("--scroll-y", `${y}px`);
+        doc.style.setProperty("--scroll-p", ratio.toFixed(4));
+        // Gentle horizontal/vertical sweep for the ambient glow orb as the user scrolls.
+        const glowX = 18 + Math.sin(ratio * Math.PI * 2.2) * 34 + ratio * 32;
+        const glowY = 14 + ratio * 68;
+        doc.style.setProperty("--glow-x", `${glowX.toFixed(1)}%`);
+        doc.style.setProperty("--glow-y", `${glowY.toFixed(1)}%`);
       }
     };
 
@@ -60,7 +75,6 @@ export function ScrollChoreography() {
 
     const targets = Array.from(document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR));
 
-    // Group sibling cards so they stagger cleanly as a unit when scrolling in.
     for (const el of targets) {
       el.setAttribute("data-reveal", "");
       const parent = el.parentElement;
@@ -109,5 +123,19 @@ export function ScrollChoreography() {
     };
   }, []);
 
-  return <div ref={barRef} className="scroll-progress" aria-hidden="true" />;
+  return (
+    <>
+      <div ref={barRef} className="scroll-progress" aria-hidden="true" />
+      <div className="ambient-stage" aria-hidden="true">
+        <div className="ambient-glow ambient-glow--primary" />
+        <div className="ambient-glow ambient-glow--secondary" />
+        <div className="ambient-streak" />
+        {FLOATING_KEYS.map((k) => (
+          <span key={k.label} className={k.cls}>
+            {k.label}
+          </span>
+        ))}
+      </div>
+    </>
+  );
 }
