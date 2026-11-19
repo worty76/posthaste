@@ -12,7 +12,7 @@ import { useSite } from "./SiteState";
 import { StarChip } from "./StarChip";
 import { StoryHeroLink } from "./StoryLinks";
 import { storyVisible } from "@/lib/story";
-import { PRODUCT, type Download, type Platform } from "@/config";
+import { PRODUCT, SYNC_VIDEO, type Download, type Platform } from "@/config";
 
 export function SiteHeader({ stars }: { stars: number | null }) {
   const { copy } = useSite();
@@ -153,6 +153,38 @@ export function LocalSection() {
           </ul>
         </div>
       </div>
+    </section>
+  );
+}
+
+export function SyncSection() {
+  const { copy } = useSite();
+  return (
+    <section className="page watch sync" id="sync" aria-labelledby="sync-title">
+      <h2 className="h2" id="sync-title">
+        {copy.sync.heading}
+      </h2>
+      <p className="watch__lede">{copy.sync.lede}</p>
+      <div className="watch__frame">
+        <video
+          className="watch__video"
+          controls
+          playsInline
+          preload="none"
+          poster={SYNC_VIDEO.poster}
+          aria-label={copy.sync.filmLabel}
+        >
+          <source src={SYNC_VIDEO.src} type="video/mp4" />
+          <a href={SYNC_VIDEO.src}>MP4</a>
+        </video>
+      </div>
+      <p className="quiet watch__note">{copy.sync.filmNote}</p>
+      <ul className="ledger sync__points">
+        {copy.sync.points.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="quiet sync__phone">{copy.sync.phoneNote}</p>
     </section>
   );
 }

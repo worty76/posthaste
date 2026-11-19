@@ -63,7 +63,7 @@ release banner, header with section links, a definition hero (the word's
 meaning, the to-do notes line, four fact links, the download for this OS and
 the demo film), the loop (catch, see what's left, tick off: three live demos
 sharing the hero's state), feature blocks (copy in `src/lib/blocks.ts`, each
-with a small working demo), the film, looks, local, compare, changelog
+with a small working demo), the film, looks, local, the sync film (`SyncSection`, copy in `i18n.ts`, film in `SYNC_VIDEO`), compare, changelog
 (`src/lib/releases.ts`, read from GitHub at build time, hand-written notes in
 `RELEASE_NOTES` in `config.ts` win over commit subjects), the free card, get
 it. Posthaste is described as a to-do notes app. When a competitor's own page

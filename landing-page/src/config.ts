@@ -47,6 +47,13 @@ export const DEMO_VIDEO = {
   seconds: 73,
 } as const;
 
+/** The sync film in `public/demo/`. Same-origin files; `seconds` is the film's own length. */
+export const SYNC_VIDEO = {
+  src: "/demo/posthaste-sync.mp4?v=1",
+  poster: "/demo/posthaste-sync-poster.jpg?v=1",
+  seconds: 26,
+} as const;
+
 /** Release notes written for people, by version. They replace the automatic
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {

@@ -59,6 +59,14 @@ export interface SiteCopy {
     leavesTitle: string;
     leaves: string[];
   };
+  sync: {
+    heading: string;
+    lede: string;
+    filmLabel: string;
+    points: string[];
+    phoneNote: string;
+    filmNote: string;
+  };
   compare: {
     heading: string;
     lede: string;
@@ -152,6 +160,22 @@ export const COPY: Record<Lang, SiteCopy> = {
         "Device sync — optional and encrypted straight between your own computers.",
       ],
     },
+    sync: {
+      heading: "How local sync works.",
+      lede: "Sync is optional, off by default and still experimental. Your computers talk to each other, and no cloud copy of your notes exists.",
+      filmLabel:
+        "Posthaste sync film: two computers paired with a code, a note crossing on the same Wi-Fi, then through a relay on different networks",
+      points: [
+        "Pair once. One computer makes a single-use code that works for 10 minutes, and the other computer pastes it.",
+        "On the same Wi-Fi, the two computers connect straight to each other.",
+        "On different networks, when they can't connect directly, the encrypted traffic goes through a relay that only passes it along. It sees device IDs and IP addresses, never your notes. Leave the relay address empty for same-network sync only.",
+        "Both computers have to be on at the same time. Nothing waits for the other one in the cloud.",
+        "Notes sync today. Attachments, looks, settings and unsaved drafts don't yet.",
+      ],
+      phoneNote: "A phone app is in development. Today, sync is between computers.",
+      filmNote:
+        "Built from mock-ups of the app's windows, not a screen recording. The sound is made up for the film; the app itself is silent.",
+    },
     compare: {
       heading: "Next to the apps you already use.",
       lede: "Posthaste catches a quick thought and keeps today's list short. Here is how it compares.",
@@ -242,6 +266,22 @@ export const COPY: Record<Lang, SiteCopy> = {
         "AI chỉnh sửa câu chữ — tắt mặc định, dùng khóa riêng của bạn.",
         "Đồng bộ thiết bị — tùy chọn, mã hóa trực tiếp giữa các máy tính của bạn.",
       ],
+    },
+    sync: {
+      heading: "Đồng bộ cục bộ hoạt động thế nào.",
+      lede: "Đồng bộ là tùy chọn, tắt mặc định và vẫn đang thử nghiệm. Các máy tính của bạn nói chuyện trực tiếp với nhau, không có bản sao ghi chú nào trên đám mây.",
+      filmLabel:
+        "Video đồng bộ Posthaste: hai máy tính ghép đôi bằng một mã, một ghi chú đi qua cùng mạng Wi-Fi, rồi đi qua máy chuyển tiếp khi ở hai mạng khác nhau",
+      points: [
+        "Ghép đôi một lần. Một máy tạo mã dùng một lần, có hiệu lực 10 phút, máy còn lại dán mã vào.",
+        "Cùng mạng Wi-Fi, hai máy kết nối thẳng với nhau.",
+        "Khác mạng, khi không kết nối thẳng được, dữ liệu đã mã hóa đi qua một máy chuyển tiếp chỉ làm nhiệm vụ chuyển đi. Máy này chỉ thấy mã thiết bị và địa chỉ IP, không bao giờ thấy ghi chú của bạn. Để trống địa chỉ này nếu chỉ muốn đồng bộ trong cùng mạng.",
+        "Hai máy phải bật cùng lúc. Không có gì được giữ chờ trên đám mây.",
+        "Hiện ghi chú đã đồng bộ. Tệp đính kèm, giao diện, cài đặt và bản nháp chưa lưu thì chưa.",
+      ],
+      phoneNote: "App điện thoại đang được phát triển. Hiện tại, đồng bộ diễn ra giữa các máy tính.",
+      filmNote:
+        "Làm từ hình dựng lại các cửa sổ của ứng dụng, không phải quay màn hình. Âm thanh chỉ làm cho video; bản thân ứng dụng không phát tiếng.",
     },
     compare: {
       heading: "Đặt cạnh các ứng dụng bạn quen dùng.",
