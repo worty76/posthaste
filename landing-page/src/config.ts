@@ -10,12 +10,12 @@ export interface Download {
 
 export type Platform = "mac" | "windows" | "linux";
 
-const RELEASE = "https://github.com/worty76/posthaste/releases/download/v0.4.0";
+const RELEASE = "https://github.com/worty76/posthaste/releases/download/v0.5.0";
 
 export const PRODUCT = {
   name: "Posthaste",
   /** From src-tauri/Cargo.toml [workspace.package] version. */
-  version: "0.4.0",
+  version: "0.5.0",
   repoUrl: "https://github.com/worty76/Posthaste",
   releasesUrl: "https://github.com/worty76/Posthaste/releases/latest",
   /** The community server. A plain link in the header; the page loads nothing from Discord. */
@@ -29,14 +29,14 @@ export const PRODUCT = {
    * null would mean "not released for this platform".
    */
   downloads: {
-    mac: { url: `${RELEASE}/Posthaste_0.4.0_aarch64.dmg`, label: "Apple Silicon, .dmg" },
-    windows: { url: `${RELEASE}/Posthaste_0.4.0_x64-setup.exe`, label: "64-bit installer, .exe" },
-    linux: { url: `${RELEASE}/Posthaste_0.4.0_amd64.AppImage`, label: "x86-64, .AppImage" },
+    mac: { url: `${RELEASE}/Posthaste_0.5.0_aarch64.dmg`, label: "Apple Silicon, .dmg" },
+    windows: { url: `${RELEASE}/Posthaste_0.5.0_x64-setup.exe`, label: "64-bit installer, .exe" },
+    linux: { url: `${RELEASE}/Posthaste_0.5.0_amd64.AppImage`, label: "x86-64, .AppImage" },
   } as Record<Platform, Download | null>,
   /** Extra Linux packages from the same release. */
   linuxExtras: [
-    { url: `${RELEASE}/Posthaste_0.4.0_amd64.deb`, label: ".deb" },
-    { url: `${RELEASE}/Posthaste-0.4.0-1.x86_64.rpm`, label: ".rpm" },
+    { url: `${RELEASE}/Posthaste_0.5.0_amd64.deb`, label: ".deb" },
+    { url: `${RELEASE}/Posthaste-0.5.0-1.x86_64.rpm`, label: ".rpm" },
   ] as Download[],
 } as const;
 
@@ -50,6 +50,12 @@ export const DEMO_VIDEO = {
 /** Release notes written for people, by version. They replace the automatic
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {
+  "0.5.0": [
+    "Three fonts ship inside the app — Be Vietnam Pro, Nunito and Quicksand — so Blueberry, Sakura night and Strawberry Milk read the same on every computer, with Vietnamese covered.",
+    "A look can name any font installed on your computer, the way code editors do: type its name in the editor, and if a friend lacks it they still get a readable fallback.",
+    "There is no more Plain: Posthaste always wears a look, and light or dark follows the look you picked. The old Light/Dark/System setting is gone.",
+    "File dialogs now open attached to the window that asked for them, instead of hiding behind it.",
+  ],
   "0.4.0": [
     "Make Posthaste yours: pick a look from the gallery, or make your own with the live editor — every colour, corner and font, previewed as you type.",
     "A look can carry a backdrop image behind your notes, dimmed so the text stays readable.",
@@ -94,6 +100,7 @@ export const RELEASE_NOTES: Record<string, string[]> = {
 export const FALLBACK_RELEASES: { version: string; date: string; url: string; notes: string[] }[] =
   (
     [
+      ["0.5.0", "2026-11-19"],
       ["0.4.0", "2026-11-18"],
       ["0.3.3", "2026-11-17"],
       ["0.3.2", "2026-11-16"],
