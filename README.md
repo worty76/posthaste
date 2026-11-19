@@ -5,9 +5,9 @@
 <h1 align="center">Posthaste</h1>
 
 <p align="center">
-  <strong>A badass note app with a modern, polished UI.</strong><br>
-  Fast, free, customizable, keyboard-first for macOS, Windows and Linux, with six
-  built-in looks (or make your own) and optional AI polish with your own key.
+  <strong>A fast, local-first note &amp; to-do app built in Rust.</strong><br>
+  Keyboard-first for macOS, Windows and Linux, with custom looks, optional
+  peer-to-peer device sync, and optional AI polish with your own key.
 </p>
 
 <p align="center">
@@ -125,7 +125,7 @@ settings.
 Accounts, central cloud storage, reminders, folders, statistics. Posthaste does one job and
 stays out of the way.
 
-Platform notes and architecture details: [docs/platform-notes.md](docs/platform-notes.md).
+Platform notes and architecture details: [docs/platform-notes.md](docs/platform-notes.md) and [docs/sync.md](docs/sync.md).
 
 ## Licence
 
