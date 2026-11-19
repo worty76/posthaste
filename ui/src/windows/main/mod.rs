@@ -569,7 +569,9 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 </nav>
                 <div class="sidebar__spacer"></div>
                 <Button class="sidebar__new" on_click=move |()| main.new_note()>
-                    {i18n.text(key::INBOX_NEW_NOTE)}
+                    <span class="sidebar__new__label">
+                        {i18n.text(key::INBOX_NEW_NOTE)}
+                    </span>
                     <Show when=move || capture_keys.with(|keys| !keys.is_empty())>
                         <Kbd keys=capture_keys />
                     </Show>
