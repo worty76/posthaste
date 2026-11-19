@@ -115,6 +115,9 @@ describe("settings", () => {
     await text(w.page.locator('.recorder[data-recording="true"]'), "Press shortcut…");
     await w.page.keyboard.press("a");
     assert.equal((await w.calls("settings_update")).length, 0, "a bare letter is not a shortcut");
+    // WebKit does not focus a button on click, so the capture must work
+    // whatever has focus: drop the focus and record anyway.
+    await w.page.evaluate(() => document.activeElement?.blur());
     await w.page.keyboard.press("Control+Alt+KeyK");
     await eventually(w.saved, (s) => s?.capture_shortcut === "Ctrl+Alt+K", "shortcut saved");
     await w.page.getByRole("button", { name: "Restore default" }).first().click();
