@@ -1922,6 +1922,17 @@ footer,
   }
 }
 
+/* Recursive is subset to Latin only, so Vietnamese diacritics would fall back
+   glyph-by-glyph to a mismatched system font on Ink / Paper / Espresso.
+   Switch the base stack to our bundled Be Vietnam Pro when lang="vi". */
+html[lang="vi"],
+html[lang="vi"] body,
+html[lang="vi"] [data-look="builtin:ink"],
+html[lang="vi"] [data-look="builtin:paper"],
+html[lang="vi"] [data-look="builtin:espresso"] {
+  --font: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+}
+
 /* ---- Language switcher (EN / VI) ---- */
 .lang-toggle {
   display: inline-flex;
