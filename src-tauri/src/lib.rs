@@ -7,6 +7,7 @@ mod error;
 mod panels;
 mod shortcuts;
 mod state;
+mod sync;
 mod tray;
 mod updates;
 mod windows;
@@ -183,6 +184,12 @@ pub fn run() {
             ai::ai_key_page,
             updates::update_check,
             updates::update_install,
+            commands::sync_status,
+            commands::sync_set_enabled,
+            commands::sync_pair_offer,
+            commands::sync_pair_join,
+            commands::sync_now,
+            commands::sync_forget,
         ]))
         .setup(|app| {
             let handle = app.handle().clone();
@@ -191,9 +198,11 @@ pub fn run() {
             let db_failed = db.is_err();
             app.manage(AppState::new(db));
             app.manage(ai::SecretsCell::default());
+            app.manage(sync::SyncService::default());
             // The keychain may prompt or wait on D-Bus: set it up off the
             // main thread. Saving settings meanwhile keeps any old key.
             ai::start(&handle);
+            sync::SyncService::start_if_enabled(&handle);
             let state = handle.state::<AppState>();
             let settings = state.settings();
 

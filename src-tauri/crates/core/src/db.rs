@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 use crate::error::{CoreError, Result};
 use crate::migrations;
+use crate::sync::record::record as sync_record;
+use crate::sync::Field;
 use posthaste_model::*;
 
 const DRAFT_SLOT: &str = "capture";
@@ -82,6 +84,11 @@ impl Db {
     pub fn create_note_at(&mut self, new: NewNote, now: i64) -> Result<Note> {
         let tx = self.conn.transaction()?;
         let note = insert_note(&tx, new, now)?;
+        let mut fields = vec![Field::Created, Field::Content];
+        if note.category.is_some() {
+            fields.push(Field::Category);
+        }
+        sync_record(&tx, &note.id, &fields, now)?;
         tx.commit()?;
         Ok(note)
     }
@@ -96,6 +103,11 @@ impl Db {
         let tx = self.conn.transaction()?;
         let note = insert_note(&tx, new, now)?;
         tx.execute("DELETE FROM drafts WHERE id = ?1", [DRAFT_SLOT])?;
+        let mut fields = vec![Field::Created, Field::Content];
+        if note.category.is_some() {
+            fields.push(Field::Category);
+        }
+        sync_record(&tx, &note.id, &fields, now)?;
         tx.commit()?;
         Ok(note)
     }
@@ -124,7 +136,8 @@ impl Db {
     ) -> Result<Note> {
         let content = clean_content(content)?;
         let category = clean_category(category);
-        let changed = self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let changed = tx.execute(
             "UPDATE notes SET content = ?1, category = ?2, updated_at = ?3
              WHERE id = ?4 AND deleted_at IS NULL",
             params![content, category, now, id],
@@ -132,6 +145,8 @@ impl Db {
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Content, Field::Category], now)?;
+        tx.commit()?;
         self.get_note(id)
     }
 
@@ -155,9 +170,12 @@ impl Db {
                  later_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL"
             }
         };
-        if self.conn.execute(sql, params![now, id])? == 0 {
+        let tx = self.conn.transaction()?;
+        if tx.execute(sql, params![now, id])? == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Status, Field::Later], now)?;
+        tx.commit()?;
         self.get_note(id)
     }
 
@@ -169,14 +187,15 @@ impl Db {
     }
 
     pub fn set_later_at(&mut self, id: &str, later: bool, now: i64) -> Result<Note> {
+        let tx = self.conn.transaction()?;
         let changed = if later {
-            self.conn.execute(
+            tx.execute(
                 "UPDATE notes SET status = 'inbox', completed_at = NULL, archived_at = NULL,
                  later_at = ?1, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                 params![now, id],
             )?
         } else {
-            self.conn.execute(
+            tx.execute(
                 "UPDATE notes SET later_at = NULL, updated_at = ?1
                  WHERE id = ?2 AND deleted_at IS NULL",
                 params![now, id],
@@ -185,6 +204,12 @@ impl Db {
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        if later {
+            sync_record(&tx, id, &[Field::Status, Field::Later], now)?;
+        } else {
+            sync_record(&tx, id, &[Field::Later], now)?;
+        }
+        tx.commit()?;
         self.get_note(id)
     }
 
@@ -195,20 +220,24 @@ impl Db {
     }
 
     pub fn trash_note_at(&mut self, id: &str, now: i64) -> Result<()> {
-        let changed = self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let changed = tx.execute(
             "UPDATE notes SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
             params![now, id],
         )?;
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Deleted], now)?;
+        tx.commit()?;
         Ok(())
     }
 
     /// Restores a trashed note that is still within the keep time. Only
     /// `deleted_at` changes: status, Later and files come back as they were.
     pub fn restore_trashed_at(&mut self, id: &str, now: i64) -> Result<Note> {
-        let changed = self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let changed = tx.execute(
             "UPDATE notes SET deleted_at = NULL
              WHERE id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2",
             params![id, now - TRASH_RETENTION_MS],
@@ -216,6 +245,8 @@ impl Db {
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Deleted], now)?;
+        tx.commit()?;
         self.get_note(id)
     }
 
@@ -242,13 +273,17 @@ impl Db {
 
     /// Erases one trashed note for good, with its files and search entry.
     pub fn purge_note(&mut self, id: &str) -> Result<()> {
-        let changed = self.conn.execute(
+        let now = now_ms();
+        let tx = self.conn.transaction()?;
+        let changed = tx.execute(
             "DELETE FROM notes WHERE id = ?1 AND deleted_at IS NOT NULL",
             [id],
         )?;
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Purged], now)?;
+        tx.commit()?;
         Ok(())
     }
 
@@ -257,11 +292,27 @@ impl Db {
     /// A note deleted since, with its Undo still on screen, is spared; expired
     /// ones are left to the launch purge. Returns how many.
     pub fn empty_trash_at(&mut self, up_to: i64, now: i64) -> Result<usize> {
-        Ok(self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let ids: Vec<String> = {
+            let mut stmt = tx.prepare(
+                "SELECT id FROM notes
+                 WHERE deleted_at IS NOT NULL AND deleted_at <= ?1 AND deleted_at >= ?2",
+            )?;
+            let rows = stmt
+                .query_map(params![up_to, now - TRASH_RETENTION_MS], |r| r.get(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            rows
+        };
+        let count = tx.execute(
             "DELETE FROM notes
              WHERE deleted_at IS NOT NULL AND deleted_at <= ?1 AND deleted_at >= ?2",
             params![up_to, now - TRASH_RETENTION_MS],
-        )?)
+        )?;
+        for id in &ids {
+            sync_record(&tx, id, &[Field::Purged], now)?;
+        }
+        tx.commit()?;
+        Ok(count)
     }
 
     pub fn restore_trashed(&mut self, id: &str) -> Result<Note> {
@@ -270,10 +321,25 @@ impl Db {
 
     /// Permanently removes notes trashed before `cutoff`. Returns how many.
     pub fn purge_trashed(&mut self, cutoff: i64) -> Result<usize> {
-        Ok(self.conn.execute(
+        let now = now_ms();
+        let tx = self.conn.transaction()?;
+        let ids: Vec<String> = {
+            let mut stmt = tx
+                .prepare("SELECT id FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?1")?;
+            let rows = stmt
+                .query_map([cutoff], |r| r.get(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            rows
+        };
+        let count = tx.execute(
             "DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
             [cutoff],
-        )?)
+        )?;
+        for id in &ids {
+            sync_record(&tx, id, &[Field::Purged], now)?;
+        }
+        tx.commit()?;
+        Ok(count)
     }
 
     pub fn list_notes(&self, q: &NoteQuery) -> Result<Vec<Note>> {
@@ -658,13 +724,13 @@ impl Db {
         Ok(())
     }
 
-    /// Deletes every note, draft, look, look asset and setting, then compacts
-    /// the file so the removed text does not linger on disk.
+    /// Deletes every note, draft, look, look asset, sync metadata and setting,
+    /// then compacts the file so the removed text does not linger on disk.
     pub fn clear_all(&mut self) -> Result<()> {
         let tx = self.conn.transaction()?;
         tx.execute_batch(
             "DELETE FROM notes; DELETE FROM drafts; DELETE FROM settings; DELETE FROM looks;
-             DELETE FROM look_assets;",
+             DELETE FROM look_assets; DELETE FROM sync_fields; DELETE FROM sync_peers;",
         )?;
         tx.commit()?;
         self.conn.execute_batch("VACUUM;")?;

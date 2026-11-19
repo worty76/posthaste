@@ -6,7 +6,7 @@ use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
     Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
-    Status, ThemeEdit, TrashedNote, UpdateInfo,
+    Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -531,4 +531,40 @@ pub async fn update_check() -> Response<Option<UpdateInfo>> {
 /// when there was nothing to install.
 pub async fn update_install() -> Response<()> {
     invoke("update_install", &NoArgs {}).await
+}
+
+// ---- device sync -----------------------------------------------------------
+
+#[derive(Serialize)]
+struct SyncSetEnabled {
+    on: bool,
+}
+
+#[derive(Serialize)]
+struct SyncPairJoin<'a> {
+    code: &'a str,
+}
+
+pub async fn sync_status() -> Response<SyncStatus> {
+    invoke("sync_status", &NoArgs {}).await
+}
+
+pub async fn sync_set_enabled(on: bool) -> Response<SyncStatus> {
+    invoke("sync_set_enabled", &SyncSetEnabled { on }).await
+}
+
+pub async fn sync_pair_offer() -> Response<String> {
+    invoke("sync_pair_offer", &NoArgs {}).await
+}
+
+pub async fn sync_pair_join(code: &str) -> Response<SyncDevice> {
+    invoke("sync_pair_join", &SyncPairJoin { code }).await
+}
+
+pub async fn sync_now() -> Response<()> {
+    invoke("sync_now", &NoArgs {}).await
+}
+
+pub async fn sync_forget(id: &str) -> Response<()> {
+    invoke("sync_forget", &ById { id }).await
 }

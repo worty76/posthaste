@@ -13,6 +13,7 @@ overrides the "Never" list below.
 | `src-tauri/crates/model/` (shared data shapes) | `src-tauri/crates/model/AGENTS.md` |
 | `src-tauri/crates/i18n/`, `locales/` (interface text) | `src-tauri/crates/i18n/AGENTS.md` |
 | `src-tauri/crates/platform/` (per-OS code) | `src-tauri/crates/platform/AGENTS.md` |
+| `src-tauri/crates/sync-net/` (peer-to-peer sync transport) | `src-tauri/crates/sync-net/AGENTS.md` |
 
 `AGENTS.md` is the source of truth. Each `CLAUDE.md` is a generated copy for
 Claude Code: edit `AGENTS.md`, then run `npm run sync:rules`. When a rule
@@ -53,7 +54,7 @@ harness are the only JavaScript. Do not add more.
   replaces and why the existing code cannot do it.
 - If the task is unclear or conflicts with a rule here, stop and ask. Do not
   guess and build.
-- Not in this product, do not build: accounts, sync, telemetry, reminders,
+- Not in this product, do not build: accounts, telemetry, reminders,
   calendars, folders, productivity scores. Two deliberate exceptions: the
   opt-in AI polish, and the Today window's done-of-total count for the current
   day. Streaks, percentages, history and scores remain out.
@@ -63,7 +64,9 @@ harness are the only JavaScript. Do not add more.
 1. **Never lose user text.** A note counts as saved only after SQLite commits.
    Nothing clears the input, hides the window, or shows "Saved" before that.
    On any failure the text stays on screen and stays in the draft.
-2. **Never send anything off the machine.** No network requests, telemetry,
+2. **Never send anything off the machine except sync traffic to the user's own
+   paired devices (directly or through the configured relay, which cannot read
+   it), the update check, and AI polish the user turned on.** No telemetry,
    analytics, remote fonts, or CDN assets. The CSP in `tauri.conf.json` stays
    as strict as it is.
 3. **Never log note content**, drafts, or search text. Log events and error
@@ -85,6 +88,7 @@ Colour, type, spacing, motion values    ui/styles/tokens.css (the only place)
 Validation, persistence, search         src-tauri/crates/core
 Look validation and derivation          src-tauri/crates/core/src/look
 "Which app was focused", per-OS calls   src-tauri/crates/platform
+Peer-to-peer sync transport (iroh)      src-tauri/crates/sync-net
 Windows, shortcuts, tray, commands      src-tauri/src
 ```
 

@@ -44,6 +44,9 @@ rule "No network calls from the UI (AGENTS.md)" \
 rule "posthaste-core must not depend on Tauri (src-tauri/crates/core/AGENTS.md)" \
   "$(grep -nE '^\s*tauri' src-tauri/crates/core/Cargo.toml)"
 
+rule "iroh belongs only in crates/sync-net, never in crates/core or ui (AGENTS.md)" \
+  "$(grep -nE '\biroh\b' src-tauri/crates/core/Cargo.toml ui/Cargo.toml)"
+
 rule "Shipped migrations are append-only: do not edit, add a new numbered file (src-tauri/crates/core/AGENTS.md)" \
   "$(git diff --name-only --diff-filter=MD HEAD -- src-tauri/crates/core/migrations 2>/dev/null)"
 

@@ -38,6 +38,9 @@ export const defaultSettings = {
   ai_provider: "none",
   ai_models: {},
   ai_base_urls: {},
+  sync_enabled: false,
+  sync_device_name: "This computer",
+  sync_relay_url: "https://relay.posthaste.ink",
 };
 
 /** What the fake shell holds when a test gives it nothing. */
@@ -66,6 +69,14 @@ export function emptyStore() {
     ai: { backend: "keychain", providers: [] },
     /** The newer release `update_check` finds, or null. */
     update: null,
+    /** Sync status and paired devices for Settings -> Devices. */
+    sync: {
+      enabled: false,
+      device_id: "local-dev-01",
+      devices: [],
+      last_error: null,
+      offer: "posthaste-pair:1:TESTCODE123",
+    },
   };
 }
 
@@ -401,6 +412,51 @@ export async function open({
         },
         ai_test: () => "Fixed text.",
         update_check: () => store.update,
+        sync_status: () => ({
+          enabled: store.sync.enabled,
+          device_id: store.sync.device_id,
+          devices: store.sync.devices,
+          last_error: store.sync.last_error,
+        }),
+        sync_set_enabled: ({ on }) => {
+          store.sync.enabled = on;
+          mock.settings.sync_enabled = on;
+          mock.emit("settings-changed", mock.settings);
+          mock.emit("sync-changed");
+          return {
+            enabled: store.sync.enabled,
+            device_id: store.sync.device_id,
+            devices: store.sync.devices,
+            last_error: store.sync.last_error,
+          };
+        },
+        sync_pair_offer: () => store.sync.offer,
+        sync_pair_join: ({ code }) => {
+          if (!code.startsWith("posthaste-pair:1:")) {
+            return Promise.reject({
+              code: "sync_pair",
+              message: "That isn't a Posthaste pairing code.",
+            });
+          }
+          const dev = {
+            id: `peer-${store.sync.devices.length + 1}`,
+            name: "Work laptop",
+            last_sync_at: Date.now(),
+            online: true,
+          };
+          store.sync.devices.push(dev);
+          mock.emit("sync-changed");
+          return dev;
+        },
+        sync_now: () => {
+          mock.emit("sync-changed");
+          return null;
+        },
+        sync_forget: ({ id }) => {
+          store.sync.devices = store.sync.devices.filter((d) => d.id !== id);
+          mock.emit("sync-changed");
+          return null;
+        },
         capture_save: ({ content, category }) => ({
           id: "n1",
           content,

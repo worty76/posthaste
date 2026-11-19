@@ -273,6 +273,9 @@ impl DraftRetention {
     }
 }
 
+pub const DEFAULT_SYNC_RELAY_URL: &str = "https://relay.posthaste.ink";
+pub const DEFAULT_SYNC_DEVICE_NAME: &str = "This computer";
+
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "CmdOrCtrl+Shift+Space";
 pub const DEFAULT_INBOX_SHORTCUT: &str = if cfg!(target_os = "macos") {
     "Cmd+Ctrl+N"
@@ -345,6 +348,13 @@ pub struct Settings {
     /// moved into `ai_models`; never written again.
     #[serde(skip_serializing)]
     pub ai_model: String,
+    /// Experimental peer-to-peer device sync (off by default).
+    pub sync_enabled: bool,
+    /// Name shown for this computer on paired devices. Empty falls back to
+    /// the OS host name or "This computer".
+    pub sync_device_name: String,
+    /// Custom iroh relay URL. Empty means same-network only.
+    pub sync_relay_url: String,
 }
 
 impl Default for Settings {
@@ -370,6 +380,9 @@ impl Default for Settings {
             ai_base_urls: BTreeMap::new(),
             ai_api_key: String::new(),
             ai_model: String::new(),
+            sync_enabled: false,
+            sync_device_name: String::new(),
+            sync_relay_url: DEFAULT_SYNC_RELAY_URL.into(),
         }
     }
 }
