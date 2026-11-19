@@ -7,6 +7,7 @@ mod error;
 pub mod look;
 mod markdown;
 pub mod migrations;
+pub mod sync;
 mod transfer;
 
 pub use db::{now_ms, Db, RETIRED_AI_PROVIDERS};
