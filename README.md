@@ -51,8 +51,8 @@ you turn on AI polish or experimental device sync yourself.
 - **Device sync (experimental)** — optional and off by default. Pair two of
   your own computers with a one-time code to sync notes directly over
   encrypted QUIC (iroh). When computers cannot connect directly, encrypted
-  traffic passes through the configured relay (see `docs/relay.md`), which
-  sees only device public keys and IP addresses, never note text
+  traffic passes through the configured relay, which sees only device public
+  keys and IP addresses, never note text
 - **In-app updates** — signed installers, one click, nothing auto-runs
 - **Later** — press L on a to-do you won't get to today. It leaves Today and
   the inbox and waits in Later, your backlog, until you bring it back. No dates,

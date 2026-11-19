@@ -82,8 +82,7 @@ by default** under **Settings → Devices**.
 - **Different networks:** when direct UDP cannot connect through NATs, iroh
   routes the end-to-end encrypted QUIC traffic through the configured relay
   (`https://relay.posthaste.ink` by default, or empty for same-network only).
-  See [relay.md](./relay.md) for self-hosting the relay. The relay sees only
-  device IDs and IP addresses, never note content.
+  The relay sees only device IDs and IP addresses, never note content.
 
 ## 5. Scope (Current Experimental Version)
 
