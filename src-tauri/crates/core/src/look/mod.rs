@@ -1,15 +1,13 @@
-//! Looks: a small colour document, validated and turned into CSS tokens here
-//! in Rust; the UI only applies the result. Validation lives here and nowhere
-//! else, so a look can never reach the DOM unchecked. Format v2 adds a scene
-//! and an asset list and keeps unknown fields; v1 documents migrate to it on
-//! the next save.
+//! Looks: a colour document with a scene of layers, validated and turned
+//! into CSS tokens here in Rust; the UI only applies the result.
+//! Validation lives here and nowhere else, so a look can never reach the
+//! DOM unchecked. Unknown fields are kept, never drawn.
 
 pub mod assets;
 pub mod bundled;
 pub mod code;
 pub mod color;
 pub mod derive;
-pub mod migrate;
 pub mod package;
 pub mod resolve;
 pub mod scene;
@@ -26,15 +24,15 @@ pub use posthaste_model::DEFAULT_LOOK_ID;
 pub use posthaste_model::LOOK_FORMAT;
 pub use posthaste_model::{
     Anchor, AssetRef, Base, Colors, EmojiLayer, Fit, FontFace, ImageLayer, Known, LayerRecord,
-    LookDoc, LookDocV2, LookPreview, LookTheme, Read, Region, ResolvedLayer, ResolvedScene,
-    ResolvedWindow, Scene, SceneEdit, Shape, StickerSize, Window, WindowScene, LOOK_VERSION_V2,
+    LookDoc, LookPreview, LookTheme, Read, Region, ResolvedLayer, ResolvedScene, ResolvedWindow,
+    Scene, SceneEdit, Shape, StickerSize, ThemeEdit, Window, WindowScene,
 };
 pub use resolve::{resolve_live, resolve_parts, resolve_scene};
-pub const LOOK_VERSION: u32 = 1;
+pub const LOOK_VERSION: u32 = 2;
 pub const MAX_NAME_CHARS: usize = 40;
-pub const MAX_DOC_BYTES: usize = 4096;
-/// The v2 limits: a roomier document, but bounded nesting and layer count.
-pub const MAX_DOC_BYTES_V2: usize = 16 * 1024;
+/// Longest font name a look can name.
+pub const MAX_FONT_FAMILY_CHARS: usize = 64;
+pub const MAX_DOC_BYTES: usize = 16 * 1024;
 pub const MAX_DEPTH: usize = 16;
 pub const MAX_LAYERS: usize = 64;
 pub const MAX_USER_LOOKS: usize = 50;
@@ -57,10 +55,11 @@ fn parse_color(field: &str, value: &str) -> Result<Rgb> {
 pub trait LookDocExt: Sized {
     /// All checks in order, first failure wins; nothing is partly applied.
     fn validate(&self) -> Result<()>;
-    /// Parses and validates. The size limit comes first: a huge blob is
-    /// refused before any of it is processed.
+    /// Parses and validates. Size and nesting depth are bounded before any
+    /// of the document is processed.
     fn from_json(json: &str) -> Result<Self>;
-    /// Compact JSON, the form stored and shared.
+    /// Compact JSON, the form stored and shared. The `extra` maps ride
+    /// along, so unknown fields come back out.
     fn to_json(&self) -> String;
     fn preview(&self) -> LookPreview;
 }
@@ -73,38 +72,19 @@ impl LookDocExt for LookDoc {
             ));
         }
         if self.version > LOOK_VERSION {
-            return Err(CoreError::InvalidLook(format!(
-                "This look was made with a newer version of Posthaste (format {v}). \
-                 Update the app to use it.",
-                v = self.version
-            )));
+            return Err(newer_version_error(self.version));
         }
-        if self.version < LOOK_VERSION {
-            return Err(CoreError::InvalidLook(
-                "This isn't a Posthaste look file.".into(),
-            ));
-        }
-        // Version 1 knows no extra colour keys: name the first one so the
-        // look's author can remove it.
-        if let Some(unknown) = self.colors.extra.keys().next() {
-            return Err(CoreError::InvalidLook(format!(
-                "That isn't a valid look: unknown field `{unknown}`."
-            )));
+        if self.version != LOOK_VERSION {
+            return Err(not_a_look_error());
         }
         check_identity(&self.name, self.author.as_deref())?;
-        check_colors(&self.colors)
+        check_colors(&self.theme.colors)?;
+        check_font_family(self.theme.font_family.as_deref())?;
+        scene::check(&self.scene, &self.assets)
     }
 
     fn from_json(json: &str) -> Result<LookDoc> {
-        if json.len() > MAX_DOC_BYTES {
-            return Err(CoreError::InvalidLook(format!(
-                "That look file is too large. The limit is {MAX_DOC_BYTES} bytes."
-            )));
-        }
-        let doc: LookDoc = serde_json::from_str(json)
-            .map_err(|e| CoreError::InvalidLook(format!("That isn't a valid look: {e}")))?;
-        doc.validate()?;
-        Ok(doc)
+        parse(json, false)
     }
 
     fn to_json(&self) -> String {
@@ -112,12 +92,12 @@ impl LookDocExt for LookDoc {
     }
 
     fn preview(&self) -> LookPreview {
-        preview_of(&self.colors)
+        preview_of(&self.theme.colors)
     }
 }
 
-/// The identity checks, shared by both format versions.
-fn check_identity(name: &str, author: Option<&str>) -> Result<()> {
+/// The identity checks, shared by the document and the editor edit.
+pub fn check_identity(name: &str, author: Option<&str>) -> Result<()> {
     if name.trim().is_empty() {
         return Err(CoreError::InvalidLook("Give the look a name.".into()));
     }
@@ -146,7 +126,36 @@ fn check_identity(name: &str, author: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// The colour checks, shared by both format versions.
+/// The font-name checks, shared by the document and the editor edit. A
+/// font is only a name, drawn after the preset stack as `"<name>",
+/// var(<stack>)`: the character rule is what keeps rule text out of it.
+pub fn check_font_family(name: Option<&str>) -> Result<()> {
+    let Some(name) = name else {
+        return Ok(());
+    };
+    if name.trim().is_empty() || name.trim() != name {
+        return Err(CoreError::InvalidLook(
+            "The font name can't be empty, or start or end with a space.".into(),
+        ));
+    }
+    if name
+        .chars()
+        .any(|c| !(c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.')))
+    {
+        return Err(CoreError::InvalidLook(
+            "The font name can only use letters, numbers, spaces, hyphens, underscores and dots."
+                .into(),
+        ));
+    }
+    if name.chars().count() > MAX_FONT_FAMILY_CHARS {
+        return Err(CoreError::InvalidLook(format!(
+            "The font name can be at most {MAX_FONT_FAMILY_CHARS} characters."
+        )));
+    }
+    Ok(())
+}
+
+/// The colour checks, shared by the document and the editor edit.
 fn check_colors(colors: &Colors) -> Result<()> {
     let bg = parse_color("bg", &colors.bg)?;
     let surface = parse_color("surface", &colors.surface)?;
@@ -189,6 +198,13 @@ fn check_colors(colors: &Colors) -> Result<()> {
     Ok(())
 }
 
+/// Checks what the look editor edits: identity, colours, font name.
+pub fn validate_theme(edit: &ThemeEdit) -> Result<()> {
+    check_identity(&edit.name, edit.author.as_deref())?;
+    check_colors(&edit.colors)?;
+    check_font_family(edit.font_family.as_deref())
+}
+
 /// Normalized hex of the four main colours, for gallery cards.
 fn preview_of(colors: &Colors) -> LookPreview {
     let hex = |s: &str| Rgb::parse(s).map(Rgb::to_hex).unwrap_or_default();
@@ -197,51 +213,6 @@ fn preview_of(colors: &Colors) -> LookPreview {
         surface: hex(&colors.surface),
         text: hex(&colors.text),
         accent: hex(&colors.accent),
-    }
-}
-
-/// What storage does with a v2 look document. Same gate order as v1:
-/// size first, then parse, then every check.
-pub trait LookDocV2Ext: Sized {
-    /// All checks in order, first failure wins; nothing is partly applied.
-    fn validate(&self) -> Result<()>;
-    /// Parses and validates. Size and nesting depth are bounded before any
-    /// of the document is processed.
-    fn from_json(json: &str) -> Result<Self>;
-    /// Compact JSON, the form stored and shared. The `extra` maps ride
-    /// along, so unknown fields come back out.
-    fn to_json(&self) -> String;
-    fn preview(&self) -> LookPreview;
-}
-
-impl LookDocV2Ext for LookDocV2 {
-    fn validate(&self) -> Result<()> {
-        if self.format != LOOK_FORMAT {
-            return Err(CoreError::InvalidLook(
-                "This isn't a Posthaste look file.".into(),
-            ));
-        }
-        if self.version > LOOK_VERSION_V2 {
-            return Err(newer_version_error(self.version));
-        }
-        if self.version != LOOK_VERSION_V2 {
-            return Err(not_a_look_error());
-        }
-        check_identity(&self.name, self.author.as_deref())?;
-        check_colors(&self.theme.colors)?;
-        scene::check(&self.scene, &self.assets)
-    }
-
-    fn from_json(json: &str) -> Result<LookDocV2> {
-        v2_parse(json, false)
-    }
-
-    fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_default()
-    }
-
-    fn preview(&self) -> LookPreview {
-        preview_of(&self.theme.colors)
     }
 }
 
@@ -259,14 +230,14 @@ pub(crate) fn incomplete_code() -> CoreError {
     )
 }
 
-/// Parses a v2 document with the shared gates: size first, then shape,
+/// Parses a look document with the shared gates: size first, then shape,
 /// then depth, then every check. `from_code` reports a payload that
 /// cannot be parsed as a code that changed in transit; the file path
 /// reports it as an invalid look.
-pub(crate) fn v2_parse(json: &str, from_code: bool) -> Result<LookDocV2> {
-    if json.len() > MAX_DOC_BYTES_V2 {
+pub(crate) fn parse(json: &str, from_code: bool) -> Result<LookDoc> {
+    if json.len() > MAX_DOC_BYTES {
         return Err(CoreError::InvalidLook(format!(
-            "That look file is too large. The limit is {MAX_DOC_BYTES_V2} bytes."
+            "That look file is too large. The limit is {MAX_DOC_BYTES} bytes."
         )));
     }
     let mangled = |e| {
@@ -277,37 +248,42 @@ pub(crate) fn v2_parse(json: &str, from_code: bool) -> Result<LookDocV2> {
         }
     };
     let value: serde_json::Value = serde_json::from_str(json).map_err(mangled)?;
+    // The version decides the message before the shape does: a newer
+    // version's document may not even parse as this build's shape, and
+    // "missing field theme" would hide the real answer.
+    if value["format"].as_str() == Some(LOOK_FORMAT) {
+        let version = value["version"].as_u64().unwrap_or(0);
+        if version > u64::from(LOOK_VERSION) {
+            return Err(newer_version_error(version as u32));
+        }
+        if version != u64::from(LOOK_VERSION) {
+            return Err(not_a_look_error());
+        }
+    }
     let depth = json_depth(&value);
     if depth > MAX_DEPTH {
         return Err(CoreError::InvalidLook(format!(
             "That look nests {depth} levels deep. The limit is {MAX_DEPTH}."
         )));
     }
-    let doc: LookDocV2 = serde_json::from_value(value).map_err(mangled)?;
+    let doc: LookDoc = serde_json::from_value(value).map_err(mangled)?;
     doc.validate()?;
     Ok(doc)
 }
 
-/// A look document of either format. Reading dispatches on the version; a
-/// v1 document migrates to v2 when it is saved, and a stored v2 document
-/// keeps the parts this build does not model.
-#[allow(clippy::large_enum_variant)] // a short-lived dispatch value; the
-// size gap between the variants costs nothing here
-#[derive(Clone, PartialEq, Debug)]
-pub enum LookDocument {
-    V1(LookDoc),
-    V2(LookDocV2),
-}
-
-#[derive(serde::Deserialize)]
-struct VersionProbe {
-    version: u32,
-}
-
-fn probe_version(json: &str) -> Result<u32> {
-    serde_json::from_str::<VersionProbe>(json)
-        .map(|p| p.version)
-        .map_err(|e| CoreError::InvalidLook(format!("That isn't a valid look: {e}")))
+/// Parses a stored row, shape only: the size gates ran when it was
+/// saved. A version this build does not know is refused here; the store
+/// decides what a refused row means for each caller.
+pub fn parse_stored(json: &str) -> Result<LookDoc> {
+    let invalid = |e| CoreError::InvalidLook(format!("That isn't a valid look: {e}"));
+    let value: serde_json::Value = serde_json::from_str(json).map_err(invalid)?;
+    let version = value["version"].as_u64().unwrap_or(0);
+    if value["format"] != serde_json::Value::String(LOOK_FORMAT.into())
+        || version != u64::from(LOOK_VERSION)
+    {
+        return Err(not_a_look_error());
+    }
+    serde_json::from_value(value).map_err(invalid)
 }
 
 fn newer_version_error(version: u32) -> CoreError {
@@ -319,61 +295,6 @@ fn newer_version_error(version: u32) -> CoreError {
 
 fn not_a_look_error() -> CoreError {
     CoreError::InvalidLook("This isn't a Posthaste look file.".into())
-}
-
-impl LookDocument {
-    /// Parses and validates a document from outside the database: pasted
-    /// JSON or a decoded share code. Each version keeps its own size gate.
-    pub fn from_json(json: &str) -> Result<Self> {
-        match probe_version(json)? {
-            1 => Ok(Self::V1(LookDoc::from_json(json)?)),
-            2 => Ok(Self::V2(LookDocV2::from_json(json)?)),
-            v if v > LOOK_VERSION_V2 => Err(newer_version_error(v)),
-            _ => Err(not_a_look_error()),
-        }
-    }
-
-    /// Parses a stored row. The size gates ran when it was saved, so only
-    /// the shape is checked here; the caller validates before trusting it.
-    pub fn parse_stored(json: &str) -> Result<Self> {
-        let invalid = |e| CoreError::InvalidLook(format!("That isn't a valid look: {e}"));
-        match probe_version(json)? {
-            1 => Ok(Self::V1(serde_json::from_str(json).map_err(invalid)?)),
-            2 => Ok(Self::V2(serde_json::from_str(json).map_err(invalid)?)),
-            v if v > LOOK_VERSION_V2 => Err(newer_version_error(v)),
-            _ => Err(not_a_look_error()),
-        }
-    }
-
-    pub fn validate(&self) -> Result<()> {
-        match self {
-            Self::V1(d) => d.validate(),
-            Self::V2(d) => d.validate(),
-        }
-    }
-
-    pub fn to_json(&self) -> String {
-        match self {
-            Self::V1(d) => d.to_json(),
-            Self::V2(d) => d.to_json(),
-        }
-    }
-
-    /// The theme part as a v1 document: what token derivation reads and
-    /// what the look editor shows. v2-only parts are not in the view.
-    pub fn v1_view(&self) -> LookDoc {
-        match self {
-            Self::V1(d) => d.clone(),
-            Self::V2(d) => d.v1_view(),
-        }
-    }
-
-    pub fn preview(&self) -> LookPreview {
-        match self {
-            Self::V1(d) => d.preview(),
-            Self::V2(d) => d.preview(),
-        }
-    }
 }
 
 /// The deepest container nesting in a JSON value; a scalar counts as one.

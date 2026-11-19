@@ -5,13 +5,13 @@ use std::time::Duration;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::key;
-use posthaste_model::{Base, CommandError, FontFace, LookDoc, LookSummary, Shape};
+use posthaste_i18n::{key, Key};
+use posthaste_model::{Base, CommandError, FontFace, LookSummary, Shape, ThemeEdit};
 
-use crate::browser::bind_text;
+use crate::browser::{bind_text, text_widths};
 use crate::components::{Button, Dialog, Segmented, Variant};
 use crate::ipc::{self, api};
-use crate::logic::look::MAX_NAME_CHARS;
+use crate::logic::look::{font_seems_installed, MAX_FONT_FAMILY_CHARS, MAX_NAME_CHARS};
 use crate::state::{use_scene_preview, Appearance, I18n};
 
 use colors::{Color, ColorRow};
@@ -20,6 +20,33 @@ use scene::{ScenePanel, SceneState};
 /// How long typing pauses before the draft goes to the shell for a preview.
 const PREVIEW_PAUSE: Duration = Duration::from_millis(120);
 
+/// The font presets, in the order the picker lists them.
+const FONT_CHOICES: [(FontFace, Key); 7] = [
+    (FontFace::System, key::LOOKS_EDITOR_FONT_SYSTEM),
+    (FontFace::Rounded, key::LOOKS_EDITOR_FONT_ROUNDED),
+    (FontFace::Serif, key::LOOKS_EDITOR_FONT_SERIF),
+    (FontFace::Mono, key::LOOKS_EDITOR_FONT_MONO),
+    (
+        FontFace::BeVietnamPro,
+        key::LOOKS_EDITOR_FONT_BE_VIETNAM_PRO,
+    ),
+    (FontFace::Nunito, key::LOOKS_EDITOR_FONT_NUNITO),
+    (FontFace::Quicksand, key::LOOKS_EDITOR_FONT_QUICKSAND),
+];
+
+/// The wire value of a font preset, as the document stores it.
+fn font_name(font: FontFace) -> &'static str {
+    match font {
+        FontFace::System => "system",
+        FontFace::Rounded => "rounded",
+        FontFace::Serif => "serif",
+        FontFace::Mono => "mono",
+        FontFace::BeVietnamPro => "be-vietnam-pro",
+        FontFace::Nunito => "nunito",
+        FontFace::Quicksand => "quicksand",
+    }
+}
+
 /// Makes or changes a look. Every pause in typing sends the draft to the
 /// shell, which is the only judge of whether a look is valid: its answer is
 /// either a live preview or the reason Save is off.
@@ -27,7 +54,7 @@ const PREVIEW_PAUSE: Duration = Duration::from_millis(120);
 pub(super) fn LookEditor(
     i18n: I18n,
     appearance: Appearance,
-    initial: LookDoc,
+    initial: ThemeEdit,
     /// Whether Simple looks is on: the windows hide the scene, but this
     /// editor still previews it.
     #[prop(into)]
@@ -37,8 +64,11 @@ pub(super) fn LookEditor(
     #[prop(into)] on_close: Callback<()>,
     #[prop(into)] on_saved: Callback<LookSummary>,
 ) -> impl IntoView {
-    let doc = RwSignal::new(initial);
+    let theme = RwSignal::new(initial);
     let error = RwSignal::new(None::<CommandError>);
+    // Whether the typed font name names a font this computer has; the
+    // name is only checked here, never judged by the interface.
+    let font_installed = RwSignal::new(true);
     let busy = RwSignal::new(false);
     let open = RwSignal::new(true);
     // Counts drafts, so only the newest one is checked and shown.
@@ -54,7 +84,7 @@ pub(super) fn LookEditor(
     let editing_id = StoredValue::new(editing_id);
 
     Effect::new(move |_| {
-        let current = doc.get();
+        let current = theme.get();
         let number = draft.get_value().wrapping_add(1);
         draft.set_value(number);
         set_timeout(
@@ -67,6 +97,13 @@ pub(super) fn LookEditor(
                     if draft.try_get_value() != Some(number) || !open.get_untracked() {
                         return;
                     }
+                    font_installed.set(match current.font_family.as_deref() {
+                        None => true,
+                        Some(name) => match (text_widths(Some(name)), text_widths(None)) {
+                            (Some(with), Some(fallback)) => font_seems_installed(with, fallback),
+                            _ => true,
+                        },
+                    });
                     match answer {
                         Ok(look) => {
                             error.set(None);
@@ -123,7 +160,7 @@ pub(super) fn LookEditor(
                 .loaded
                 .get_untracked()
                 .then(|| scene.edit.get_untracked());
-            match api::look_save(&doc.get_untracked(), scene_edit.as_ref(), id.as_deref()).await {
+            match api::look_save(&theme.get_untracked(), scene_edit.as_ref(), id.as_deref()).await {
                 Ok(saved) => {
                     on_saved.run(saved);
                     close(());
@@ -137,7 +174,7 @@ pub(super) fn LookEditor(
     };
     let can_save = move || {
         error.with(Option::is_none)
-            && doc.with(|doc| !doc.name.trim().is_empty())
+            && theme.with(|t| !t.name.trim().is_empty())
             && scene.loaded.get_untracked()
             && !busy.get()
     };
@@ -164,45 +201,95 @@ pub(super) fn LookEditor(
                     class="field"
                     aria-label=i18n.text(key::LOOKS_EDITOR_NAME)
                     maxlength=MAX_NAME_CHARS.to_string()
-                    use:bind_text=Signal::derive(move || doc.with(|doc| doc.name.clone()))
-                    on:input=move |event| doc.update(|doc| doc.name = event_target_value(&event))
+                    use:bind_text=Signal::derive(move || theme.with(|t| t.name.clone()))
+                    on:input=move |event| theme.update(|t| t.name = event_target_value(&event))
                 />
                 <Segmented
                     i18n=i18n
                     label=key::LOOKS_EDITOR_BASE
-                    value=Signal::derive(move || doc.with(|doc| doc.base))
+                    value=Signal::derive(move || theme.with(|t| t.base))
                     options=vec![(Base::Light, key::LOOKS_LIGHT), (Base::Dark, key::LOOKS_DARK)]
-                    on_change=move |base| doc.update(|doc| doc.base = base)
+                    on_change=move |base| theme.update(|t| t.base = base)
                 />
                 <div class="look-editor__colors">
                     {Color::ALL
                         .into_iter()
-                        .map(|color| view! { <ColorRow i18n=i18n doc=doc color=color /> })
+                        .map(|color| view! { <ColorRow i18n=i18n theme=theme color=color /> })
                         .collect_view()}
                 </div>
                 <Segmented
                     i18n=i18n
                     label=key::LOOKS_EDITOR_SHAPE
-                    value=Signal::derive(move || doc.with(|doc| doc.shape))
+                    value=Signal::derive(move || theme.with(|t| t.shape))
                     options=vec![
                         (Shape::Sharp, key::LOOKS_EDITOR_SHARP),
                         (Shape::Soft, key::LOOKS_EDITOR_SOFT),
                         (Shape::Round, key::LOOKS_EDITOR_ROUND),
                     ]
-                    on_change=move |shape| doc.update(|doc| doc.shape = shape)
+                    on_change=move |shape| theme.update(|t| t.shape = shape)
                 />
-                <Segmented
-                    i18n=i18n
-                    label=key::LOOKS_EDITOR_FONT
-                    value=Signal::derive(move || doc.with(|doc| doc.font))
-                    options=vec![
-                        (FontFace::System, key::LOOKS_EDITOR_FONT_SYSTEM),
-                        (FontFace::Rounded, key::LOOKS_EDITOR_FONT_ROUNDED),
-                        (FontFace::Serif, key::LOOKS_EDITOR_FONT_SERIF),
-                        (FontFace::Mono, key::LOOKS_EDITOR_FONT_MONO),
-                    ]
-                    on_change=move |font| doc.update(|doc| doc.font = font)
+                <select
+                    class="field select"
+                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT)
+                    on:change=move |event| theme.update(|t| {
+                        t.font = match event_target_value(&event).as_str() {
+                            "rounded" => FontFace::Rounded,
+                            "serif" => FontFace::Serif,
+                            "mono" => FontFace::Mono,
+                            "be-vietnam-pro" => FontFace::BeVietnamPro,
+                            "nunito" => FontFace::Nunito,
+                            "quicksand" => FontFace::Quicksand,
+                            _ => FontFace::System,
+                        };
+                    })
+                >
+                    {FONT_CHOICES
+                        .into_iter()
+                        .map(|(face, label)| {
+                            let value = font_name(face);
+                            let selected = move || theme.with(|t| t.font) == face;
+                            view! {
+                                <option
+                                    value=value
+                                    selected=selected
+                                    class=format!("look-editor__font-option--{value}")
+                                >
+                                    {i18n.text(label)}
+                                </option>
+                            }
+                        })
+                        .collect_view()}
+                </select>
+                <input
+                    class="field"
+                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)
+                    aria-describedby="look-editor-font-custom-hint"
+                    maxlength=MAX_FONT_FAMILY_CHARS.to_string()
+                    spellcheck="false"
+                    use:bind_text=Signal::derive(move || {
+                        theme.with(|t| t.font_family.clone().unwrap_or_default())
+                    })
+                    on:input=move |event| theme.update(|t| {
+                        let name = event_target_value(&event);
+                        let trimmed = name.trim().to_string();
+                        t.font_family = (!trimmed.is_empty()).then_some(trimmed);
+                    })
                 />
+                <p id="look-editor-font-custom-hint" class="row__help">
+                    {i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM_HINT)}
+                </p>
+                {move || (!font_installed.get()).then(|| {
+                    let name = theme
+                        .with_untracked(|t| t.font_family.clone().unwrap_or_default());
+                    view! {
+                        <p class="dialog__status" role="status">
+                            {i18n.translator().format(
+                                key::LOOKS_EDITOR_FONT_NOT_INSTALLED,
+                                &[("name", name.as_str())],
+                            )}
+                        </p>
+                    }
+                })}
                 <ScenePanel i18n=i18n state=scene />
                 {move || simple_looks.get().then(|| view! {
                     <p class="dialog__status" role="status">

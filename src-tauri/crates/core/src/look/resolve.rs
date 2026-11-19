@@ -2,13 +2,13 @@
 //! the way `derive.rs` resolves colours into tokens. It never fails: a
 //! layer this build does not draw is skipped and counted (invariant 7).
 
-use posthaste_model::{AssetRef, EmojiLayer, LookDocV2, Scene, WindowScene};
+use posthaste_model::{AssetRef, EmojiLayer, LookDoc, Scene, WindowScene};
 use posthaste_model::{Known, Read, ResolvedLayer, ResolvedScene, SceneEdit, Window};
 
 /// Resolves the scene of a validated v2 document as this build draws
 /// it: stickers are not shipped yet, so emoji layers are left out
 /// quietly. They stay in the document and storage still checks them.
-pub fn resolve_scene(doc: &LookDocV2) -> ResolvedScene {
+pub fn resolve_scene(doc: &LookDoc) -> ResolvedScene {
     resolve_live(&doc.scene, &doc.assets)
 }
 

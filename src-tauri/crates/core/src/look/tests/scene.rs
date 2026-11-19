@@ -5,11 +5,11 @@ mod resolve_tests {
 
     use serde_json::{json, Map};
 
-    use super::{asset_id, listed_asset, v2doc};
+    use super::{asset_id, doc, listed_asset};
     use crate::look::resolve::resolve_parts;
+    use crate::look::LayerRecord;
     #[allow(unused_imports)]
-    use crate::look::LookDocV2Ext as _;
-    use crate::look::{LayerRecord, LookDocument};
+    use crate::look::LookDocExt as _;
     use crate::{Db, Settings};
 
     fn emoji(char: &str, anchor: &str) -> LayerRecord {
@@ -41,8 +41,8 @@ mod resolve_tests {
     }
 
     #[test]
-    fn resolve_scene_puts_all_before_the_window_layers() {
-        let mut d = v2doc();
+    fn resolve_parts_puts_all_before_the_window_layers() {
+        let mut d = doc();
         d.scene.all = Some(margin_scene(vec![emoji("🌸", "top-right")]));
         d.scene.capture = Some(margin_scene(vec![emoji("✨", "bottom-left")]));
         // The mechanics are resolve_parts’ job; the live gate is
@@ -62,8 +62,8 @@ mod resolve_tests {
     }
 
     #[test]
-    fn resolve_scene_skips_and_counts_unknown_off_and_bad_layers() {
-        let mut d = v2doc();
+    fn resolve_parts_skips_and_counts_unknown_off_and_bad_layers() {
+        let mut d = doc();
         let unknown = LayerRecord {
             kind: "shader".into(),
             v: 9,
@@ -97,7 +97,7 @@ mod resolve_tests {
 
     #[test]
     fn dim_is_rounded_to_tenths() {
-        let mut d = v2doc();
+        let mut d = doc();
         let listed = listed_asset(&asset_id());
         let id = listed.id.clone();
         d.assets = vec![listed];
@@ -108,8 +108,6 @@ mod resolve_tests {
             margin: Vec::new(),
             extra: Map::new(),
         });
-        // The mechanics are resolve_parts’ job; the live gate is
-        // tested separately, where stickers are left out unshipped.
         let resolved = resolve_parts(&d.scene, &d.assets);
         let ResolvedLayer::Image { dim_tenths, .. } = &resolved.capture.backdrop[0] else {
             panic!("expected an image");
@@ -128,12 +126,12 @@ mod resolve_tests {
     #[test]
     fn simple_looks_gives_an_empty_active_scene() {
         let mut db = Db::open_in_memory().unwrap();
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.capture = Some(margin_scene(vec![emoji("🌸", "top-left")]));
-        let saved = db.save_look_document(LookDocument::V2(d), None).unwrap();
+        let saved = db.save_look_document(d, None).unwrap();
         db.save_settings(&Settings {
             simple_looks: true,
-            look_id: Some(saved.id),
+            look_id: saved.id,
             ..Settings::default()
         })
         .unwrap();
@@ -145,7 +143,7 @@ mod resolve_tests {
     #[test]
     fn without_simple_looks_the_active_scene_draws() {
         let mut db = Db::open_in_memory().unwrap();
-        let mut d = v2doc();
+        let mut d = doc();
         let listed = listed_asset(&asset_id());
         let id = listed.id.clone();
         d.assets = vec![listed];
@@ -154,9 +152,9 @@ mod resolve_tests {
             margin: Vec::new(),
             extra: Map::new(),
         });
-        let saved = db.save_look_document(LookDocument::V2(d), None).unwrap();
+        let saved = db.save_look_document(d, None).unwrap();
         db.save_settings(&Settings {
-            look_id: Some(saved.id),
+            look_id: saved.id,
             ..Settings::default()
         })
         .unwrap();
@@ -166,7 +164,7 @@ mod resolve_tests {
     #[test]
     fn saving_with_a_scene_edit_keeps_unknown_layers_inside_it() {
         let mut db = Db::open_in_memory().unwrap();
-        let id = db.save_look(super::doc(), None, None).unwrap().id;
+        let id = db.save_look(doc().theme_edit(), None, None).unwrap().id;
         let edit = crate::look::SceneEdit {
             scene: Scene {
                 capture: Some(margin_scene(vec![LayerRecord {
@@ -180,46 +178,35 @@ mod resolve_tests {
             },
             assets: Vec::new(),
         };
-        let mut edited = super::doc();
+        let mut edited = doc();
         edited.name = "Edited".into();
-        db.save_look(edited, Some(edit), Some(&id)).unwrap();
-        match db.look_document(&id).unwrap() {
-            LookDocument::V2(stored) => {
-                let layer = &stored.scene.capture.as_ref().unwrap().margin[0];
-                assert_eq!(layer.kind, "shader");
-                assert_eq!(layer.config, json!({"source": "spiral"}));
-            }
-            _ => panic!("expected v2"),
-        }
+        db.save_look(edited.theme_edit(), Some(edit), Some(&id))
+            .unwrap();
+        let stored = db.look_document(&id).unwrap();
+        let layer = &stored.scene.capture.as_ref().unwrap().margin[0];
+        assert_eq!(layer.kind, "shader");
+        assert_eq!(layer.config, json!({"source": "spiral"}));
     }
 
     #[test]
     fn saving_without_a_scene_keeps_the_stored_scene() {
         let mut db = Db::open_in_memory().unwrap();
-        let id = db
-            .save_look_document(
-                LookDocument::V2(super::super::store::v2_store_tests::scene_doc()),
-                None,
-            )
-            .unwrap()
-            .id;
-        let mut edited = super::doc();
+        let mut with_scene = doc();
+        with_scene.scene.all = Some(margin_scene(vec![emoji("🌸", "top-right")]));
+        let id = db.save_look_document(with_scene, None).unwrap().id;
+        let mut edited = doc();
         edited.name = "Edited".into();
-        db.save_look(edited, None, Some(&id)).unwrap();
-        match db.look_document(&id).unwrap() {
-            LookDocument::V2(stored) => {
-                assert!(
-                    stored.scene.all.is_some(),
-                    "the scene survived a sceneless save"
-                );
-            }
-            _ => panic!("expected v2"),
-        }
+        db.save_look(edited.theme_edit(), None, Some(&id)).unwrap();
+        let stored = db.look_document(&id).unwrap();
+        assert!(
+            stored.scene.all.is_some(),
+            "the scene survived a sceneless save"
+        );
     }
 
     #[test]
     fn a_window_draws_at_most_six_stickers_and_the_own_ones_win() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.all = Some(margin_scene(vec![
             emoji("🌸", "top-left"),
             emoji("🌙", "top-right"),
@@ -255,7 +242,7 @@ mod resolve_tests {
 
     #[test]
     fn resolve_scene_leaves_stickers_out_while_they_are_unshipped() {
-        let mut d = v2doc();
+        let mut d = doc();
         d.scene.all = Some(margin_scene(vec![emoji("🌸", "top-right")]));
         // The live entry (what the app draws) leaves them out quietly.
         let resolved = crate::look::resolve::resolve_scene(&d);
@@ -268,9 +255,9 @@ mod resolve_tests {
     }
 
     #[test]
-    fn look_scene_of_a_v1_look_is_empty() {
+    fn a_look_without_a_scene_answers_an_empty_edit() {
         let mut db = Db::open_in_memory().unwrap();
-        let id = db.save_look(super::doc(), None, None).unwrap().id;
+        let id = db.save_look(doc().theme_edit(), None, None).unwrap().id;
         let edit = db.look_scene(&id).unwrap();
         assert!(edit.scene.is_empty());
         assert!(edit.assets.is_empty());

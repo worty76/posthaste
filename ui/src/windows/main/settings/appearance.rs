@@ -5,26 +5,21 @@ use leptos::ev::KeyboardEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::key;
-use posthaste_model::{CommandError, LookDoc, LookPreview, LookSummary, Theme};
+use posthaste_model::{CommandError, LookPreview, LookSummary, ThemeEdit};
 
 use super::look_editor::LookEditor;
 use super::Context;
 use crate::browser::{self, bind_text};
-use crate::components::{Button, Dialog, Segmented, Switch, Variant};
+use crate::components::{Button, Dialog, Switch, Variant};
 use crate::ipc::{self, api, events};
 use crate::logic::look::fit_name;
 use crate::state::{seed_assets, use_asset_urls, use_scene_preview, Appearance, Message};
 use posthaste_model::LookFilePreview;
 
-/// What "Make your own" starts from when the Plain look is selected: the
-/// bundled look that matches how the window is drawn.
-const START_DARK: &str = "builtin:midnight-grape";
-const START_LIGHT: &str = "builtin:strawberry-milk";
-
 /// A look open in the editor.
 #[derive(Clone)]
 struct Editing {
-    doc: LookDoc,
+    theme: ThemeEdit,
     /// The look being changed, or `None` for a new one.
     id: Option<String>,
 }
@@ -59,17 +54,17 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
     events::on::<events::LooksChanged>(move |()| reload());
 
     let selected = Memo::new(move |_| {
-        let id = look_id.get()?;
+        let id = look_id.get();
         looks.with(|looks| looks.iter().find(|look| look.id == id).cloned())
     });
     let editing = Signal::derive(move || editor.with(Option::is_some));
 
     // A preview belongs to the editor; picking a look ends it.
-    let select = move |id: Option<String>| {
+    let select = move |id: String| {
         appearance.preview(None);
         context.set(move |s| s.look_id = id);
     };
-    // The arrow keys walk the gallery, Plain included, and wrap.
+    // The arrow keys walk the gallery and wrap.
     let on_key = move |event: KeyboardEvent| {
         let forward = match event.key().as_str() {
             "ArrowRight" | "ArrowDown" => true,
@@ -77,9 +72,8 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
             _ => return,
         };
         event.prevent_default();
-        let mut ids: Vec<Option<String>> =
-            looks.with_untracked(|looks| looks.iter().map(|look| Some(look.id.clone())).collect());
-        ids.push(None);
+        let mut ids: Vec<String> =
+            looks.with_untracked(|looks| looks.iter().map(|look| look.id.clone()).collect());
         let current = look_id.get_untracked();
         let index = ids.iter().position(|id| *id == current).unwrap_or(0);
         let step = if forward { 1 } else { ids.len() - 1 };
@@ -89,9 +83,12 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
     let share = move |look: LookSummary| {
         spawn_local(async move {
             match api::look_export_code(&look.id).await {
-                Ok(code) if browser::copy_text(&code).await => {
-                    toaster.info(Message::Plain(key::LOOKS_SHARED));
-                }
+                Ok(code) if browser::copy_text(&code).await => match look.font_family.as_deref() {
+                    Some(font) => {
+                        toaster.info(Message::with(key::LOOKS_SHARED_WITH_FONT, "font", font))
+                    }
+                    None => toaster.info(Message::Plain(key::LOOKS_SHARED)),
+                },
                 Ok(_) => toaster.error(Message::Plain(key::INBOX_TOAST_COPY_FAILED)),
                 Err(error) => toaster.fail(error),
             }
@@ -138,7 +135,7 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                     appearance.preview(None);
                     scene_preview.set(None);
                     toaster.info(Message::with(key::LOOKS_SAVED, "name", saved.name));
-                    context.set(move |s| s.look_id = Some(saved.id));
+                    context.set(move |s| s.look_id = saved.id);
                 }
                 Err(error) => {
                     file_busy.set(false);
@@ -170,7 +167,7 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
                 Ok(added) => {
                     close_import(());
                     toaster.info(Message::with(key::LOOKS_ADDED, "name", added.name));
-                    context.set(move |s| s.look_id = Some(added.id));
+                    context.set(move |s| s.look_id = added.id);
                 }
                 // The dialog stays open with the code, to fix or try again.
                 Err(error) => import_error.set(Some(error)),
@@ -194,73 +191,52 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
     };
 
     // Opens the editor on `look`: its own document to edit, or a copy when
-    // it is bundled. With no look, a new one from a bundled starting point.
+    // it is bundled. With none selected, a new one from the factory look.
     let open_editor = move |look: Option<LookSummary>| {
         spawn_local(async move {
-            let start = match &look {
-                Some(look) => look.id.clone(),
-                None if appearance.is_dark() => START_DARK.to_owned(),
-                None => START_LIGHT.to_owned(),
-            };
-            match api::look_doc(&start).await {
-                Ok(mut doc) => {
+            let start = look
+                .as_ref()
+                .map(|look| look.id.clone())
+                .unwrap_or_else(|| posthaste_model::DEFAULT_LOOK_ID.to_owned());
+            match api::look_theme(&start).await {
+                Ok(mut theme) => {
                     let copying = look.as_ref().is_some_and(|look| look.builtin);
                     if copying {
                         let copy = i18n
                             .translator()
-                            .format(key::LOOKS_COPY_NAME, &[("name", &doc.name)]);
-                        doc.name = fit_name(&copy);
+                            .format(key::LOOKS_COPY_NAME, &[("name", &theme.name)]);
+                        theme.name = fit_name(&copy);
                     }
                     let id = look.filter(|look| !look.builtin).map(|look| look.id);
-                    editor.set(Some(Editing { doc, id }));
+                    editor.set(Some(Editing { theme, id }));
                 }
                 Err(error) => toaster.fail(error),
             }
         });
     };
 
-    let look_button =
-        move |id: Option<String>, name: Signal<String>, colors: Option<LookPreview>| {
-            let checked = {
-                let id = id.clone();
-                move || look_id.with(|current| *current == id)
-            };
-            let is_checked = checked.clone();
-            view! {
-                <button
-                    type="button"
-                    role="radio"
-                    class="look"
-                    aria-checked=move || checked().to_string()
-                    tabindex=move || if is_checked() { "0" } else { "-1" }
-                    on:click=move |_| select(id.clone())
-                >
-                    <Swatch colors=colors />
-                    <span>{move || name.get()}</span>
-                </button>
-            }
+    let look_button = move |id: String, name: Signal<String>, colors: Option<LookPreview>| {
+        let checked = {
+            let id = id.clone();
+            move || look_id.with(|current| *current == id)
         };
+        let is_checked = checked.clone();
+        view! {
+            <button
+                type="button"
+                role="radio"
+                class="look"
+                aria-checked=move || checked().to_string()
+                tabindex=move || if is_checked() { "0" } else { "-1" }
+                on:click=move |_| select(id.clone())
+            >
+                <Swatch colors=colors />
+                <span>{move || name.get()}</span>
+            </button>
+        }
+    };
 
     view! {
-        <div class="row">
-            <div class="row__text">
-                <div class="row__label">{i18n.text(key::LOOKS_THEME)}</div>
-                <div class="row__help">{i18n.text(key::LOOKS_THEME_HELP)}</div>
-            </div>
-            <div class="row__control">
-                <Segmented
-                    i18n=i18n
-                    label=key::LOOKS_THEME
-                    value=context.read(|s| s.theme)
-                    options=vec![
-                        (Theme::System, key::LOOKS_SYSTEM),
-                        (Theme::Light, key::LOOKS_LIGHT),
-                        (Theme::Dark, key::LOOKS_DARK),
-                    ]
-                    on_change=move |theme| context.set(move |s| s.theme = theme)
-                />
-            </div>
-        </div>
         <div class="row">
             <div class="row__text">
                 <div class="row__label">{i18n.text(key::LOOKS_SIMPLE)}</div>
@@ -277,11 +253,8 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
         <div class="row row--stack">
             <div class="looks" role="radiogroup" aria-label=i18n.text(key::LOOKS_GALLERY) on:keydown=on_key>
                 <For each=move || looks.get() key=|look| (look.id.clone(), look.name.clone(), look.preview.clone()) let:look>
-                    {look_button(Some(look.id), Signal::stored(look.name), Some(look.preview))}
+                    {look_button(look.id, Signal::stored(look.name), Some(look.preview))}
                 </For>
-                // No look: plain light or dark, following the setting above.
-                // Ink, first in the list, is what every install starts with.
-                {look_button(None, i18n.label(key::LOOKS_PLAIN), None)}
             </div>
             <div class="looks__actions">
                 <Button on_click=open_file>
@@ -406,13 +379,13 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
             <LookEditor
                 i18n=i18n
                 appearance=appearance
-                initial=editing.doc
+                initial=editing.theme
                 simple_looks=context.read(|s| s.simple_looks)
                 editing_id=editing.id
                 on_close=move |()| editor.set(None)
                 on_saved=move |saved: LookSummary| {
                     toaster.info(Message::with(key::LOOKS_SAVED, "name", saved.name));
-                    context.set(move |s| s.look_id = Some(saved.id));
+                    context.set(move |s| s.look_id = saved.id);
                 }
             />
         })}

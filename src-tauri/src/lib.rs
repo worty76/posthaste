@@ -160,7 +160,7 @@ pub fn run() {
             commands::data_clear,
             commands::look_list,
             commands::look_active,
-            commands::look_doc,
+            commands::look_theme,
             commands::look_preview,
             commands::look_save,
             commands::look_active_scene,

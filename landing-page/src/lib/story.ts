@@ -23,7 +23,7 @@ export interface Story {
 }
 
 export const STORY: Story = {
-  published: false,
+  published: true,
   title: "Why Posthaste",
   description:
     "I type fast and live on my computer, and I could not find a to-do app that felt right. So I built one.",

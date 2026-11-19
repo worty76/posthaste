@@ -26,6 +26,16 @@ pub fn fit_name(name: &str) -> String {
     name.chars().take(MAX_NAME_CHARS).collect()
 }
 
+/// Longest font name a look can name (the look format's limit).
+pub const MAX_FONT_FAMILY_CHARS: usize = 64;
+
+/// Whether the typed name names a font this computer has. The measured
+/// widths must move for the name, in either style, by more than half a
+/// pixel; sub-pixel wobble is what a missing font still produces.
+pub fn font_seems_installed(with_name: [f64; 2], fallback_only: [f64; 2]) -> bool {
+    (with_name[0] - fallback_only[0]).abs() > 0.5 || (with_name[1] - fallback_only[1]).abs() > 0.5
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,5 +53,13 @@ mod tests {
     fn names_are_cut_by_characters() {
         assert_eq!(fit_name("Matcha copy"), "Matcha copy");
         assert_eq!(fit_name(&"ê".repeat(50)).chars().count(), MAX_NAME_CHARS);
+    }
+
+    #[test]
+    fn a_font_the_page_can_draw_is_installed() {
+        assert!(!font_seems_installed([500.0, 520.0], [500.0, 520.0]));
+        assert!(font_seems_installed([480.0, 520.0], [500.0, 520.0]));
+        assert!(!font_seems_installed([500.0, 520.3], [500.0, 520.0]));
+        assert!(font_seems_installed([500.0, 520.8], [500.0, 520.0]));
     }
 }

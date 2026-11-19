@@ -1,39 +1,48 @@
 use super::*;
 
 mod derive_tests {
+    use serde_json::Map;
+
     use super::doc;
     use crate::look::color::contrast;
     use crate::look::derive::{resolve, ResolvedLook};
     #[allow(unused_imports)]
     use crate::look::LookDocExt as _;
-    use crate::look::{Base, Colors, FontFace, LookDoc, Shape, TEXT_CONTRAST_MIN};
+    use crate::look::{Base, Colors, FontFace, LookDoc, LookTheme, Shape, TEXT_CONTRAST_MIN};
     use crate::CoreError;
 
     fn midnight() -> LookDoc {
         LookDoc {
             format: "posthaste-look".into(),
-            version: 1,
+            version: 2,
             name: "Midnight Grape".into(),
             author: Some("Posthaste".into()),
-            base: Base::Dark,
-            colors: Colors {
-                bg: "#1a1423".into(),
-                surface: "#241b31".into(),
-                text: "#f1e9ff".into(),
-                accent: "#c58bff".into(),
-                bg_sunken: None,
-                surface_raised: None,
-                danger: None,
-                ok: None,
-                extra: serde_json::Map::new(),
+            theme: LookTheme {
+                base: Base::Dark,
+                colors: Colors {
+                    bg: "#1a1423".into(),
+                    surface: "#241b31".into(),
+                    text: "#f1e9ff".into(),
+                    accent: "#c58bff".into(),
+                    bg_sunken: None,
+                    surface_raised: None,
+                    danger: None,
+                    ok: None,
+                    extra: Map::new(),
+                },
+                shape: Shape::Round,
+                font: FontFace::Rounded,
+                font_family: None,
+                extra: Map::new(),
             },
-            shape: Shape::Round,
-            font: FontFace::Rounded,
+            scene: Default::default(),
+            assets: Vec::new(),
+            extra: Default::default(),
         }
     }
 
     fn tokens(d: &LookDoc) -> std::collections::BTreeMap<String, String> {
-        resolve("test", d).unwrap().tokens
+        resolve("test", &d.theme_edit()).unwrap().tokens
     }
 
     #[test]
@@ -90,7 +99,7 @@ mod derive_tests {
 
     #[test]
     fn the_resolved_look_carries_its_identity() {
-        let r: ResolvedLook = resolve("builtin:ink", &doc()).unwrap();
+        let r: ResolvedLook = resolve("builtin:ink", &doc().theme_edit()).unwrap();
         assert_eq!(r.id, "builtin:ink");
         assert_eq!(r.name, "Strawberry Milk");
         assert_eq!(r.author.as_deref(), Some("Posthaste"));
@@ -108,9 +117,9 @@ mod derive_tests {
         }
 
         let mut d = doc();
-        d.colors.danger = Some("#ff0000".into());
-        d.colors.ok = Some("#00ff00".into());
-        d.colors.bg_sunken = Some("#123456".into());
+        d.theme.colors.danger = Some("#ff0000".into());
+        d.theme.colors.ok = Some("#00ff00".into());
+        d.theme.colors.bg_sunken = Some("#123456".into());
         let t = tokens(&d);
         assert_eq!(t.get("--danger").unwrap(), "#ff0000");
         assert_eq!(t.get("--danger-soft").unwrap(), "rgba(255, 0, 0, 0.12)");
@@ -121,18 +130,18 @@ mod derive_tests {
     #[test]
     fn colours_are_normalised_to_lowercase_six_digit_hex() {
         let mut d = doc();
-        d.colors.bg = "#FFF".into();
-        d.colors.accent = "#FF8FB1".into();
+        d.theme.colors.bg = "#FFF".into();
+        d.theme.colors.accent = "#FF8FB1".into();
         let t = tokens(&d);
         assert_eq!(t.get("--bg").unwrap(), "#ffffff");
         assert_eq!(t.get("--accent").unwrap(), "#ff8fb1");
     }
 
     #[test]
-    fn an_invalid_document_is_rejected_without_tokens() {
+    fn an_invalid_edit_is_rejected_without_tokens() {
         let mut d = doc();
-        d.colors.text = d.colors.bg.clone();
-        let err = resolve("test", &d).unwrap_err();
+        d.theme.colors.text = d.theme.colors.bg.clone();
+        let err = resolve("test", &d.theme_edit()).unwrap_err();
         assert!(matches!(err, CoreError::InvalidLook(_)));
     }
 
@@ -194,25 +203,32 @@ mod derive_tests {
             let accent = rng.color(0, 255);
             let d = LookDoc {
                 format: "posthaste-look".into(),
-                version: 1,
+                version: 2,
                 name: "Property".into(),
                 author: None,
-                base: if dark { Base::Dark } else { Base::Light },
-                colors: Colors {
-                    bg: hex(bg),
-                    surface: hex(surface),
-                    text: hex(text),
-                    accent: hex(accent),
-                    bg_sunken: None,
-                    surface_raised: None,
-                    danger: None,
-                    ok: None,
-                    extra: serde_json::Map::new(),
+                theme: LookTheme {
+                    base: if dark { Base::Dark } else { Base::Light },
+                    colors: Colors {
+                        bg: hex(bg),
+                        surface: hex(surface),
+                        text: hex(text),
+                        accent: hex(accent),
+                        bg_sunken: None,
+                        surface_raised: None,
+                        danger: None,
+                        ok: None,
+                        extra: Map::new(),
+                    },
+                    shape: Shape::Soft,
+                    font: FontFace::System,
+                    font_family: None,
+                    extra: Map::new(),
                 },
-                shape: Shape::Soft,
-                font: FontFace::System,
+                scene: Default::default(),
+                assets: Vec::new(),
+                extra: Default::default(),
             };
-            let Ok(r) = resolve("test", &d) else {
+            let Ok(r) = resolve("test", &d.theme_edit()) else {
                 continue; // accent or surface out of range: not a valid look
             };
             checked += 1;
@@ -248,7 +264,7 @@ mod derive_tests {
                     "token value {v:?}"
                 );
             }
-            let again = resolve("test", &d).unwrap();
+            let again = resolve("test", &d.theme_edit()).unwrap();
             assert_eq!(again, r, "resolve is deterministic, set {i}");
         }
         assert!(checked > 0, "the generator produced valid sets");
@@ -260,5 +276,111 @@ mod derive_tests {
 
     fn surface_rgb(r: &ResolvedLook) -> crate::look::color::Rgb {
         crate::look::color::Rgb::parse(r.tokens.get("--surface").unwrap()).unwrap()
+    }
+}
+
+mod font_tests {
+    use super::doc;
+    use crate::look::code::{decode_code, encode_code};
+    use crate::look::derive::resolve;
+    use crate::look::{validate_theme, FontFace};
+
+    fn tokens_with(name: Option<&str>) -> std::collections::BTreeMap<String, String> {
+        let mut edit = doc().theme_edit();
+        edit.font = FontFace::Mono;
+        edit.font_family = name.map(String::from);
+        resolve("test", &edit).unwrap().tokens
+    }
+
+    #[test]
+    fn a_custom_font_becomes_the_font_token() {
+        let t = tokens_with(Some("JetBrains Mono"));
+        assert_eq!(
+            t.get("--font").unwrap(),
+            "\"JetBrains Mono\", var(--font-mono-ui)"
+        );
+    }
+
+    #[test]
+    fn a_custom_font_falls_back_to_a_bundled_preset() {
+        let mut edit = doc().theme_edit();
+        edit.font = crate::look::FontFace::Nunito;
+        edit.font_family = Some("Not Installed Font".into());
+        let t = resolve("test", &edit).unwrap().tokens;
+        assert_eq!(
+            t.get("--font").unwrap(),
+            "\"Not Installed Font\", var(--font-nunito)"
+        );
+    }
+
+    #[test]
+    fn no_custom_font_no_font_token() {
+        assert!(!tokens_with(None).contains_key("--font"));
+    }
+
+    #[test]
+    fn a_custom_font_round_trips_in_a_share_code() {
+        let mut d = doc();
+        d.theme.font_family = Some("JetBrains Mono".into());
+        let code = encode_code(&d);
+        assert_eq!(decode_code(&code).unwrap(), d);
+    }
+
+    #[test]
+    fn font_names_are_checked() {
+        for name in [
+            "Fira Code",
+            "Noto Sans CJK JP",
+            "Hiragino Kaku Gothic ProN",
+            "游ゴシック",
+        ] {
+            let mut edit = doc().theme_edit();
+            edit.font_family = Some(name.into());
+            assert!(
+                validate_theme(&edit).is_ok(),
+                "{name} is a font name: {:?}",
+                validate_theme(&edit)
+            );
+        }
+        let long = "x".repeat(65);
+        for (name, needle) in [
+            ("", "can't be empty, or start or end with a space"),
+            (" Inter", "can't be empty, or start or end with a space"),
+            ("Inter ", "can't be empty, or start or end with a space"),
+            (long.as_str(), "at most 64 characters"),
+            (
+                "Inter\"",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "Inter;",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "a\\b",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "x(y)",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "{x}",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "a,b",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+            (
+                "url(x)",
+                "letters, numbers, spaces, hyphens, underscores and dots",
+            ),
+        ] {
+            let mut edit = doc().theme_edit();
+            edit.font_family = Some(name.into());
+            let err = validate_theme(&edit).unwrap_err().to_string();
+            assert!(err.contains(needle), "{name:?}: got {err}");
+        }
     }
 }

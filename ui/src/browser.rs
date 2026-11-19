@@ -5,6 +5,39 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
+/// The text a font measurement draws: wide and round, tall and thin,
+/// and the marks that separate look-alike faces.
+const MEASURE_SAMPLE: &str = "mmmmmmmmmmlli1WQ@#";
+
+/// Measures the sample in the two measuring styles, with `family` drawn
+/// in front of the stack when given. `None` when there is no page: a
+/// window that cannot measure cannot claim a font is missing.
+pub fn text_widths(family: Option<&str>) -> Option<[f64; 2]> {
+    let document = document();
+    let span = document
+        .create_element("span")
+        .ok()?
+        .dyn_into::<web_sys::HtmlElement>()
+        .ok()?;
+    span.set_text_content(Some(MEASURE_SAMPLE));
+    let body = document.body()?;
+    body.append_child(&span).ok()?;
+    let measured = |stack: &str| {
+        let font = match family {
+            Some(name) => format!("\"{name}\", {stack}"),
+            None => stack.to_string(),
+        };
+        span.style().set_css_text(&format!(
+            "position:absolute;top:0;left:0;visibility:hidden;\
+             white-space:nowrap;font-size:72px;font-family:{font};"
+        ));
+        span.offset_width() as f64
+    };
+    let widths = [measured("monospace"), measured("serif")];
+    body.remove_child(&span).ok()?;
+    Some(widths)
+}
+
 /// Copies text. Falls back to a hidden field where the clipboard API is
 /// blocked. `false` when neither worked.
 pub async fn copy_text(text: &str) -> bool {

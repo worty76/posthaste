@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 
 use crate::db::{now_ms, Db};
 use crate::error::{CoreError, Result};
-use crate::look::{AssetRef, LookDocument};
+use crate::look::{parse_stored, AssetRef, LookDoc};
 
 /// The biggest image this build stores.
 pub const MAX_ASSET_BYTES: usize = 2 * 1024 * 1024;
@@ -245,7 +245,7 @@ impl Db {
             let mut stmt = self.conn().prepare("SELECT doc FROM looks")?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
             for json in rows {
-                let doc = LookDocument::parse_stored(&json?)?;
+                let doc = parse_stored(&json?)?;
                 for asset in doc_assets(&doc) {
                     referenced.insert(asset);
                 }
@@ -272,10 +272,7 @@ impl Db {
     }
 }
 
-/// The asset ids a stored document lists, whatever its version.
-fn doc_assets(doc: &LookDocument) -> Vec<String> {
-    match doc {
-        LookDocument::V1(_) => Vec::new(),
-        LookDocument::V2(d) => d.assets.iter().map(|a| a.id.clone()).collect(),
-    }
+/// The asset ids a stored document lists.
+fn doc_assets(doc: &LookDoc) -> Vec<String> {
+    doc.assets.iter().map(|a| a.id.clone()).collect()
 }

@@ -473,7 +473,6 @@ fn settings_default_then_round_trip() {
     let mut db = db();
     assert_eq!(db.load_settings().unwrap(), Settings::default());
     let s = Settings {
-        theme: Theme::Dark,
         capture_shortcut: "Alt+Space".into(),
         hide_after_save: false,
         ..Default::default()
@@ -495,7 +494,8 @@ fn settings_tolerate_missing_unknown_and_corrupt_values() {
     };
     set(r#"{"theme":"dark","some_future_field":true}"#);
     let s = db.load_settings().unwrap();
-    assert_eq!(s.theme, Theme::Dark);
+    // The dead theme key is ignored; the rest is the default.
+    assert_eq!(s.look_id, crate::look::DEFAULT_LOOK_ID);
     assert_eq!(s.capture_shortcut, DEFAULT_CAPTURE_SHORTCUT);
 
     set("not json at all");
@@ -766,7 +766,7 @@ fn clear_all_removes_notes_drafts_and_settings() {
     db.create_note(note("secret")).unwrap();
     db.save_draft("draft", None).unwrap();
     db.save_settings(&Settings {
-        theme: Theme::Light,
+        capture_shortcut: "Alt+Space".into(),
         ..Default::default()
     })
     .unwrap();
@@ -1546,7 +1546,6 @@ fn unknown_window_size_loads_as_medium_and_keeps_other_settings() {
     );
     let s = db.load_settings().unwrap();
     assert_eq!(s.window_size, WindowSize::Medium);
-    assert_eq!(s.theme, Theme::Dark);
     assert_eq!(s.capture_shortcut, "Alt+Space");
 }
 
@@ -1944,7 +1943,6 @@ fn unknown_position_loads_as_center_and_keeps_other_settings() {
     let s = db.load_settings().unwrap();
     assert_eq!(s.capture_position, CapturePosition::Center);
     assert_eq!(s.today_position, CapturePosition::Center);
-    assert_eq!(s.theme, Theme::Dark);
 }
 
 #[test]

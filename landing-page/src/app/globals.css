@@ -7,6 +7,52 @@
    House rule for motion: the main gesture is a hard cut. No transitions on
    saving, switching looks or ticking a note off. */
 
+/* The fonts the app ships, so the site shows the same type. Licences in
+   src/fonts/. font-display: swap, and every stack ends in the system
+   stack, so text never disappears while a file loads. */
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("../fonts/be-vietnam-pro-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("../fonts/be-vietnam-pro-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("../fonts/be-vietnam-pro-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("../fonts/be-vietnam-pro-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("../fonts/nunito-variable.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Quicksand";
+  src: url("../fonts/quicksand-variable.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --font: var(--font-recursive), ui-sans-serif, system-ui, sans-serif;
 
@@ -32,6 +78,7 @@
    tile wearing another look also gets that look's letters. */
 body,
 [data-look] {
+  font-family: var(--font);
   font-variation-settings:
     "CASL" var(--casl),
     "MONO" var(--mono),

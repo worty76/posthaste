@@ -1,0 +1,53 @@
+/* The fonts bundled with the app, one @font-face per file. Family names
+   are the fonts' own; the preset stacks in tokens.css put each one in
+   front of the system stack, so a file that fails to load never takes
+   the text away. Files live in fonts/ with their OFL licence beside
+   them; scripts/check-fonts.py must pass for every file here. */
+
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("./fonts/nunito-variable.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Quicksand";
+  src: url("./fonts/quicksand-variable.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}

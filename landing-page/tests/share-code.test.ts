@@ -15,9 +15,18 @@ describe("share codes", () => {
   it("uses the app's prefix and a url-safe, unpadded alphabet", () => {
     for (const look of LOOKS) {
       const code = encodeLookCode(look);
-      expect(code.startsWith("posthaste-look:1:")).toBe(true);
+      expect(code.startsWith("posthaste-look:2:")).toBe(true);
       expect(code).not.toMatch(/[+/=]/);
     }
+  });
+
+  it("decodes the app's nested theme and refuses other versions", () => {
+    const decoded = decodeLookCode(encodeLookCode(LOOKS[0]!));
+    expect(decoded?.theme.base).toBe("light");
+    expect(decoded?.theme.colors.accent).toBe(LOOKS[0]!.colors.accent);
+    expect(decoded?.theme.shape).toBe("round");
+    expect(decoded?.theme.font).toBe("quicksand");
+    expect(decodeLookCode("posthaste-look:1:AAAA")).toBeNull();
   });
 
   it("rejects malformed input instead of throwing", () => {

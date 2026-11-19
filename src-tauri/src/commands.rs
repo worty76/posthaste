@@ -3,12 +3,12 @@
 
 use std::sync::atomic::Ordering;
 
-use posthaste_core::look::code::{b64_encode_std, encode_document};
+use posthaste_core::look::code::{b64_encode_std, encode_code};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::package::{read_package, write_package};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocV2Ext};
-use posthaste_core::look::{AssetRef, LookDoc, LookDocument, ResolvedScene, SceneEdit};
+use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocExt as _};
+use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdit};
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
@@ -17,7 +17,7 @@ use posthaste_core::{
 };
 use posthaste_i18n::key;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -365,19 +365,35 @@ fn attach_paths(
     report
 }
 
+/// Waits for a parented file dialog. The callback API is the one that
+/// honours the parent — the dialog sheets onto the calling window, above
+/// the floating panels — so the answer comes back over a channel instead
+/// of through the parentless blocking run.
+fn dialog_answer<T: Send + Default + 'static>(run: impl FnOnce(std::sync::mpsc::Sender<T>)) -> T {
+    let (tx, rx) = std::sync::mpsc::channel();
+    run(tx);
+    // The dialog always answers, even on cancel (`None`); a dropped
+    // channel means the app is on its way out, which reads as cancelled.
+    rx.recv().unwrap_or_default()
+}
+
 /// Asks which files to attach. `None` means cancelled.
 #[tauri::command]
 pub async fn attachment_add_files(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     note_id: String,
 ) -> AppResult<Option<AttachReport>> {
-    let Some(picked) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_ATTACH))
-        .blocking_pick_files()
-    else {
+    let Some(picked) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_ATTACH))
+            .pick_files(move |picked| {
+                let _ = tx.send(picked);
+            });
+    }) else {
         return Ok(None);
     };
     let paths = picked
@@ -463,17 +479,21 @@ pub fn opened_dir(app: &AppHandle) -> AppResult<std::path::PathBuf> {
 #[tauri::command]
 pub async fn attachment_save_copy(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Option<String>> {
     let (meta, bytes) = state.with_db(|db| db.attachment_bytes(&id))?;
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_SAVE_COPY))
-        .set_file_name(&meta.name)
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_SAVE_COPY))
+            .set_file_name(&meta.name)
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -635,18 +655,22 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 #[tauri::command]
 pub async fn data_export(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     utc_offset_minutes: Option<i32>,
 ) -> AppResult<Option<usize>> {
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT))
-        .set_file_name(format!("posthaste-notes-{}.md", stamp()))
-        .add_filter("Markdown", &["md"])
-        .add_filter("JSON", &["json"])
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT))
+            .set_file_name(format!("posthaste-notes-{}.md", stamp()))
+            .add_filter("Markdown", &["md"])
+            .add_filter("JSON", &["json"])
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -672,18 +696,22 @@ fn export_format(dest: &std::path::Path, utc_offset_minutes: i32) -> ExportForma
 #[tauri::command]
 pub async fn data_import(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<ImportReport>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_IMPORT))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_EXPORT),
-            &["md", "markdown", "json"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_IMPORT))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_EXPORT),
+                &["md", "markdown", "json"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
@@ -696,18 +724,25 @@ pub async fn data_import(
 
 /// Asks where to save, then writes a full copy of the database.
 #[tauri::command]
-pub async fn data_backup(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_BACKUP))
-        .set_file_name(format!("posthaste-backup-{}.db", stamp()))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_DATABASE),
-            &["db"],
-        )
-        .blocking_save_file()
-    else {
+pub async fn data_backup(
+    app: AppHandle,
+    window: Window,
+    state: State<'_, AppState>,
+) -> AppResult<Option<String>> {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_BACKUP))
+            .set_file_name(format!("posthaste-backup-{}.db", stamp()))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_DATABASE),
+                &["db"],
+            )
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -755,31 +790,31 @@ pub fn look_list(state: State<'_, AppState>) -> AppResult<Vec<LookSummary>> {
 }
 
 #[tauri::command]
-pub fn look_active(state: State<'_, AppState>) -> AppResult<Option<ResolvedLook>> {
+pub fn look_active(state: State<'_, AppState>) -> AppResult<ResolvedLook> {
     state.with_db(|db| db.active_look())
 }
 
 #[tauri::command]
-pub fn look_doc(state: State<'_, AppState>, id: String) -> AppResult<LookDoc> {
-    state.with_db(|db| db.look_doc(&id))
+pub fn look_theme(state: State<'_, AppState>, id: String) -> AppResult<ThemeEdit> {
+    state.with_db(|db| db.look_theme(&id))
 }
 
 /// Validates and derives a draft for the editor's live preview. Stores
 /// nothing.
 #[tauri::command]
-pub fn look_preview(doc: LookDoc) -> AppResult<ResolvedLook> {
-    Ok(resolve("preview", &doc)?)
+pub fn look_preview(theme: ThemeEdit) -> AppResult<ResolvedLook> {
+    Ok(resolve("preview", &theme)?)
 }
 
 #[tauri::command]
 pub fn look_save(
     app: AppHandle,
     state: State<'_, AppState>,
-    doc: LookDoc,
+    theme: ThemeEdit,
     scene: Option<SceneEdit>,
     id: Option<String>,
 ) -> AppResult<LookSummary> {
-    let summary = state.with_db(|db| db.save_look(doc, scene, id.as_deref()))?;
+    let summary = state.with_db(|db| db.save_look(theme, scene, id.as_deref()))?;
     looks_changed(&app);
     Ok(summary)
 }
@@ -817,18 +852,22 @@ pub fn look_asset(state: State<'_, AppState>, id: String) -> AppResult<String> {
 #[tauri::command]
 pub async fn look_asset_pick(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<AssetRef>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_PICK_IMAGE))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_IMAGES),
-            &["png", "jpg", "jpeg", "webp"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_PICK_IMAGE))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_IMAGES),
+                &["png", "jpg", "jpeg", "webp"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
@@ -864,8 +903,8 @@ pub fn look_import(
 
 #[tauri::command]
 pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<String> {
-    // The document as stored, not the v1 view: a shared look keeps its
-    // scene and every field this build does not model.
+    // The document as stored: a shared look keeps its scene and every
+    // field this build does not model.
     let doc = state.with_db(|db| db.look_document(&id))?;
     if look_has_images(&doc) {
         // A code carries no image bytes, so a look that lists images
@@ -878,16 +917,13 @@ pub fn look_export_code(state: State<'_, AppState>, id: String) -> AppResult<Str
                 .to_string(),
         ));
     }
-    Ok(encode_document(&doc))
+    Ok(encode_code(&doc))
 }
 
 /// True when the document lists look images, which a share code cannot
 /// carry.
-fn look_has_images(doc: &LookDocument) -> bool {
-    match doc {
-        LookDocument::V2(doc) => !doc.assets.is_empty(),
-        LookDocument::V1(_) => false,
-    }
+fn look_has_images(doc: &LookDoc) -> bool {
+    !doc.assets.is_empty()
 }
 
 /// A look's name as a file's base name: separators out, never empty.
@@ -915,37 +951,35 @@ fn file_name_for(name: &str) -> String {
 #[tauri::command]
 pub async fn look_file_export(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Option<String>> {
-    let v2 = {
-        let doc = state.with_db(|db| db.look_document(&id))?;
-        match doc {
-            LookDocument::V2(doc) => doc,
-            LookDocument::V1(v1) => posthaste_core::look::migrate::v1_to_v2(&v1),
-        }
-    };
-    let name = v2.name.clone();
+    let doc = state.with_db(|db| db.look_document(&id))?;
+    let name = doc.name.clone();
     // Every listed image must be in storage: write_package refuses a
     // dangling reference, and its error is what the UI shows.
     let file = state.with_db(|db| {
-        write_package(&v2, |asset_id| {
+        write_package(&doc, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
             Ok(bytes)
         })
     })?;
 
-    let Some(dest) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT_LOOK))
-        .set_file_name(format!("{}.phlook", file_name_for(&name)))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_LOOKS),
-            &["phlook"],
-        )
-        .blocking_save_file()
-    else {
+    let Some(dest) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_EXPORT_LOOK))
+            .set_file_name(format!("{}.phlook", file_name_for(&name)))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_LOOKS),
+                &["phlook"],
+            )
+            .save_file(move |dest| {
+                let _ = tx.send(dest);
+            });
+    }) else {
         return Ok(None);
     };
     let dest = dest
@@ -962,18 +996,22 @@ pub async fn look_file_export(
 #[tauri::command]
 pub async fn look_file_open(
     app: AppHandle,
+    window: Window,
     state: State<'_, AppState>,
 ) -> AppResult<Option<LookFilePreview>> {
-    let Some(src) = app
-        .dialog()
-        .file()
-        .set_title(state.translator().text(key::DESKTOP_DIALOG_OPEN_LOOK))
-        .add_filter(
-            state.translator().text(key::DESKTOP_FILTER_LOOKS),
-            &["phlook"],
-        )
-        .blocking_pick_file()
-    else {
+    let Some(src) = dialog_answer(|tx| {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(state.translator().text(key::DESKTOP_DIALOG_OPEN_LOOK))
+            .add_filter(
+                state.translator().text(key::DESKTOP_FILTER_LOOKS),
+                &["phlook"],
+            )
+            .pick_file(move |src| {
+                let _ = tx.send(src);
+            });
+    }) else {
         return Ok(None);
     };
     let src = src
@@ -984,15 +1022,17 @@ pub async fn look_file_open(
     pending.doc.validate()?;
 
     let doc = pending.doc.clone();
+    let theme = doc.theme_edit();
     let summary = posthaste_core::look::store::LookSummary {
         id: String::new(),
-        name: doc.name.clone(),
-        author: doc.author.clone(),
+        name: theme.name.clone(),
+        author: theme.author.clone(),
         builtin: false,
-        base: doc.theme.base,
-        preview: posthaste_core::look::LookDocExt::preview(&doc.v1_view()),
+        base: theme.base,
+        preview: doc.preview(),
+        font_family: theme.font_family.clone(),
     };
-    let tokens = resolve("file:preview", &doc.v1_view())?;
+    let tokens = resolve("file:preview", &theme)?;
     let scene = resolve_live(&doc.scene, &doc.assets);
     let asset_urls = pending
         .assets
@@ -1034,13 +1074,14 @@ pub fn look_file_discard(state: State<'_, AppState>) -> AppResult<()> {
 
 #[tauri::command]
 pub fn look_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.with_db(|db| db.delete_look(&id))?;
-    // Deleting the active look returns the app to Ink, the factory default,
-    // immediately, the same way data_clear resets settings.
-    if state.settings().look_id.as_deref() == Some(id.as_str()) {
-        let mut settings = state.settings();
-        settings.look_id = Some(posthaste_core::look::DEFAULT_LOOK_ID.into());
-        settings_update(app.clone(), state, settings)?;
+    // The store resets a deleted selected look to the factory default in
+    // the same transaction as the delete, so no window is left wearing
+    // the deleted look's tokens. The cached settings follow, and every
+    // window hears the change like any other.
+    if state.with_db(|db| db.delete_look(&id))? {
+        let settings = state.with_db(|db| db.load_settings())?;
+        *state.settings.write().unwrap_or_else(|e| e.into_inner()) = settings.clone();
+        let _ = app.emit("settings-changed", crate::ai::for_interface(&settings));
     }
     looks_changed(&app);
     Ok(())
@@ -1053,13 +1094,13 @@ mod tests {
     use super::look_has_images;
     use super::percent_decode;
     use super::valid_day;
-    use posthaste_core::look::{LookDoc, LookDocument};
+
     use posthaste_core::ExportFormat;
     use posthaste_i18n::key;
 
     #[test]
     fn a_look_with_images_cannot_travel_as_a_code() {
-        let mut v2 = posthaste_core::look::LookDocV2 {
+        let mut doc = posthaste_core::look::LookDoc {
             format: "posthaste-look".into(),
             version: 2,
             name: "With image".into(),
@@ -1075,6 +1116,7 @@ mod tests {
                 },
                 shape: Default::default(),
                 font: Default::default(),
+                font_family: None,
                 extra: Default::default(),
             },
             scene: Default::default(),
@@ -1088,25 +1130,9 @@ mod tests {
             }],
             extra: Default::default(),
         };
-        assert!(look_has_images(&LookDocument::V2(v2.clone())));
-        v2.assets.clear();
-        assert!(!look_has_images(&LookDocument::V2(v2)));
-        assert!(!look_has_images(&LookDocument::V1(LookDoc {
-            format: "posthaste-look".into(),
-            version: 1,
-            name: "Colour only".into(),
-            author: None,
-            base: posthaste_core::look::Base::Dark,
-            colors: posthaste_core::look::Colors {
-                bg: "#120d18".into(),
-                surface: "#1d1526".into(),
-                text: "#f3e9f7".into(),
-                accent: "#ff7eb6".into(),
-                ..Default::default()
-            },
-            shape: Default::default(),
-            font: Default::default(),
-        })));
+        assert!(look_has_images(&doc));
+        doc.assets.clear();
+        assert!(!look_has_images(&doc));
     }
 
     #[test]

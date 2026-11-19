@@ -6,12 +6,29 @@
 import { deriveTokens } from "./derive";
 import { DEFAULT_LOOK_ID, LOOKS, lookById, type Look } from "./looks";
 
-/** Recursive's casual and mono axes stand in for the app's font modes. */
+/** Recursive's casual and mono axes stand in for the app's system font
+    modes; the bundled faces render themselves, with Recursive behind. */
 const FONT_AXES: Record<Look["font"], { casl: number; mono: number }> = {
   system: { casl: 0, mono: 0 },
   rounded: { casl: 1, mono: 0 },
   serif: { casl: 0, mono: 0 },
   mono: { casl: 0, mono: 1 },
+  "be-vietnam-pro": { casl: 0, mono: 0 },
+  nunito: { casl: 0, mono: 0 },
+  quicksand: { casl: 0, mono: 0 },
+};
+
+/** The type stack a look wears: the bundled families first where the look
+    names one, Recursive (shaped by the axes above) for the rest. */
+const FONT_STACKS: Record<Look["font"], string> = {
+  system: "var(--font-recursive), ui-sans-serif, system-ui, sans-serif",
+  rounded: "var(--font-recursive), ui-sans-serif, system-ui, sans-serif",
+  serif: "var(--font-recursive), ui-sans-serif, system-ui, sans-serif",
+  mono: "var(--font-recursive), ui-monospace, monospace",
+  "be-vietnam-pro":
+    '"Be Vietnam Pro", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
+  nunito: '"Nunito", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
+  quicksand: '"Quicksand", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
 };
 
 /** The custom properties a look sets, by name. */
@@ -32,6 +49,7 @@ export function lookVariables(look: Look): Record<string, string> {
     "--border-strong": t.borderStrong,
     "--hover": t.hover,
     "--active": t.active,
+    "--font": FONT_STACKS[look.font],
     "--r-sm": t.radius[0],
     "--r-md": t.radius[1],
     "--r-lg": t.radius[2],

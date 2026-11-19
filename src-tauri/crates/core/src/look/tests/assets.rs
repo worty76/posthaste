@@ -6,11 +6,11 @@ mod asset_tests {
     use super::png;
     use serde_json::{json, Map};
 
-    use super::v2doc;
+    use super::doc;
     use crate::look::assets::sniff_image;
-    use crate::look::{AssetRef, LayerRecord, LookDocV2, WindowScene};
     #[allow(unused_imports)]
-    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
+    use crate::look::LookDocExt as _;
+    use crate::look::{AssetRef, LayerRecord, LookDoc, WindowScene};
     use crate::Db;
 
     fn jpeg(width: u16, height: u16) -> Vec<u8> {
@@ -29,8 +29,8 @@ mod asset_tests {
         b
     }
 
-    fn with_backdrop(asset_id: &str, assets: Vec<AssetRef>) -> LookDocV2 {
-        let mut d = v2doc();
+    fn with_backdrop(asset_id: &str, assets: Vec<AssetRef>) -> LookDoc {
+        let mut d = doc();
         d.scene.all = Some(WindowScene {
             backdrop: vec![LayerRecord {
                 kind: "image".into(),
@@ -133,7 +133,7 @@ mod asset_tests {
 
         // A stored look lists the referenced asset — in its assets list
         // only, from a layer this build does not even draw.
-        let mut old = v2doc();
+        let mut old = doc();
         old.scene.capture = Some(WindowScene {
             backdrop: Vec::new(),
             margin: vec![LayerRecord {
@@ -153,8 +153,7 @@ mod asset_tests {
             height: 3,
             extra: Map::new(),
         }];
-        db.save_look_document(crate::look::LookDocument::V2(old), None)
-            .unwrap();
+        db.save_look_document(old, None).unwrap();
 
         let now = 1_000 + 24 * 3600 * 1000 + 1;
         let fresh = db.store_look_asset_at(&png(3, 2), now - 500).unwrap();
@@ -215,15 +214,15 @@ mod package_tests {
 
     use super::png;
     use crate::look::package::{read_package, write_package};
-    use crate::look::{AssetRef, LayerRecord, LookDocV2, LookDocument};
     #[allow(unused_imports)]
-    use crate::look::{LookDocExt as _, LookDocV2Ext as _};
+    use crate::look::LookDocExt as _;
+    use crate::look::{AssetRef, LayerRecord, LookDoc};
     use crate::Db;
 
     /// Sakura-night-like v2 look with one image backdrop, as the editor
     /// would have saved it.
-    fn look_with_image(id: &str, claims: (u64, u32, u32)) -> LookDocV2 {
-        let mut d = crate::look::tests::v2doc();
+    fn look_with_image(id: &str, claims: (u64, u32, u32)) -> LookDoc {
+        let mut d = super::doc();
         d.name = "File look".into();
         d.scene.all = Some(crate::look::WindowScene {
             backdrop: vec![LayerRecord {
@@ -259,8 +258,7 @@ mod package_tests {
         let (db, id, asset) = stored_db(&bytes);
         let look = look_with_image(&id, (asset.bytes, asset.width, asset.height));
         let mut db = db;
-        db.save_look_document(LookDocument::V2(look.clone()), None)
-            .unwrap();
+        db.save_look_document(look.clone(), None).unwrap();
 
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
@@ -272,15 +270,11 @@ mod package_tests {
         let mut other = Db::open_in_memory().unwrap();
         let summary = other.install_package(pending).unwrap();
         assert_eq!(summary.name, "File look");
-        match other.look_document(&summary.id).unwrap() {
-            LookDocument::V2(stored) => {
-                assert_eq!(stored.theme, look.theme);
-                assert_eq!(stored.scene, look.scene);
-                assert_eq!(stored.assets.len(), 1);
-                assert_eq!(stored.assets[0].id, id);
-            }
-            _ => panic!("expected v2"),
-        }
+        let stored = other.look_document(&summary.id).unwrap();
+        assert_eq!(stored.theme, look.theme);
+        assert_eq!(stored.scene, look.scene);
+        assert_eq!(stored.assets.len(), 1);
+        assert_eq!(stored.assets[0].id, id);
         // The image came across: the bytes are stored and identical.
         let (_, stored_bytes) = other.look_asset_bytes(&id).unwrap();
         assert_eq!(stored_bytes, bytes);
@@ -318,7 +312,7 @@ mod package_tests {
         let bytes = png(2, 3);
         let (db, id, _) = stored_db(&bytes);
         // A colour-only look lists no images, so its file carries none.
-        let look = crate::look::tests::v2doc();
+        let look = super::doc();
         let file = write_package(&look, |asset_id| {
             let (_, bytes) = db.look_asset_bytes(asset_id)?;
             Ok(bytes)
@@ -430,7 +424,7 @@ mod package_tests {
             Ok(bytes)
         })
         .unwrap();
-        assert!(LookDocument::from_json(&file).is_err());
+        assert!(LookDoc::from_json(&file).is_err());
         assert!(read_package(&look.to_json()).is_err());
     }
 }

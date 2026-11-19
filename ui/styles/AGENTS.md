@@ -8,6 +8,8 @@ what makes the app themeable: a theme changes token values and nothing else.
 | File | Holds |
 |---|---|
 | `tokens.css` | Every colour, font, size, radius, shadow, duration. Light and dark values. |
+| `fonts.css` | The `@font-face` declarations for the bundled fonts. |
+| `fonts/` | The bundled font files, each with its OFL licence beside it. |
 | `base.css` | Element resets, focus ring, scrollbars. |
 | `ui.css` | Styles for `components/` (reusable controls). |
 | `capture.css` | The capture window. |
@@ -49,8 +51,12 @@ what makes the app themeable: a theme changes token values and nothing else.
 - **Selectors** stay flat: one class, optionally one state attribute. No ids,
   no `!important` (the reduced-motion block is the only exception), no nesting
   deeper than `.block .block__element`.
-- **Fonts** are system stacks. No web fonts, no bundled font files, no remote
-  assets of any kind.
+- **Fonts** are the bundled families (declared only in `fonts.css`, files
+  only in `fonts/`, each with its `OFL-*.txt` licence beside it —
+  `scripts/check-fonts.py` must pass) in front of system stacks. No remote
+  assets of any kind; nothing is fetched.
+- **Font stacks live only in `tokens.css`** (`--font-<preset>`); a component
+  may reference them with `var()`, never restate a family list.
 
 ## Looks (implemented)
 

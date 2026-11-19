@@ -7,10 +7,24 @@ use std::collections::BTreeMap;
 
 use crate::error::Result;
 use crate::look::color::{contrast, mix, Rgb};
-use crate::look::{Base, LookDoc, LookDocExt, TEXT_CONTRAST_MIN};
+use crate::look::{validate_theme, Base, FontFace, ThemeEdit, TEXT_CONTRAST_MIN};
 
 /// Faint text is for hints, so it only has to stay noticeable, not readable.
 const FAINT_CONTRAST_MIN: f64 = 3.0;
+
+/// The preset stack a font face names in the stylesheet; a custom font
+/// is drawn in front of it, so the preset doubles as the fallback.
+fn font_stack(face: FontFace) -> &'static str {
+    match face {
+        FontFace::System => "--font-system",
+        FontFace::Rounded => "--font-rounded",
+        FontFace::Serif => "--font-serif",
+        FontFace::Mono => "--font-mono-ui",
+        FontFace::BeVietnamPro => "--font-be-vietnam-pro",
+        FontFace::Nunito => "--font-nunito",
+        FontFace::Quicksand => "--font-quicksand",
+    }
+}
 
 const BLACK: Rgb = Rgb { r: 0, g: 0, b: 0 };
 const WHITE: Rgb = Rgb {
@@ -21,10 +35,10 @@ const WHITE: Rgb = Rgb {
 
 pub use posthaste_model::ResolvedLook;
 
-pub fn resolve(id: &str, doc: &LookDoc) -> Result<ResolvedLook> {
-    doc.validate()?;
-    let c = &doc.colors;
-    let dark = doc.base == Base::Dark;
+pub fn resolve(id: &str, edit: &ThemeEdit) -> Result<ResolvedLook> {
+    validate_theme(edit)?;
+    let c = &edit.colors;
+    let dark = edit.base == Base::Dark;
     let bg = parsed(&c.bg);
     let surface = parsed(&c.surface);
     let text = parsed(&c.text);
@@ -47,14 +61,20 @@ pub fn resolve(id: &str, doc: &LookDoc) -> Result<ResolvedLook> {
     );
     tokens.insert("--on-accent".into(), on_accent(text, bg, accent).to_hex());
     overrides(&mut tokens, c);
+    if let Some(name) = &edit.font_family {
+        tokens.insert(
+            "--font".into(),
+            format!("\"{name}\", var({})", font_stack(edit.font)),
+        );
+    }
 
     Ok(ResolvedLook {
         id: id.to_string(),
-        name: doc.name.clone(),
-        author: doc.author.clone(),
-        base: doc.base,
-        shape: doc.shape,
-        font: doc.font,
+        name: edit.name.clone(),
+        author: edit.author.clone(),
+        base: edit.base,
+        shape: edit.shape,
+        font: edit.font,
         tokens,
     })
 }

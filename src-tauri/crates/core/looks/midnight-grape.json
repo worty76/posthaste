@@ -1,15 +1,17 @@
 {
   "format": "posthaste-look",
-  "version": 1,
+  "version": 2,
   "name": "Midnight Grape",
   "author": "Posthaste",
-  "base": "dark",
-  "colors": {
-    "bg": "#1a1423",
-    "surface": "#241b31",
-    "text": "#f1e9ff",
-    "accent": "#c58bff"
-  },
-  "shape": "round",
-  "font": "rounded"
+  "theme": {
+    "base": "dark",
+    "colors": {
+      "bg": "#1a1423",
+      "surface": "#241b31",
+      "text": "#f1e9ff",
+      "accent": "#c58bff"
+    },
+    "shape": "round",
+    "font": "rounded"
+  }
 }

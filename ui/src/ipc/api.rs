@@ -4,9 +4,9 @@
 
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
-    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookDoc, LookFilePreview,
-    LookSummary, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings,
-    SettingsState, Status, TrashedNote, UpdateInfo,
+    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
+    Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
+    Status, ThemeEdit, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -23,8 +23,9 @@ pub async fn settings_get() -> Response<SettingsState> {
     invoke("settings_get", &NoArgs {}).await
 }
 
-/// `None` is the Plain look.
-pub async fn look_active() -> Response<Option<ResolvedLook>> {
+/// The look the user wears. There is always one: the store falls back to
+/// the factory default when a selection cannot resolve.
+pub async fn look_active() -> Response<ResolvedLook> {
     invoke("look_active", &NoArgs {}).await
 }
 
@@ -379,24 +380,24 @@ pub async fn look_list() -> Response<Vec<LookSummary>> {
     invoke("look_list", &NoArgs {}).await
 }
 
-pub async fn look_doc(id: &str) -> Response<LookDoc> {
-    invoke("look_doc", &ById { id }).await
+pub async fn look_theme(id: &str) -> Response<ThemeEdit> {
+    invoke("look_theme", &ById { id }).await
 }
 
 #[derive(Serialize)]
 struct LookPreview<'a> {
-    doc: &'a LookDoc,
+    theme: &'a ThemeEdit,
 }
 
 /// Checks a look being edited and answers with its tokens.
-pub async fn look_preview(doc: &LookDoc) -> Response<ResolvedLook> {
-    invoke("look_preview", &LookPreview { doc }).await
+pub async fn look_preview(theme: &ThemeEdit) -> Response<ResolvedLook> {
+    invoke("look_preview", &LookPreview { theme }).await
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LookSave<'a> {
-    doc: &'a LookDoc,
+    theme: &'a ThemeEdit,
     scene: Option<&'a SceneEdit>,
     id: Option<&'a str>,
 }
@@ -404,11 +405,11 @@ struct LookSave<'a> {
 /// Saves a look: over the one with `id`, or as a new one. The scene edit
 /// replaces the look's scene and assets; `None` leaves them as they are.
 pub async fn look_save(
-    doc: &LookDoc,
+    theme: &ThemeEdit,
     scene: Option<&SceneEdit>,
     id: Option<&str>,
 ) -> Response<LookSummary> {
-    invoke("look_save", &LookSave { doc, scene, id }).await
+    invoke("look_save", &LookSave { theme, scene, id }).await
 }
 
 #[derive(Serialize)]

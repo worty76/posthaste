@@ -11,6 +11,6 @@ drift apart.
   must build for `wasm32-unknown-unknown`.
 - Every type derives both `Serialize` and `Deserialize`: each crosses the
   boundary in one direction and is read back on the other side.
-- `look.rs`: the look document and what the shell sends about looks.
+- `look/`: the look document, the shape the editor edits, and what the shell sends about looks.
 - Settings must keep loading: a new field needs a default, and a value this
   version does not know must not reset the others.

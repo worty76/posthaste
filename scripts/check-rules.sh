@@ -83,5 +83,25 @@ rule "CLAUDE.md copies are out of date; run: npm run sync:rules (AGENTS.md)" \
 rule "No match on Known may have a _ => arm (crates/core/AGENTS.md)" \
   "$(grep -rn '_ =>' src-tauri/crates/core/src/look/scene.rs src-tauri/crates/core/src/look/resolve.rs ui/src/components/scene 2>/dev/null)"
 
+# Looks have one format. The v1 names and wire values are gone; anything
+# reintroducing them (a type, a converter, a :1: code) must fail the check.
+rule "Looks have one format; no v1 remnants (crates/core/AGENTS.md)" \
+  "$(grep -rnE 'LookDocV2|LookDocument|v1_view|v1_to_v2|posthaste-look:1' \
+      src-tauri ui/src ui/tests landing-page/src \
+      --include='*.rs' --include='*.ts' --include='*.tsx' --include='*.mjs' 2>/dev/null)"
+
+# Every bundled font file carries its licence: one OFL-<family>.txt per
+# family, committed beside the files it covers.
+rule "Every bundled font has its OFL licence beside it (ui/styles/AGENTS.md)" \
+  "$(for f in ui/styles/fonts/*.woff2; do
+      fam=$(basename "$f" .woff2 | sed -E 's/-[0-9]+$//; s/-variable$//')
+      [ -f "ui/styles/fonts/OFL-$fam.txt" ] || echo "$f has no OFL-$fam.txt"
+    done)"
+
+# There is no Plain look and no light/dark setting: every install wears a
+# look, and light or dark comes from the look's base.
+rule "No Plain look and no theme setting remain (crates/core/AGENTS.md)" \
+  "$(grep -rn 'LOOKS_PLAIN\|Theme::System' ui/src src-tauri/src src-tauri/crates --include='*.rs' 2>/dev/null)"
+
 if [ "$FAIL" -eq 0 ]; then echo "rules: ok"; fi
 exit "$FAIL"

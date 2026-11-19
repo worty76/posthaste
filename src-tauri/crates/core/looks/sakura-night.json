@@ -5,20 +5,47 @@
   "author": "Posthaste",
   "theme": {
     "base": "dark",
-    "colors": { "bg": "#1a1220", "surface": "#251a30", "text": "#f5eaf7", "accent": "#ff85b3" },
+    "colors": {
+      "bg": "#1a1220",
+      "surface": "#251a30",
+      "text": "#f5eaf7",
+      "accent": "#ff85b3"
+    },
     "shape": "soft",
-    "font": "rounded"
+    "font": "nunito"
   },
   "scene": {
     "all": {
       "margin": [
-        { "kind": "emoji", "v": 1, "config": { "char": "🌸", "anchor": "top-right" } },
-        { "kind": "emoji", "v": 1, "config": { "char": "✨", "anchor": "bottom-left" } }
+        {
+          "kind": "emoji",
+          "v": 1,
+          "config": {
+            "char": "🌸",
+            "anchor": "top-right"
+          }
+        },
+        {
+          "kind": "emoji",
+          "v": 1,
+          "config": {
+            "char": "✨",
+            "anchor": "bottom-left"
+          }
+        }
       ]
     },
     "capture": {
       "margin": [
-        { "kind": "emoji", "v": 1, "config": { "char": "🌙", "anchor": "top-left", "size": "s" } }
+        {
+          "kind": "emoji",
+          "v": 1,
+          "config": {
+            "char": "🌙",
+            "anchor": "top-left",
+            "size": "s"
+          }
+        }
       ]
     }
   }

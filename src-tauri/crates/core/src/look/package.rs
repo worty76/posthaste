@@ -11,7 +11,7 @@ use crate::error::{CoreError, Result};
 use crate::look::assets::sniff_image;
 use crate::look::code::{b64_decode, b64_encode};
 use crate::look::store::LookSummary;
-use crate::look::{LookDocExt, LookDocV2, LookDocV2Ext};
+use crate::look::{LookDoc, LookDocExt};
 
 /// The largest look file this build reads, checked before parsing.
 pub const MAX_PACKAGE_BYTES: usize = 12 * 1024 * 1024;
@@ -24,17 +24,14 @@ const PACKAGE_VERSION: u32 = 1;
 /// each image's document claims already verified against its bytes.
 #[derive(Debug)]
 pub struct PendingLook {
-    pub doc: LookDocV2,
+    pub doc: LookDoc,
     pub assets: Vec<(crate::look::AssetRef, Vec<u8>)>,
 }
 
 /// Builds a look file. `bytes_of` answers the stored bytes for one of
 /// the look's listed assets; a listed image with no stored bytes is
 /// refused, so a shared file never carries a dangling reference.
-pub fn write_package(
-    doc: &LookDocV2,
-    bytes_of: impl Fn(&str) -> Result<Vec<u8>>,
-) -> Result<String> {
+pub fn write_package(doc: &LookDoc, bytes_of: impl Fn(&str) -> Result<Vec<u8>>) -> Result<String> {
     doc.validate()?;
     let mut assets = Map::new();
     for asset in &doc.assets {
@@ -72,7 +69,7 @@ pub fn read_package(json: &str) -> Result<PendingLook> {
             "That file isn't a Posthaste look file.".into(),
         ));
     }
-    let doc: LookDocV2 = serde_json::from_value(file["look"].clone())
+    let doc: LookDoc = serde_json::from_value(file["look"].clone())
         .map_err(|e| CoreError::InvalidAsset(format!("That isn't a Posthaste look file: {e}")))?;
     doc.validate()?;
 
@@ -158,14 +155,15 @@ impl Db {
         )?;
         tx.commit()?;
 
-        let theme = pending.doc.v1_view();
+        let theme = pending.doc.theme_edit();
         Ok(LookSummary {
             id,
             name: theme.name.clone(),
             author: theme.author.clone(),
             builtin: false,
             base: theme.base,
-            preview: theme.preview(),
+            preview: pending.doc.preview(),
+            font_family: theme.font_family,
         })
     }
 }

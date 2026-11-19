@@ -34,7 +34,8 @@ async function editor(sceneEdit, extra = {}, settings = {}) {
     (n) => n === 1,
     "the editor to open",
   );
-  return { ...w, dialog };
+  const toast = w.page.locator(".toast");
+  return { ...w, dialog, toast };
 }
 
 /** The scene the editor last sent to `look_save`. */
@@ -43,16 +44,67 @@ async function savedScene(w) {
 }
 
 describe("look editor scene", () => {
-  it("adds a sticker and saves it in the chosen window", async () => {
+  it("hides the sticker controls while stickers are unshipped", async () => {
     const w = await editor(null);
-    await w.dialog.getByRole("button", { name: "Add sticker" }).click();
+    assert.equal(await w.dialog.getByRole("button", { name: "Add sticker" }).count(), 0);
+    await w.close();
+  });
+
+  it("offers the seven font presets in order and saves the chosen one", async () => {
+    const w = await editor(null);
+    const picker = w.dialog.getByLabel("Font", { exact: true });
+    const labels = await picker.locator("option").allTextContents();
+    assert.deepEqual(labels, [
+      "System",
+      "Rounded",
+      "Serif",
+      "Mono",
+      "Be Vietnam Pro",
+      "Nunito",
+      "Quicksand",
+    ]);
+    await picker.selectOption({ label: "Nunito" });
     await w.dialog.getByRole("button", { name: "Save" }).click();
     await text(w.toast, 'Saved "Mine"');
-    const scene = await savedScene(w);
-    assert.equal(scene.scene.all.margin.length, 1);
-    assert.equal(scene.scene.all.margin[0].config.char, "🌸");
-    assert.equal(scene.scene.all.margin[0].kind, "emoji");
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font, "nunito");
     await w.close();
+  });
+
+  it("says when a custom font is not installed and saves its name", async () => {
+    const w = await editor(null);
+    const field = w.dialog.getByLabel("Custom font");
+    await field.fill("Definitely Not A Font 123");
+    await eventually(
+      () => w.dialog.locator(".dialog__status").count(),
+      (n) => n === 2,
+      "the not-installed note to appear beside the ok one",
+    );
+    await text(w.dialog.locator(".dialog__status").first(), "isn't installed");
+    await w.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font_family, "Definitely Not A Font 123");
+    await w.close();
+  });
+
+  it("trims the custom font name and clears it", async () => {
+    const w = await editor(null);
+    await w.dialog.getByLabel("Custom font").fill(" Inter ");
+    await w.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w.toast, 'Saved "Mine"');
+    const theme = (await w.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(theme.font_family, "Inter");
+    await w.close();
+
+    const w2 = await editor(null);
+    await w2.dialog.getByLabel("Custom font").fill("Inter");
+    await w2.dialog.getByLabel("Custom font").fill("");
+    await w2.dialog.getByRole("button", { name: "Save" }).click();
+    await text(w2.toast, 'Saved "Mine"');
+    const cleared = (await w2.mock.calls("look_save")).at(-1)?.args.theme;
+    assert.equal(cleared.font_family ?? null, null);
+    await w2.close();
   });
 
   it("sends an unknown layer back untouched", async () => {
@@ -130,6 +182,7 @@ describe("look editor scene", () => {
       ],
     };
     const w = await open({ label: "main", store, settings: { look_id: "user:1" } });
+    const toast = w.page.locator(".toast");
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
     // The scene load is held, so the editor cannot know the real scene.
     await w.mock.hold("look_scene");
@@ -153,7 +206,7 @@ describe("look editor scene", () => {
       "Save to come on after the scene loads",
     );
     await dialog.getByRole("button", { name: "Save" }).click();
-    await text(w.toast, 'Saved "Mine"');
+    await text(toast, 'Saved "Mine"');
     const scene = (await w.mock.calls("look_save")).at(-1)?.args.scene;
     assert.equal(scene.scene.all.margin[0].config.char, "🌸");
     await w.close();
@@ -184,7 +237,6 @@ describe("look editor scene", () => {
     const w = await open({
       label: "main",
       store: { fileOpen: payload },
-      settings: { look_id: null },
     });
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
     await w.page.getByRole("button", { name: "Open a look file…" }).click();
@@ -205,18 +257,18 @@ describe("look editor scene", () => {
     // Cancel: the file is discarded, nothing added.
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await eventually(
-      () => w.mock.calls("look_file_discard").length,
+      async () => (await w.mock.calls("look_file_discard")).length,
       (n) => n === 1,
       "the file to be discarded",
     );
-    assert.deepEqual(w.mock.store.looks, []);
+    assert.deepEqual((await w.mock.store()).looks ?? [], []);
     await w.close();
   });
 
   it("notes when Simple looks hides the scene in the windows", async () => {
     const w = await editor(null, {}, { simple_looks: true });
     await text(
-      w.dialog.getByRole("status"),
+      w.dialog.getByRole("status").first(),
       "Simple looks is hiding stickers and images in the windows.",
     );
     await w.close();
@@ -225,7 +277,7 @@ describe("look editor scene", () => {
   it("says when part of the look needs a newer Posthaste", async () => {
     const previewScene = { main: {}, capture: {}, today: {}, details: {}, skipped: 2 };
     const w = await editor(null, { previewScene });
-    await text(w.dialog.getByRole("status"), "Part of this look needs a newer Posthaste.");
+    await text(w.dialog.getByRole("status").first(), "Part of this look needs a newer Posthaste.");
     await w.close();
   });
 });

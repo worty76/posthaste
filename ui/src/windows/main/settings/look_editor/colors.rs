@@ -3,7 +3,7 @@
 
 use leptos::prelude::*;
 use posthaste_i18n::{key, Key};
-use posthaste_model::LookDoc;
+use posthaste_model::ThemeEdit;
 
 use crate::browser::bind_text;
 use crate::logic::look::picker_value;
@@ -38,22 +38,22 @@ impl Color {
 
 /// One colour: a hex field and the system's colour picker beside it.
 #[component]
-pub(super) fn ColorRow(i18n: I18n, doc: RwSignal<LookDoc>, color: Color) -> impl IntoView {
+pub(super) fn ColorRow(i18n: I18n, theme: RwSignal<ThemeEdit>, color: Color) -> impl IntoView {
     let value = Signal::derive(move || {
-        doc.with(|doc| match color {
-            Color::Background => doc.colors.bg.clone(),
-            Color::Surface => doc.colors.surface.clone(),
-            Color::Text => doc.colors.text.clone(),
-            Color::Accent => doc.colors.accent.clone(),
+        theme.with(|t| match color {
+            Color::Background => t.colors.bg.clone(),
+            Color::Surface => t.colors.surface.clone(),
+            Color::Text => t.colors.text.clone(),
+            Color::Accent => t.colors.accent.clone(),
         })
     });
     let set = move |event| {
         let value = event_target_value(&event);
-        doc.update(|doc| match color {
-            Color::Background => doc.colors.bg = value.clone(),
-            Color::Surface => doc.colors.surface = value.clone(),
-            Color::Text => doc.colors.text = value.clone(),
-            Color::Accent => doc.colors.accent = value,
+        theme.update(|t| match color {
+            Color::Background => t.colors.bg = value.clone(),
+            Color::Surface => t.colors.surface = value.clone(),
+            Color::Text => t.colors.text = value.clone(),
+            Color::Accent => t.colors.accent = value,
         });
     };
     let picker_name = move || {

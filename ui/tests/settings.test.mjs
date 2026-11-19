@@ -45,7 +45,7 @@ describe("settings", () => {
     const w = await settings();
     await w.page.getByRole("switch", { name: "Simple looks" }).click();
     await eventually(
-      () => w.saved().simple_looks,
+      async () => (await w.saved()).simple_looks,
       (on) => on === true,
       "Simple looks to be saved on",
     );
@@ -248,12 +248,19 @@ describe("AI polish settings", () => {
 describe("looks", () => {
   const looks = () => ({ looks: [look("builtin:ink", "Ink"), look("user:1", "Mine")] });
 
-  it("picks a look by click and by arrow key", async () => {
+  it("picks a look by click and by arrow key, and wraps", async () => {
     const w = await settings({ store: looks() });
     await w.page.getByRole("radio", { name: "Mine" }).click();
     await eventually(w.saved, (s) => s?.look_id === "user:1", "look saved");
     await w.page.getByRole("radio", { name: "Mine" }).press("ArrowRight");
-    await eventually(w.saved, (s) => s?.look_id === null, "Plain is after the last look");
+    await eventually(w.saved, (s) => s?.look_id === "builtin:ink", "wrap to the first look");
+    await w.page.getByRole("radio", { name: "Ink" }).press("ArrowLeft");
+    await eventually(w.saved, (s) => s?.look_id === "user:1", "wrap back to the last look");
+    // There is no Plain card and no light/dark control: every install
+    // wears a look.
+    assert.equal(await w.page.getByRole("radio", { name: "Plain" }).count(), 0);
+    // The light/dark/system control is gone; the gallery's own group stays.
+    assert.equal(await w.page.getByRole("radiogroup", { name: "Appearance" }).count(), 0);
     await w.close();
   });
 
@@ -262,17 +269,30 @@ describe("looks", () => {
     await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
     await w.page.getByRole("button", { name: "Copy share code" }).click();
     await text(w.toast, "Copied share code");
-    assert.equal(await w.page.evaluate(() => window.copied), "posthaste-look:user:1");
+    assert.equal(await w.page.evaluate(() => window.copied), "posthaste-look:2:user:1");
 
     await w.page.getByRole("button", { name: "Add from code…" }).click();
     const dialog = w.page.getByRole("dialog");
     await dialog.getByLabel("Look code").fill("nonsense");
     await dialog.getByRole("button", { name: "Add look" }).click();
     await text(dialog.getByRole("alert"), "That is not a look code.");
-    await dialog.getByLabel("Look code").fill("posthaste-look:abc");
+    await dialog.getByLabel("Look code").fill("posthaste-look:2:abc");
     await dialog.getByRole("button", { name: "Add look" }).click();
     await text(w.toast.last(), 'Added "Imported"');
     await eventually(w.saved, (s) => s?.look_id === "user:2", "new look selected");
+    await w.close();
+  });
+
+  it("tells the receiver to install a look's custom font", async () => {
+    const store = looks();
+    store.looks[1].font_family = "Fira Code";
+    const w = await settings({ store, settings: { look_id: "user:1" } });
+    await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
+    await w.page.getByRole("button", { name: "Copy share code" }).click();
+    await text(
+      w.toast,
+      "Copied the code. This look uses the font \u201cFira Code\u201d: install it first to see the look as made.",
+    );
     await w.close();
   });
 

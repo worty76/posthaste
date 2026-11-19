@@ -1,10 +1,13 @@
-// Share codes, the same format the app speaks: "posthaste-look:1:" followed
+// Share codes, the same format the app speaks: "posthaste-look:2:" followed
 // by unpadded base64url of the compact JSON, with keys in the app's order.
+// The document is the app's LookDoc: identity, then a nested theme of
+// base, colours, shape and font. Only :2: codes decode; anything else
+// the site shows as unusable rather than guessing an older shape.
 
 import { type Look } from "./looks";
 import { parseHex, toHex } from "./contrast";
 
-export const CODE_PREFIX = "posthaste-look:1:";
+export const CODE_PREFIX = "posthaste-look:2:";
 
 const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -48,18 +51,20 @@ export function b64Decode(s: string): Uint8Array | null {
 export function lookDocument(look: Look): string {
   return JSON.stringify({
     format: "posthaste-look",
-    version: 1,
+    version: 2,
     name: look.name,
     author: "Posthaste",
-    base: look.base,
-    colors: {
-      bg: look.colors.bg,
-      surface: look.colors.surface,
-      text: look.colors.text,
-      accent: look.colors.accent,
+    theme: {
+      base: look.base,
+      colors: {
+        bg: look.colors.bg,
+        surface: look.colors.surface,
+        text: look.colors.text,
+        accent: look.colors.accent,
+      },
+      shape: look.shape,
+      font: look.font,
     },
-    shape: look.shape,
-    font: look.font,
   });
 }
 
@@ -72,10 +77,12 @@ export interface DecodedLook {
   version: number;
   name: string;
   author?: string;
-  base: "light" | "dark";
-  colors: { bg: string; surface: string; text: string; accent: string };
-  shape: "sharp" | "soft" | "round";
-  font: "system" | "rounded" | "serif" | "mono";
+  theme: {
+    base: "light" | "dark";
+    colors: { bg: string; surface: string; text: string; accent: string };
+    shape: "sharp" | "soft" | "round";
+    font: "system" | "rounded" | "serif" | "mono";
+  };
 }
 
 export function decodeLookCode(code: string): DecodedLook | null {

@@ -14,7 +14,7 @@ database file in milliseconds.
 | `db.rs` | `Db`: the connection and every query |
 | `migrations.rs` + `migrations/*.sql` | Schema history |
 | `transfer.rs` | JSON export and import |
-| `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests.rs` |
+| `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests/` |
 | `error.rs` | `CoreError` and its stable `code()` |
 | `tests.rs` | Tests for db, model and migrations |
 
@@ -22,14 +22,13 @@ The data types themselves live in `crates/model` and are re-exported from
 here, so storage code keeps writing `posthaste_core::Note`.
 
 Look-specific rules: look validation and derivation live only in `look/`
-(`mod.rs` validates both format versions, `derive.rs` derives the token map,
-`migrate.rs` is the only v1 → v2 converter, `scene.rs` checks layers against
-their kind's limits and regions); the bundled looks are data files in
-`crates/core/looks/`, parsed by `look/bundled.rs` and kept valid by tests. A
-user look is stored as its JSON text in the `looks` table; unreadable rows
-are skipped, never trusted.
+(`mod.rs` validates the one format and the font name, `derive.rs` derives the
+token map, `scene.rs` checks layers against their kind's limits and regions);
+the bundled looks are data files in `crates/core/looks/`, parsed by
+`look/bundled.rs` and kept valid by tests. A user look is stored as its JSON
+text in the `looks` table; unreadable rows are skipped, never trusted.
 
-Look format v2 keeps unknown data: a document may carry fields and layer
+The look format keeps unknown data: a document may carry fields and layer
 kinds this build does not model, and every save path (`save_look`,
 `import_look`, the share-code paths) must keep them with the same content
 (key order is not kept). Never rebuild a stored document from typed structs
@@ -44,13 +43,15 @@ refuse anything they cannot verify before anything is written, and
 `install_package` stores images and look in one transaction. Simple looks is
 applied here, in `active_scene`, so no window can forget to obey it. The
 UI never parses a look or reads a file; it draws `ResolvedScene` and edits
-through the v1 view and `SceneEdit` the store hands back.
+through `ThemeEdit` and `SceneEdit` the store hands back.
 
 Look invariants, in every phase (a look is data, never code, and the
 user's settings always beat it):
 
-1. A look cannot run code: no scripts, no CSS text, no fonts or images
-   from outside the look's own checked assets.
+1. A look cannot run code: no scripts and no CSS text. Images come only
+   from the look's own checked assets. A font is only the name of one
+   installed on this computer, checked against the font-name rule; a look
+   never carries or fetches font files.
 2. Preserved unknown data is inert. It is stored and exported, never drawn
    and never turned into CSS.
 3. Decorations never take input: `pointer-events: none` on every scene

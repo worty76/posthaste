@@ -1,11 +1,8 @@
 {
   "theme": "Appearance",
-  "theme_help": "Used by the Plain look. Every other look is light or dark on its own.",
-  "system": "System",
   "light": "Light",
   "dark": "Dark",
   "gallery": "Look",
-  "plain": "Plain",
   "share": "Copy share code",
   "shared": "Copied share code",
   "edit": "Edit",
@@ -81,7 +78,13 @@
     "sticker_faded": "Faded",
     "remove_layer": "Remove",
     "needs_newer": "Part of this look needs a newer Posthaste.",
-    "simple_note": "Simple looks is hiding stickers and images in the windows. This preview still shows them."
+    "simple_note": "Simple looks is hiding stickers and images in the windows. This preview still shows them.",
+    "font_custom": "Custom font",
+    "font_custom_hint": "The name of a font installed on this computer, like JetBrains Mono. The font above is used where it isn't installed.",
+    "font_not_installed": "“{name}” isn't installed on this computer, so you see the font above instead.",
+    "font_be_vietnam_pro": "Be Vietnam Pro",
+    "font_nunito": "Nunito",
+    "font_quicksand": "Quicksand"
   },
   "simple": "Simple looks",
   "simple_help": "Keep a look's colours, hide its stickers and images.",
@@ -91,5 +94,6 @@
   "file_title": "Import look",
   "file_text": "Everything in the file was checked. The preview is behind this dialog; adding it stores the look and its images on this computer.",
   "file_install": "Add to my looks",
-  "exported": "Exported to a file"
+  "exported": "Exported to a file",
+  "shared_with_font": "Copied the code. This look uses the font “{font}”: install it first to see the look as made."
 }
