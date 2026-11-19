@@ -29,6 +29,12 @@ export function useSite(): SiteState {
   return value;
 }
 
+/** The interface copy alone, for pages that render parts of the shell
+    without the provider (the story page's footer): English there. */
+export function useCopy(): SiteCopy {
+  return useContext(Ctx)?.copy ?? COPY.en;
+}
+
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);

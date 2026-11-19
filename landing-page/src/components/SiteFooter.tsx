@@ -2,10 +2,10 @@
 
 import { PRODUCT } from "@/config";
 import { storyVisible } from "@/lib/story";
-import { useSite } from "./SiteState";
+import { useCopy } from "./SiteState";
 
 export function SiteFooter() {
-  const { copy } = useSite();
+  const copy = useCopy();
   return (
     <footer className="page foot">
       <span>{copy.footer.privacy}</span>
