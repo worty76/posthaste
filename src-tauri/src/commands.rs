@@ -1139,10 +1139,7 @@ pub async fn sync_pair_join(
 }
 
 #[tauri::command]
-pub async fn sync_now(
-    app: AppHandle,
-    sync: State<'_, crate::sync::SyncService>,
-) -> AppResult<()> {
+pub async fn sync_now(app: AppHandle, sync: State<'_, crate::sync::SyncService>) -> AppResult<()> {
     sync.sync_now(&app).await
 }
 

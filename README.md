@@ -25,8 +25,9 @@
 Press the global shortcut from anywhere, type, hit Enter. The window disappears,
 focus returns to what you were doing, and the note is waiting in your inbox.
 
-Your notes live in one SQLite file on your machine. No account, no sync, no
-telemetry — nothing leaves your computer unless you turn on AI polish yourself.
+Your notes live in one SQLite file on your machine. No account, no central
+server holding your data, no telemetry — nothing leaves your computer unless
+you turn on AI polish or experimental device sync yourself.
 
 <p align="center">
   <video src="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo.mp4?v=3" poster="https://github.com/worty76/Posthaste/raw/main/landing-page/public/demo/posthaste-demo-poster.jpg?v=3" width="720" controls muted playsinline></video>
@@ -47,6 +48,11 @@ telemetry — nothing leaves your computer unless you turn on AI polish yourself
   straight to the provider you picked: Claude, OpenAI, Gemini,
   OpenRouter, any OpenAI-compatible server, or Ollama on your own computer.
   Keys live in your system keychain, never in the settings
+- **Device sync (experimental)** — optional and off by default. Pair two of
+  your own computers with a one-time code to sync notes directly over
+  encrypted QUIC (iroh). When computers cannot connect directly, encrypted
+  traffic passes through the configured relay (see `docs/relay.md`), which
+  sees only device public keys and IP addresses, never note text
 - **In-app updates** — signed installers, one click, nothing auto-runs
 - **Later** — press L on a to-do you won't get to today. It leaves Today and
   the inbox and waits in Later, your backlog, until you bring it back. No dates,
@@ -116,7 +122,7 @@ settings.
 
 ## Not in it, on purpose
 
-Accounts, sync, reminders, folders, statistics. Posthaste does one job and
+Accounts, central cloud storage, reminders, folders, statistics. Posthaste does one job and
 stays out of the way.
 
 Platform notes and architecture details: [docs/platform-notes.md](docs/platform-notes.md).

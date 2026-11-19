@@ -13,6 +13,7 @@ database file in milliseconds.
 | `migrations.rs` + `migrations/*.sql` | Schema history |
 | `transfer.rs` | JSON export and import |
 | `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests/` |
+| `sync/` | Device sync engine: HLC, per-field change tracking, LWW merge with conflict preservation, transport-agnostic session. Tests in `sync/tests/` |
 | `error.rs` | `CoreError` and its stable `code()` |
 | `tests.rs` | Tests for db, model and migrations |
 
@@ -67,6 +68,8 @@ user's settings always beat it):
 
 - Every write that touches more than one row or table is one transaction.
   Capture is the model: insert the note and delete the draft together.
+- Every note write records its changed fields in `sync_fields` inside the same
+  transaction (`sync::record::record`). A failed write records nothing.
 - Inputs are cleaned at the boundary (`clean_content`, `clean_category`) and
   also constrained in the schema with `CHECK`. Keep both; the schema is the
   last line of defence against a bug in the Rust code.

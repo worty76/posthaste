@@ -5,9 +5,7 @@ use rusqlite::{params, Transaction};
 
 use crate::error::Result;
 use crate::sync::hlc::Hlc;
-use crate::sync::store::{
-    next_seq, state_get, state_set, Field, STATE_CLOCK, STATE_DEVICE_ID,
-};
+use crate::sync::store::{next_seq, state_get, state_set, Field, STATE_CLOCK, STATE_DEVICE_ID};
 
 /// Records that `fields` on `note_id` changed at `now_ms`.
 ///

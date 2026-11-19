@@ -36,12 +36,15 @@ impl PairingOffer {
                 "That isn't a Posthaste pairing code.".into(),
             ));
         };
-        let bytes = base32_decode(encoded)
-            .ok_or_else(|| NetError::Pairing("That pairing code is damaged or incomplete.".into()))?;
+        let bytes = base32_decode(encoded).ok_or_else(|| {
+            NetError::Pairing("That pairing code is damaged or incomplete.".into())
+        })?;
         let offer: PairingOffer = serde_json::from_slice(&bytes)
             .map_err(|_| NetError::Pairing("That pairing code could not be read.".into()))?;
         if offer.device_id.trim().is_empty() {
-            return Err(NetError::Pairing("That pairing code is missing a device id.".into()));
+            return Err(NetError::Pairing(
+                "That pairing code is missing a device id.".into(),
+            ));
         }
         if now_ms > offer.expires_at_ms {
             return Err(NetError::Pairing(
@@ -120,7 +123,8 @@ pub fn hex_decode(s: &str) -> Option<Vec<u8>> {
     }
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len() / 2);
-    for chunk in bytes.chunks_exact(2) {
+    let (chunks, _) = bytes.as_chunks::<2>();
+    for chunk in chunks {
         let hi = from_hex_digit(chunk[0])?;
         let lo = from_hex_digit(chunk[1])?;
         out.push((hi << 4) | lo);

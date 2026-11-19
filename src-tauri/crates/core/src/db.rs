@@ -324,9 +324,8 @@ impl Db {
         let now = now_ms();
         let tx = self.conn.transaction()?;
         let ids: Vec<String> = {
-            let mut stmt = tx.prepare(
-                "SELECT id FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
-            )?;
+            let mut stmt = tx
+                .prepare("SELECT id FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?1")?;
             let rows = stmt
                 .query_map([cutoff], |r| r.get(0))?
                 .collect::<rusqlite::Result<Vec<_>>>()?;

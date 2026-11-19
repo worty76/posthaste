@@ -21,10 +21,12 @@ fn fields_for(db: &Db, note_id: &str) -> HashMap<String, i64> {
         .conn()
         .prepare("SELECT field, seq FROM sync_fields WHERE note_id = ?1")
         .unwrap();
-    stmt.query_map([note_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
-        .unwrap()
-        .collect::<std::result::Result<HashMap<_, _>, _>>()
-        .unwrap()
+    stmt.query_map([note_id], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+    })
+    .unwrap()
+    .collect::<std::result::Result<HashMap<_, _>, _>>()
+    .unwrap()
 }
 
 fn total_sync_fields(db: &Db) -> i64 {
@@ -159,7 +161,9 @@ fn a_write_that_fails_records_nothing() {
 
     assert!(db.update_note_at(&n.id, "   ", None, 2_000).is_err());
     assert_eq!(fields_for(&db, &n.id), before);
-    assert!(db.set_status_at("missing-id", Status::Completed, 2_000).is_err());
+    assert!(db
+        .set_status_at("missing-id", Status::Completed, 2_000)
+        .is_err());
     assert!(fields_for(&db, "missing-id").is_empty());
 }
 

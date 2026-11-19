@@ -12,7 +12,9 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use iroh::endpoint::presets;
-use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr};
+use iroh::{
+    Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr,
+};
 
 pub use conn::Stream;
 pub use pairing::{ActiveOffer, PairingOffer, OFFER_TTL_MS, PAIR_PREFIX};
@@ -64,7 +66,10 @@ impl Net {
                 let parsed: RelayUrl = url_str
                     .parse()
                     .map_err(|e: iroh::RelayUrlParseError| NetError::InvalidRelay(e.to_string()))?;
-                (RelayMode::Custom(RelayMap::from(parsed)), Some(url_str.to_string()))
+                (
+                    RelayMode::Custom(RelayMap::from(parsed)),
+                    Some(url_str.to_string()),
+                )
             }
         };
 

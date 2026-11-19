@@ -18,9 +18,7 @@ use crate::details::clean_details;
 use crate::error::Result;
 use crate::sync::hlc::Hlc;
 use crate::sync::record::record as sync_record;
-use crate::sync::store::{
-    next_seq, state_get, state_set, Field, STATE_CLOCK, STATE_DEVICE_ID,
-};
+use crate::sync::store::{next_seq, state_get, state_set, Field, STATE_CLOCK, STATE_DEVICE_ID};
 use crate::{Db, Status};
 
 pub const CONFLICT_SOURCE: &str = "sync-conflict";
@@ -233,10 +231,9 @@ impl Db {
                         if local_hlc != &ch.hlc
                             && *local_seq > peer_sent_up_to
                             && matches!(ch.field, Field::Content | Field::Details)
+                            && save_losing_incoming_text(&tx, note_id, ch, now_ms)?
                         {
-                            if save_losing_incoming_text(&tx, note_id, ch, now_ms)? {
-                                report.conflicts += 1;
-                            }
+                            report.conflicts += 1;
                         }
                     }
                     report.skipped += 1;
@@ -249,10 +246,9 @@ impl Db {
                 if let Some((_, local_seq)) = &local_meta {
                     if *local_seq > peer_sent_up_to
                         && matches!(ch.field, Field::Content | Field::Details)
+                        && save_losing_local_text(&tx, note_id, ch, now_ms)?
                     {
-                        if save_losing_local_text(&tx, note_id, ch, now_ms)? {
-                            report.conflicts += 1;
-                        }
+                        report.conflicts += 1;
                     }
                 }
 
@@ -306,76 +302,70 @@ fn field_apply_order(field: Field) -> u8 {
     }
 }
 
-fn read_field_value(conn: &rusqlite::Connection, note_id: &str, field: Field) -> Result<Option<Value>> {
+struct NoteRow {
+    content: String,
+    details: String,
+    category: Option<String>,
+    status: String,
+    completed_at: Option<i64>,
+    archived_at: Option<i64>,
+    later_at: Option<i64>,
+    deleted_at: Option<i64>,
+    created_at: i64,
+    source: Option<String>,
+}
+
+fn read_field_value(
+    conn: &rusqlite::Connection,
+    note_id: &str,
+    field: Field,
+) -> Result<Option<Value>> {
     if field == Field::Purged {
         return Ok(Some(Value::Null));
     }
-    let row: Option<(
-        String,
-        String,
-        Option<String>,
-        String,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        i64,
-        Option<String>,
-    )> = conn
+    let row: Option<NoteRow> = conn
         .query_row(
             "SELECT content, details, category, status, completed_at, archived_at,
                     later_at, deleted_at, created_at, source
              FROM notes WHERE id = ?1",
             [note_id],
             |r| {
-                Ok((
-                    r.get(0)?,
-                    r.get(1)?,
-                    r.get(2)?,
-                    r.get(3)?,
-                    r.get(4)?,
-                    r.get(5)?,
-                    r.get(6)?,
-                    r.get(7)?,
-                    r.get(8)?,
-                    r.get(9)?,
-                ))
+                Ok(NoteRow {
+                    content: r.get(0)?,
+                    details: r.get(1)?,
+                    category: r.get(2)?,
+                    status: r.get(3)?,
+                    completed_at: r.get(4)?,
+                    archived_at: r.get(5)?,
+                    later_at: r.get(6)?,
+                    deleted_at: r.get(7)?,
+                    created_at: r.get(8)?,
+                    source: r.get(9)?,
+                })
             },
         )
         .optional()?;
 
-    let Some((
-        content,
-        details,
-        category,
-        status,
-        completed_at,
-        archived_at,
-        later_at,
-        deleted_at,
-        created_at,
-        source,
-    )) = row
-    else {
+    let Some(row) = row else {
         return Ok(None);
     };
 
     let val = match field {
-        Field::Content => json!(content),
-        Field::Details => json!(details),
-        Field::Category => json!(category),
+        Field::Content => json!(row.content),
+        Field::Details => json!(row.details),
+        Field::Category => json!(row.category),
         Field::Status => json!(StatusValue {
-            status,
-            completed_at,
-            archived_at,
+            status: row.status,
+            completed_at: row.completed_at,
+            archived_at: row.archived_at,
         }),
-        Field::Later => json!(later_at),
-        Field::Deleted => json!(deleted_at),
+        Field::Later => json!(row.later_at),
+        Field::Deleted => json!(row.deleted_at),
         Field::Created => {
-            if let Some(src) = source {
-                json!({ "created_at": created_at, "source": src })
+            if let Some(src) = row.source {
+                json!({ "created_at": row.created_at, "source": src })
             } else {
-                json!(created_at)
+                json!(row.created_at)
             }
         }
         Field::Purged => Value::Null,
@@ -384,11 +374,9 @@ fn read_field_value(conn: &rusqlite::Connection, note_id: &str, field: Field) ->
 }
 
 fn note_exists(tx: &Transaction<'_>, note_id: &str) -> Result<bool> {
-    let count: i64 = tx.query_row(
-        "SELECT COUNT(*) FROM notes WHERE id = ?1",
-        [note_id],
-        |r| r.get(0),
-    )?;
+    let count: i64 = tx.query_row("SELECT COUNT(*) FROM notes WHERE id = ?1", [note_id], |r| {
+        r.get(0)
+    })?;
     Ok(count > 0)
 }
 

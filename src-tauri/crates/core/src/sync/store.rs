@@ -69,11 +69,9 @@ pub struct Peer {
 
 pub(crate) fn state_get(tx: &Transaction<'_>, key: &str) -> Result<Option<String>> {
     Ok(tx
-        .query_row(
-            "SELECT value FROM sync_state WHERE key = ?1",
-            [key],
-            |r| r.get(0),
-        )
+        .query_row("SELECT value FROM sync_state WHERE key = ?1", [key], |r| {
+            r.get(0)
+        })
         .optional()?)
 }
 
@@ -123,56 +121,57 @@ impl Db {
              FROM notes
              ORDER BY seq ASC",
         )?;
-        let rows: Vec<(
-            String,
-            i64,
-            String,
-            Option<String>,
-            String,
-            Option<i64>,
-            Option<i64>,
-        )> = stmt
+        struct BackfillRow {
+            note_id: String,
+            updated_at: i64,
+            details: String,
+            category: Option<String>,
+            status: String,
+            later_at: Option<i64>,
+            deleted_at: Option<i64>,
+        }
+        let rows: Vec<BackfillRow> = stmt
             .query_map([], |r| {
-                Ok((
-                    r.get(0)?,
-                    r.get(1)?,
-                    r.get(2)?,
-                    r.get(3)?,
-                    r.get(4)?,
-                    r.get(5)?,
-                    r.get(6)?,
-                ))
+                Ok(BackfillRow {
+                    note_id: r.get(0)?,
+                    updated_at: r.get(1)?,
+                    details: r.get(2)?,
+                    category: r.get(3)?,
+                    status: r.get(4)?,
+                    later_at: r.get(5)?,
+                    deleted_at: r.get(6)?,
+                })
             })?
             .collect::<std::result::Result<_, _>>()?;
         drop(stmt);
 
         let mut last_clock: Option<Hlc> = None;
-        for (note_id, updated_at, details, category, status, later_at, deleted_at) in rows {
+        for row in rows {
             let mut fields = vec![Field::Created, Field::Content];
-            if !details.is_empty() {
+            if !row.details.is_empty() {
                 fields.push(Field::Details);
             }
-            if category.is_some() {
+            if row.category.is_some() {
                 fields.push(Field::Category);
             }
-            if status != "inbox" {
+            if row.status != "inbox" {
                 fields.push(Field::Status);
             }
-            if later_at.is_some() {
+            if row.later_at.is_some() {
                 fields.push(Field::Later);
             }
-            if deleted_at.is_some() {
+            if row.deleted_at.is_some() {
                 fields.push(Field::Deleted);
             }
 
-            let hlc = Hlc::tick(last_clock.as_ref(), updated_at, id);
+            let hlc = Hlc::tick(last_clock.as_ref(), row.updated_at, id);
             let hlc_str = hlc.format();
             for field in fields {
                 let seq = next_seq(&tx)?;
                 tx.execute(
                     "INSERT OR REPLACE INTO sync_fields (note_id, field, hlc, seq)
                      VALUES (?1, ?2, ?3, ?4)",
-                    params![note_id, field.as_str(), hlc_str, seq],
+                    params![row.note_id, field.as_str(), hlc_str, seq],
                 )?;
             }
             last_clock = Some(hlc);
@@ -259,8 +258,7 @@ impl Db {
                  addrs = excluded.addrs",
             params![device_id, name, addrs_json, paired_at],
         )?;
-        self.get_peer(device_id)?
-            .ok_or(crate::CoreError::NotFound)
+        self.get_peer(device_id)?.ok_or(crate::CoreError::NotFound)
     }
 
     pub fn remove_peer(&mut self, device_id: &str) -> Result<()> {

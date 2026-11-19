@@ -224,9 +224,7 @@ impl Db {
                         .unwrap_or_else(|| Uuid::now_v7().to_string());
                 let cleaned_category = clean_category(n.category.as_deref());
                 let cleaned_details = clean_details(&n.details, true).unwrap_or_default();
-                let later_val = (status == Status::Inbox)
-                    .then(|| ts(&n.later_at))
-                    .flatten();
+                let later_val = (status == Status::Inbox).then(|| ts(&n.later_at)).flatten();
                 let updated = ts(&n.updated_at).unwrap_or(created);
                 let inserted = insert.execute(params![
                     id,

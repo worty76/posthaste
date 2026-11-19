@@ -297,9 +297,8 @@ impl SyncService {
 
         // Pre-record the peer locally so the outgoing session can exchange notes
         // once the remote accepts our pairing secret; roll back on failure.
-        app.state::<AppState>().with_db(|db| {
-            db.upsert_peer(&offer.device_id, "Other computer", &offer.addrs, now)
-        })?;
+        app.state::<AppState>()
+            .with_db(|db| db.upsert_peer(&offer.device_id, "Other computer", &offer.addrs, now))?;
 
         let result = net
             .sync_with(&peer_info, |stream| {
@@ -368,8 +367,7 @@ impl SyncService {
     }
 
     pub async fn forget(&self, app: &AppHandle, id: &str) -> AppResult<()> {
-        app.state::<AppState>()
-            .with_db(|db| db.remove_peer(id))?;
+        app.state::<AppState>().with_db(|db| db.remove_peer(id))?;
         lock(&self.online_peers).remove(id);
         emit_sync_changed(app);
         Ok(())
@@ -478,10 +476,7 @@ fn spawn_accept_loop(
                 {
                     Ok(outcome) => {
                         if let Some(reason) = outcome.refused {
-                            log::info!(
-                                "refused sync from {}: {reason}",
-                                Net::short_id(&remote_id)
-                            );
+                            log::info!("refused sync from {}: {reason}", Net::short_id(&remote_id));
                         } else {
                             lock(&online_c).insert(remote_id.clone());
                             *lock(&err_c) = None;
@@ -497,10 +492,7 @@ fn spawn_accept_loop(
                         }
                     }
                     Err(e) => {
-                        log::warn!(
-                            "sync with {} interrupted: {e}",
-                            Net::short_id(&remote_id)
-                        );
+                        log::warn!("sync with {} interrupted: {e}", Net::short_id(&remote_id));
                     }
                 }
             });

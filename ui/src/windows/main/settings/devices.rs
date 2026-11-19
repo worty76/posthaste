@@ -25,18 +25,16 @@ pub(super) fn DevicesSection(context: Context, language: Signal<String>) -> impl
     let forget_target = RwSignal::new(None::<SyncDevice>);
     let forgetting = RwSignal::new(false);
 
-    let device_name = RwSignal::new(
-        context
-            .settings
-            .settings
-            .with_untracked(|s| s.as_ref().map(|s| s.sync_device_name.clone()).unwrap_or_default()),
-    );
-    let relay_url = RwSignal::new(
-        context
-            .settings
-            .settings
-            .with_untracked(|s| s.as_ref().map(|s| s.sync_relay_url.clone()).unwrap_or_default()),
-    );
+    let device_name = RwSignal::new(context.settings.settings.with_untracked(|s| {
+        s.as_ref()
+            .map(|s| s.sync_device_name.clone())
+            .unwrap_or_default()
+    }));
+    let relay_url = RwSignal::new(context.settings.settings.with_untracked(|s| {
+        s.as_ref()
+            .map(|s| s.sync_relay_url.clone())
+            .unwrap_or_default()
+    }));
 
     Effect::new(move || {
         context.settings.settings.with(|s| {

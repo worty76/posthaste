@@ -527,7 +527,7 @@ pub async fn update_check() -> Response<Option<UpdateInfo>> {
     invoke("update_check", &NoArgs {}).await
 }
 
-    /// Installs the newest release and restarts. Only answers on failure, or
+/// Installs the newest release and restarts. Only answers on failure, or
 /// when there was nothing to install.
 pub async fn update_install() -> Response<()> {
     invoke("update_install", &NoArgs {}).await

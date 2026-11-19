@@ -68,11 +68,7 @@ impl Stream {
     /// final frames before closing the underlying QUIC connection.
     pub async fn finish_and_close(mut self) {
         let _ = self.send.finish();
-        let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            self.send.stopped(),
-        )
-        .await;
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), self.send.stopped()).await;
         self.conn.close(0u32.into(), b"done");
     }
 

@@ -59,7 +59,9 @@ pub fn encode_frame(msg: &Message) -> Result<Vec<u8>> {
 /// before reading or parsing the body.
 pub fn decode_frame(bytes: &[u8]) -> Result<Message> {
     if bytes.len() < 4 {
-        return Err(CoreError::InvalidImport("sync frame header truncated".into()));
+        return Err(CoreError::InvalidImport(
+            "sync frame header truncated".into(),
+        ));
     }
     let len = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
     if len > MAX_FRAME_BYTES {
@@ -166,12 +168,7 @@ impl Session {
 
     /// Handles one incoming message from the peer and returns the outgoing
     /// messages to send next.
-    pub fn on_message(
-        &mut self,
-        db: &mut Db,
-        msg: Message,
-        now_ms: i64,
-    ) -> Result<Vec<Message>> {
+    pub fn on_message(&mut self, db: &mut Db, msg: Message, now_ms: i64) -> Result<Vec<Message>> {
         self.on_message_with_pairing(db, msg, now_ms, |_, _| false)
     }
 
