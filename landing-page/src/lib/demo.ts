@@ -162,7 +162,7 @@ export function demoScript(notes: string[]): ScriptStep[] {
 /** When the next cycle should start typing, from the moment the last one
     saved: the stack holds a beat, is cleared, then a breath. */
 export function nextCycleDelay(steps: ScriptStep[]): number {
-  return (steps.at(-1)?.at ?? 0) - (steps.at(-1)?.save ? 0 : DEMO_ENTER_PAUSE) + DEMO_HOLD;
+  return (steps.at(-1)?.at ?? 0) + DEMO_HOLD;
 }
 
 /** Notes the visitor ticked off, for the Done column. */
