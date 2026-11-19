@@ -12,6 +12,8 @@ use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db, NOTE_C
 use crate::details::clean_details;
 use crate::error::{CoreError, Result};
 use crate::markdown;
+use crate::sync::record::record as sync_record;
+use crate::sync::Field;
 use posthaste_model::{ImportReport, Status};
 
 pub const EXPORT_FORMAT: &str = "posthaste-export";
@@ -220,21 +222,41 @@ impl Db {
                 let id =
                     n.id.filter(|id| !id.trim().is_empty())
                         .unwrap_or_else(|| Uuid::now_v7().to_string());
+                let cleaned_category = clean_category(n.category.as_deref());
+                let cleaned_details = clean_details(&n.details, true).unwrap_or_default();
+                let later_val = (status == Status::Inbox)
+                    .then(|| ts(&n.later_at))
+                    .flatten();
+                let updated = ts(&n.updated_at).unwrap_or(created);
                 let inserted = insert.execute(params![
                     id,
                     content,
                     status.as_str(),
-                    clean_category(n.category.as_deref()),
+                    cleaned_category,
                     n.source,
                     created,
-                    ts(&n.updated_at).unwrap_or(created),
+                    updated,
                     completed,
                     archived,
-                    clean_details(&n.details, true).unwrap_or_default(),
+                    cleaned_details,
                     // Only an open note can be parked.
-                    (status == Status::Inbox).then(|| ts(&n.later_at)).flatten(),
+                    later_val,
                 ])?;
                 if inserted == 1 {
+                    let mut fields = vec![Field::Created, Field::Content];
+                    if cleaned_category.is_some() {
+                        fields.push(Field::Category);
+                    }
+                    if status != Status::Inbox {
+                        fields.push(Field::Status);
+                    }
+                    if !cleaned_details.is_empty() {
+                        fields.push(Field::Details);
+                    }
+                    if later_val.is_some() {
+                        fields.push(Field::Later);
+                    }
+                    sync_record(&tx, &id, &fields, updated)?;
                     report.imported += 1;
                 } else {
                     report.skipped_existing += 1;

@@ -1,3 +1,5 @@
+mod record;
+
 use rusqlite::Connection;
 
 use crate::migrations::{self, MIGRATIONS};

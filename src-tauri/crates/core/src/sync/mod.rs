@@ -2,6 +2,7 @@
 //! peer metadata. No network or async code lives here.
 
 pub mod hlc;
+pub(crate) mod record;
 pub mod store;
 
 pub use hlc::Hlc;

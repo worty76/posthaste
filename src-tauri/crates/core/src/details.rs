@@ -5,6 +5,8 @@ use uuid::Uuid;
 
 use crate::db::{now_ms, Db};
 use crate::error::{CoreError, Result};
+use crate::sync::record::record as sync_record;
+use crate::sync::Field;
 use posthaste_model::*;
 
 const MAX_NAME_CHARS: usize = 120;
@@ -42,13 +44,16 @@ impl Db {
     /// from line endings, because this runs while the user is still typing.
     pub fn set_details_at(&mut self, id: &str, details: &str, now: i64) -> Result<Note> {
         let details = clean_details(details, false)?;
-        let changed = self.conn().execute(
+        let tx = self.conn_mut().transaction()?;
+        let changed = tx.execute(
             "UPDATE notes SET details = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL",
             params![details, now, id],
         )?;
         if changed == 0 {
             return Err(CoreError::NotFound);
         }
+        sync_record(&tx, id, &[Field::Details], now)?;
+        tx.commit()?;
         self.get_note(id)
     }
 
