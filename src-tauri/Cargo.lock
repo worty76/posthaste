@@ -4842,7 +4842,6 @@ dependencies = [
 name = "posthaste-platform"
 version = "0.6.0"
 dependencies = [
- "log",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -4855,7 +4854,6 @@ name = "posthaste-sync-net"
 version = "0.6.0"
 dependencies = [
  "iroh",
- "log",
  "posthaste-core",
  "serde",
  "serde_json",
