@@ -1,3 +1,4 @@
+mod merge;
 mod record;
 
 use rusqlite::Connection;
