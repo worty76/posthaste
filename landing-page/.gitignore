@@ -3,3 +3,6 @@ node_modules
 out
 *.log
 .DS_Store
+
+# The root build's own incremental cache.
+/tsconfig.tsbuildinfo
