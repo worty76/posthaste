@@ -4789,6 +4789,7 @@ dependencies = [
  "posthaste-core",
  "posthaste-i18n",
  "posthaste-platform",
+ "posthaste-sync-net",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4803,6 +4804,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

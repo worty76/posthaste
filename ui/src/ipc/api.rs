@@ -527,8 +527,44 @@ pub async fn update_check() -> Response<Option<UpdateInfo>> {
     invoke("update_check", &NoArgs {}).await
 }
 
-/// Installs the newest release and restarts. Only answers on failure, or
+    /// Installs the newest release and restarts. Only answers on failure, or
 /// when there was nothing to install.
 pub async fn update_install() -> Response<()> {
     invoke("update_install", &NoArgs {}).await
+}
+
+// ---- device sync -----------------------------------------------------------
+
+#[derive(Serialize)]
+struct SyncSetEnabled {
+    on: bool,
+}
+
+#[derive(Serialize)]
+struct SyncPairJoin<'a> {
+    code: &'a str,
+}
+
+pub async fn sync_status() -> Response<SyncStatus> {
+    invoke("sync_status", &NoArgs {}).await
+}
+
+pub async fn sync_set_enabled(on: bool) -> Response<SyncStatus> {
+    invoke("sync_set_enabled", &SyncSetEnabled { on }).await
+}
+
+pub async fn sync_pair_offer() -> Response<String> {
+    invoke("sync_pair_offer", &NoArgs {}).await
+}
+
+pub async fn sync_pair_join(code: &str) -> Response<SyncDevice> {
+    invoke("sync_pair_join", &SyncPairJoin { code }).await
+}
+
+pub async fn sync_now() -> Response<()> {
+    invoke("sync_now", &NoArgs {}).await
+}
+
+pub async fn sync_forget(id: &str) -> Response<()> {
+    invoke("sync_forget", &ById { id }).await
 }

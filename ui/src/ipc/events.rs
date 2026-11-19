@@ -95,6 +95,12 @@ event!(
     "navigate",
     String
 );
+event!(
+    /// Paired device sync status or peer list changed.
+    SyncChanged,
+    "sync-changed",
+    ()
+);
 
 #[derive(Deserialize)]
 struct Envelope<T> {

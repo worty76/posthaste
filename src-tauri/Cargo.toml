@@ -26,6 +26,8 @@ tauri-build = { version = "2", features = [] }
 posthaste-i18n = { path = "crates/i18n" }
 posthaste-core = { path = "crates/core" }
 posthaste-platform = { path = "crates/platform" }
+posthaste-sync-net = { path = "crates/sync-net" }
+tokio = { version = "1", features = ["sync", "time"] }
 tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"

@@ -171,3 +171,21 @@ pub struct LookFilePreview {
     /// `(asset id, data: URL)` pairs, in the look's asset order.
     pub asset_urls: Vec<(String, String)>,
 }
+
+/// One paired device as Settings shows it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncDevice {
+    pub id: String,
+    pub name: String,
+    pub last_sync_at: Option<i64>,
+    pub online: bool,
+}
+
+/// Current state of peer-to-peer device sync, returned by `sync_status`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncStatus {
+    pub enabled: bool,
+    pub device_id: Option<String>,
+    pub devices: Vec<SyncDevice>,
+    pub last_error: Option<String>,
+}

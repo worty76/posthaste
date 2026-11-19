@@ -29,6 +29,9 @@ use crate::windows::{self, DetailsTarget};
 
 fn notes_changed(app: &AppHandle) {
     let _ = app.emit("notes-changed", ());
+    if let Some(svc) = app.try_state::<crate::sync::SyncService>() {
+        svc.notify_note_changed();
+    }
 }
 
 fn looks_changed(app: &AppHandle) {
@@ -608,6 +611,14 @@ pub fn settings_update(
             menu.translate(state.translator());
         }
     }
+    if settings.sync_relay_url != old.sync_relay_url || settings.sync_enabled != old.sync_enabled {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Some(svc) = handle.try_state::<crate::sync::SyncService>() {
+                let _ = svc.reconfigure(&handle).await;
+            }
+        });
+    }
     let _ = app.emit("settings-changed", crate::ai::for_interface(&settings));
 
     Ok(SettingsState {
@@ -766,6 +777,10 @@ pub async fn data_clear(app: AppHandle, confirm: String) -> AppResult<SettingsSt
     log::warn!("all application data cleared at the user's request");
     notes_changed(&app);
     looks_changed(&app);
+    if let Some(svc) = app.try_state::<crate::sync::SyncService>() {
+        svc.stop().await;
+        let _ = app.emit("sync-changed", ());
+    }
     // Keys come off the main thread (the keychain may prompt) and never
     // stop the reset: the notes are already gone.
     let keys_app = app.clone();
@@ -1085,6 +1100,59 @@ pub fn look_delete(app: AppHandle, state: State<'_, AppState>, id: String) -> Ap
     }
     looks_changed(&app);
     Ok(())
+}
+
+// ---- device sync -------------------------------------------------------------
+
+#[tauri::command]
+pub async fn sync_status(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+) -> AppResult<posthaste_core::SyncStatus> {
+    sync.status(&app).await
+}
+
+#[tauri::command]
+pub async fn sync_set_enabled(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+    on: bool,
+) -> AppResult<posthaste_core::SyncStatus> {
+    sync.set_enabled(&app, on).await
+}
+
+#[tauri::command]
+pub async fn sync_pair_offer(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+) -> AppResult<String> {
+    sync.create_pair_offer(&app).await
+}
+
+#[tauri::command]
+pub async fn sync_pair_join(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+    code: String,
+) -> AppResult<posthaste_core::SyncDevice> {
+    sync.join_pair_code(&app, &code).await
+}
+
+#[tauri::command]
+pub async fn sync_now(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+) -> AppResult<()> {
+    sync.sync_now(&app).await
+}
+
+#[tauri::command]
+pub async fn sync_forget(
+    app: AppHandle,
+    sync: State<'_, crate::sync::SyncService>,
+    id: String,
+) -> AppResult<()> {
+    sync.forget(&app, &id).await
 }
 
 #[cfg(test)]
