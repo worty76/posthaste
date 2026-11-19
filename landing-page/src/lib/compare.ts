@@ -5,18 +5,14 @@
 // cell, check it against the product's own pages and bump COMPARE_CHECKED_ON.
 
 /** The day the competitor cells were last checked. ISO date. */
-export const COMPARE_CHECKED_ON = "2026-11-15";
+export const COMPARE_CHECKED_ON = "2026-11-19";
 
 export type CompareId =
   | "posthaste"
-  | "todoglow"
-  | "octarine"
-  | "type"
-  | "stik"
   | "apple-notes"
   | "notion"
   | "obsidian"
-  | "evernote";
+  | "todoglow";
 
 export interface CompareApp {
   id: CompareId;
@@ -25,17 +21,13 @@ export interface CompareApp {
   url?: string;
 }
 
-/** Posthaste first, then the capture apps closest to it, then the big note apps. */
+/** Posthaste first, then the strongest competitors people compare it against. */
 export const COMPARE_APPS: CompareApp[] = [
   { id: "posthaste", name: "Posthaste" },
-  { id: "todoglow", name: "TodoGlow", url: "https://devglow.app/todoglow" },
-  { id: "octarine", name: "Octarine", url: "https://octarine.app/" },
-  { id: "type", name: "Type", url: "https://apps.apple.com/app/id1664249924" },
-  { id: "stik", name: "Stik", url: "https://github.com/0xMassi/stik_app" },
   { id: "apple-notes", name: "Apple Notes", url: "https://www.apple.com/apple-notes/" },
   { id: "notion", name: "Notion", url: "https://www.notion.com/pricing" },
   { id: "obsidian", name: "Obsidian", url: "https://obsidian.md/pricing" },
-  { id: "evernote", name: "Evernote", url: "https://evernote.com/compare-plans" },
+  { id: "todoglow", name: "TodoGlow", url: "https://devglow.app/todoglow" },
 ];
 
 export interface CompareRow {
@@ -47,93 +39,66 @@ export const COMPARE_ROWS: CompareRow[] = [
   {
     label: "Account",
     cells: {
-      posthaste: "None. Nothing to sign up for.",
-      todoglow: "Sign-in is for sync. Not stated for local use",
-      octarine: "Not stated on its site",
-      type: "Not stated on its App Store page",
-      stik: "None",
-      "apple-notes": "An Apple Account, to sync",
+      posthaste: "None",
+      "apple-notes": "Apple Account for sync",
       notion: "Required",
-      obsidian: "None for the app itself",
-      evernote: "Required",
+      obsidian: "None for local use",
+      todoglow: "Required for sync",
     },
   },
   {
-    label: "Where your notes live",
+    label: "Storage",
     cells: {
-      posthaste: "One file on your computer",
-      todoglow: "On your computer by default. Sync is optional",
-      octarine: "Markdown files in a folder you choose",
-      type: "Text files in a folder you choose",
-      stik: "Markdown files in your Documents folder",
-      "apple-notes": "iCloud, or on your Mac",
-      notion: "Notion's servers",
-      obsidian: "Markdown files in a folder you choose",
-      evernote: "Evernote's cloud",
+      posthaste: "One local SQLite file",
+      "apple-notes": "iCloud or Mac",
+      notion: "Notion's cloud",
+      obsidian: "Local Markdown folder",
+      todoglow: "Local, optional cloud sync",
     },
   },
   {
     label: "Cost",
     cells: {
-      posthaste: "Free, MIT licence",
-      todoglow: "A free trial, then a one-time purchase",
-      octarine: "A free plan. Tasks, views and full AI are a one-time paid upgrade",
-      type: "A free trial, then a one-time purchase",
-      stik: "Open source, MIT licence",
-      "apple-notes": "Free. Extra iCloud storage is paid",
-      notion: "A free plan. Team features and full AI are on paid plans",
-      obsidian: "Free for personal use. Sync is a paid add-on",
-      evernote: "A free plan holds fifty notes and one notebook",
+      posthaste: "Free, MIT open source",
+      "apple-notes": "Free (iCloud storage paid)",
+      notion: "Free tier; paid plans for full AI & teams",
+      obsidian: "Free personal; paid sync",
+      todoglow: "Free trial, then paid",
     },
   },
   {
     label: "AI",
     cells: {
-      posthaste: "Optional. Your own key, and only the note you polish",
-      todoglow: "In its Lab: polish with your own Gemini key, and coding agents over MCP",
-      octarine: "Optional. Your own key or a local model",
-      type: "None listed",
-      stik: "On-device search and folder suggestions, no API key",
-      "apple-notes": "Apple Intelligence tools on supported devices",
-      notion: "A limited trial on Free and Plus, full access on Business and above",
-      obsidian: "Through community plugins",
-      evernote: "Offered on paid plans",
+      posthaste: "Optional, your own key",
+      "apple-notes": "Apple Intelligence",
+      notion: "Paid plans",
+      obsidian: "Community plugins",
+      todoglow: "Own Gemini key + MCP",
     },
   },
   {
-    label: "Sync and phone app",
+    label: "Sync & mobile",
     cells: {
-      posthaste: "No sync, no phone app",
-      todoglow: "Mac and Windows. Optional sync after sign-in. No phone app listed",
-      octarine: "Mac, Windows, Linux and iPhone. Git or any folder sync",
-      type: "Mac only. No sync or phone app listed",
-      stik: "Mac only. Sync through git or a synced folder",
-      "apple-notes": "Mac, iPhone, iPad and the web",
-      notion: "Web, desktop and phone",
-      obsidian: "Desktop and phone. Sync is paid, or bring your own",
-      evernote: "Desktop, phone and web",
+      posthaste: "Optional P2P desktop sync (experimental); no phone app",
+      "apple-notes": "Mac, iPhone, iPad, web",
+      notion: "Desktop, phone, web",
+      obsidian: "Desktop & phone (paid sync or DIY)",
+      todoglow: "Mac & Windows; no phone app",
     },
   },
 ];
 
 /** Why you would pick Posthaste. Each line is a behaviour, not a boast. */
 export const PICK_POSTHASTE: string[] = [
-  "You want to manage your to-dos in a simple, distraction-free way through keyboard shortcuts.",
-  "You want your notes in a safe place, not on someone else's server.",
-  "You want AI to improve your notes, but only when you ask for it, and only on the note you are polishing.",
-  "You want a short list of what's left today, not a pile of files.",
-  "You work on MacOS, Windows or Linux, and want a fast, minimal, keyboard-first to-do app with cool UI and features.",
-  "You want to-dos that carry a description and files, and a backup file of everything that you keep wherever you like.",
+  "You want keyboard-first capture and a short Today list on macOS, Windows or Linux.",
+  "You want your notes in one local file, with optional encrypted P2P sync and no account.",
+  "You want AI polish only when you ask, using your own key.",
 ];
 
 /** Where the others are the better pick. Said plainly, because it is true. */
 export const PICK_OTHERS: string[] = [
-  "You need your notes on your phone.",
-  "You plan or write with other people, or build pages and tables. That is Notion's job.",
-  "You keep a linked library of long notes. Obsidian is built for that.",
-  "You live on Apple devices and want scans and drawings beside your notes. That is Apple Notes.",
-  "You want one workspace for linked notes, tasks and boards. Octarine does that.",
-  "You want quick notes as plain text or Markdown files you open in any editor, on a Mac. Type and Stik do that.",
-  "You want a focus timer, time stats, or coding agents (Claude Code, Codex, Cursor) working your list over MCP. TodoGlow has those.",
-  "You want your list synced between your Macs and PCs. TodoGlow offers that after you sign in.",
+  "You need a phone app or Apple-only Pencil/scans (Apple Notes).",
+  "You collaborate on shared docs, databases and wikis (Notion).",
+  "You build a linked library of long Markdown notes (Obsidian).",
+  "You want a focus timer or coding agents over MCP (TodoGlow).",
 ];
