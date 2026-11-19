@@ -59,6 +59,16 @@ fn perform(app: &AppHandle, launch: Launch) {
     }
 }
 
+/// Database file name: debug/dev builds use a separate file so testing new
+/// migrations never upgrades the installed release app's database.
+fn database_filename(is_debug: bool) -> &'static str {
+    if is_debug {
+        "posthaste-dev.db"
+    } else {
+        "posthaste.db"
+    }
+}
+
 fn open_database(app: &AppHandle) -> Result<Db, AppError> {
     let dir = app.path().app_data_dir().map_err(|e| {
         AppError::new(
@@ -66,7 +76,7 @@ fn open_database(app: &AppHandle) -> Result<Db, AppError> {
             format!("The application data folder could not be determined: {e}"),
         )
     })?;
-    let mut db = Db::open(&dir.join("posthaste.db"))?;
+    let mut db = Db::open(&dir.join(database_filename(cfg!(debug_assertions))))?;
     let cutoff = posthaste_core::now_ms() - posthaste_core::TRASH_RETENTION_MS;
     match db.purge_trashed(cutoff) {
         Ok(0) => {}
@@ -278,7 +288,13 @@ fn traced(
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_launch, Launch};
+    use super::{database_filename, parse_launch, Launch};
+
+    #[test]
+    fn debug_builds_use_a_separate_database_file() {
+        assert_eq!(database_filename(true), "posthaste-dev.db");
+        assert_eq!(database_filename(false), "posthaste.db");
+    }
 
     fn args(a: &[&str]) -> Vec<String> {
         a.iter().map(|s| s.to_string()).collect()

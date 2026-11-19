@@ -110,6 +110,10 @@
   },
   "fatal": {
     "title": "Posthaste không mở được cơ sở dữ liệu",
-    "text": "Chưa có gì bị xóa. Tệp ghi chú của bạn vẫn được giữ nguyên. Hãy khắc phục vấn đề ở trên (ví dụ giải phóng dung lượng đĩa, hoặc kiểm tra quyền của tệp), rồi mở lại Posthaste."
+    "text": "Chưa có gì bị xóa. Tệp ghi chú của bạn vẫn được giữ nguyên. Hãy khắc phục vấn đề ở trên (ví dụ giải phóng dung lượng đĩa, hoặc kiểm tra quyền của tệp), rồi mở lại Posthaste.",
+    "newer_schema_text": "Chưa có gì bị xóa. Hãy cập nhật Posthaste lên phiên bản mới nhất để mở lại các ghi chú của bạn.",
+    "check_updates": "Kiểm tra cập nhật",
+    "update_to": "Cập nhật lên {version}",
+    "no_update": "Không tự động tìm thấy bản phát hành mới hơn. Hãy tải bản Posthaste mới nhất từ trang phát hành rồi mở lại."
   }
 }
