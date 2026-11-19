@@ -1,5 +1,7 @@
-// Copy for the "what it does" blocks, as data so a test can check every
-// block has a heading and a sentence naming a key, a number or a behaviour.
+// Copy for the "what it does" blocks — short, plain, human-readable copy
+// that non-technical visitors can scan quickly, in English and Vietnamese.
+
+import type { Lang } from "./i18n";
 
 export type BlockId = "capture" | "inbox" | "details" | "undo" | "looks" | "ai" | "keys";
 
@@ -12,37 +14,78 @@ export interface Block {
 export const BLOCKS: Block[] = [
   {
     id: "capture",
-    title: "Quick capture",
-    fact: "One shortcut over any app. Enter saves, the window closes, and the note is in your inbox.",
+    title: "Capture in a second",
+    fact: "One shortcut over any app. Type, press Enter, and you're right back to work.",
   },
   {
     id: "inbox",
-    title: "Inbox and search",
-    fact: "Notes wait in the inbox, grouped by day. Search finds one by any word in it.",
+    title: "Find anything fast",
+    fact: "Notes stay grouped by day in your inbox. Type any word to find it right away.",
   },
   {
     id: "details",
-    title: "Details for any note",
-    fact: "Add a description and attach images or documents to a note. It saves as you type, and the files stay in your one database file.",
+    title: "Add details & files",
+    fact: "Write longer notes and attach photos or PDFs — everything saves as you type.",
   },
   {
     id: "undo",
-    title: "Delete without fear",
-    fact: "A deleted note waits 30 days in the Trash, so you can always bring it back.",
+    title: "Delete without worry",
+    fact: "Deleted notes wait 30 days in Trash so you can restore them anytime.",
   },
   {
     id: "ai",
-    title: "AI polish, when you want it",
-    fact: "Off until you add your own key for Claude, OpenAI, Gemini or OpenRouter, or point it at Ollama on your computer. Then only the note you polish is sent.",
+    title: "Clean up rough notes",
+    fact: "Optional AI polish turns quick typing into clear sentences — only when you click.",
   },
   {
     id: "looks",
-    title: "Six looks, or your own",
-    fact: "Colors, corners and letter shapes change together. Press 1 to 6 and this page changes too.",
+    title: "Make it yours",
+    fact: "Switch between 6 built-in themes or craft your own colors. Press 1–6 to try now.",
   },
   {
     id: "keys",
-    title: "Every move is a key",
-    fact: "Every global shortcut can be changed in Settings, and ? lists them all inside the app.",
+    title: "Built for your keyboard",
+    fact: "Do everything without touching the mouse. Press ? anytime to see every shortcut.",
   },
 ];
+
+export const BLOCKS_BY_LANG: Record<Lang, Block[]> = {
+  en: BLOCKS,
+  vi: [
+    {
+      id: "capture",
+      title: "Ghi nhanh trong tích tắc",
+      fact: "Một phím tắt trên mọi ứng dụng. Gõ, nhấn Enter, rồi quay lại việc ngay.",
+    },
+    {
+      id: "inbox",
+      title: "Tìm lại cực nhanh",
+      fact: "Ghi chú xếp gọn theo ngày. Chỉ cần gõ vài chữ là thấy ngay.",
+    },
+    {
+      id: "details",
+      title: "Thêm chi tiết & tệp",
+      fact: "Viết mô tả dài và đính kèm ảnh hoặc PDF — tự động lưu khi bạn gõ.",
+    },
+    {
+      id: "undo",
+      title: "Xóa không lo mất",
+      fact: "Ghi chú đã xóa nằm 30 ngày trong Thùng rác để bạn khôi phục bất cứ lúc nào.",
+    },
+    {
+      id: "ai",
+      title: "Chỉnh câu chữ gọn đẹp",
+      fact: "AI tùy chọn giúp biến ghi chú vội thành câu rõ ràng — chỉ chạy khi bạn bấm.",
+    },
+    {
+      id: "looks",
+      title: "Đẹp theo gu của bạn",
+      fact: "Đổi qua lại 6 giao diện có sẵn hoặc tự pha màu. Nhấn phím 1–6 để thử ngay.",
+    },
+    {
+      id: "keys",
+      title: "Làm mọi thứ bằng bàn phím",
+      fact: "Thao tác mượt không cần chuột. Nhấn ? bất cứ lúc nào để xem phím tắt.",
+    },
+  ],
+};

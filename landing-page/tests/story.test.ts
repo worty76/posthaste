@@ -65,8 +65,8 @@ describe("story switch", () => {
 
   it("is linked only through the visibility check", () => {
     const read = (f: string) => readFileSync(join(__dirname, "../src", f), "utf8");
-    expect(read("app/page.tsx")).toMatch(/storyVisible\(\) && <a href="\/story\/"/);
-    expect(read("app/page.tsx")).toMatch(/storyVisible\(\) && \(\s*<a className="dict__see"/);
+    expect(read("components/LocalizedSections.tsx")).toMatch(/storyVisible\(\) && <a href="\/story\/"/);
+    expect(read("components/LocalizedSections.tsx")).toMatch(/storyVisible\(\) && \(\s*<a className="dict__see"/);
     expect(read("components/SiteFooter.tsx")).toMatch(/storyVisible\(\) && <a href="\/story\/"/);
     expect(read("components/StoryLinks.tsx")).toMatch(/storyHeroLine\(\)/);
     expect(read("app/story/page.tsx")).toMatch(/if \(!storyVisible\(\)\) notFound\(\)/);

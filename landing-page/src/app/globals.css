@@ -1922,6 +1922,40 @@ footer,
   }
 }
 
+/* ---- Language switcher (EN / VI) ---- */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  gap: 2px;
+}
+
+.lang-toggle__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 650;
+  padding: 3px 7px;
+  border-radius: calc(var(--r-sm, 6px) - 2px);
+  cursor: pointer;
+}
+
+.lang-toggle__btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-on, var(--bg));
+}
+
+.hero__side {
+  display: grid;
+  gap: 12px;
+}
+
 .backdrop {
   transform: translate3d(0, calc(var(--scroll-y, 0px) * 0.14), 0);
   will-change: transform;
