@@ -1066,6 +1066,15 @@ kbd:active,
   margin-top: 16px;
   max-width: 62ch;
 }
+.sync {
+  border-top: 1px solid var(--border);
+}
+.sync__points {
+  margin-top: 32px;
+}
+.sync__phone {
+  margin-top: 20px;
+}
 
 .compare {
   padding-block: var(--section);

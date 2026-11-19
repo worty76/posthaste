@@ -5,6 +5,27 @@ html.is-capture body {
   background: transparent;
 }
 
+/* Linux (WebKitGTK) cannot reliably composite transparent windows: the
+   invisible margin would paint as a solid frame around the floating
+   panel. There the window paints edge to edge instead — a plain surface,
+   no radius, no shadow, no entrance scale against hard edges. */
+html.is-linux.is-capture,
+html.is-linux.is-capture body,
+html.is-linux.is-capture .capture {
+  background: var(--surface-raised);
+}
+html.is-linux.is-capture .capture {
+  padding: 0;
+}
+html.is-linux.is-capture .capture__panel {
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+html.is-linux.is-capture .capture__panel[data-shake="true"] {
+  box-shadow: none;
+}
+
 .capture {
   height: 100%;
   /* Room for the shadow; the OS window itself is invisible. */

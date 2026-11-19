@@ -74,7 +74,7 @@ export const COMPARE_ROWS: CompareRow[] = [
   {
     label: "Sync & mobile",
     cells: {
-      posthaste: "Optional P2P desktop sync (experimental); no phone app",
+      posthaste: "Optional P2P sync between computers (experimental); phone app in development",
       "apple-notes": "Mac, iPhone, iPad, web",
       notion: "Desktop, phone, web",
       obsidian: "Desktop & phone (paid sync or DIY)",
@@ -92,7 +92,7 @@ export const PICK_POSTHASTE: string[] = [
 
 /** Where the others are the better pick. Said plainly, because it is true. */
 export const PICK_OTHERS: string[] = [
-  "You need a phone app or Apple-only Pencil/scans (Apple Notes).",
+  "You need a phone app today, or Apple-only Pencil/scans (Apple Notes).",
   "You collaborate on shared docs, databases and wikis (Notion).",
   "You build a linked library of long Markdown notes (Obsidian).",
   "You want a focus timer or coding agents over MCP (TodoGlow).",
@@ -148,7 +148,7 @@ export const COMPARE_VI: {
     {
       label: "Đồng bộ & điện thoại",
       cells: {
-        posthaste: "Đồng bộ P2P máy tính (thử nghiệm); chưa có app điện thoại",
+        posthaste: "Đồng bộ P2P giữa các máy tính (thử nghiệm); app điện thoại đang phát triển",
         "apple-notes": "Mac, iPhone, iPad, web",
         notion: "Máy tính, điện thoại, web",
         obsidian: "Máy tính & điện thoại (trả phí hoặc tự làm)",
@@ -162,7 +162,7 @@ export const COMPARE_VI: {
     "Bạn chỉ muốn dùng AI khi tự bấm, bằng khóa riêng của mình.",
   ],
   pickOthers: [
-    "Bạn cần ghi chú trên điện thoại hoặc vẽ Apple Pencil (Apple Notes).",
+    "Bạn cần ghi chú trên điện thoại ngay bây giờ hoặc vẽ Apple Pencil (Apple Notes).",
     "Bạn làm việc nhóm trên tài liệu chung và bảng dữ liệu (Notion).",
     "Bạn xây kho ghi chú Markdown liên kết dài hạn (Obsidian).",
     "Bạn cần đồng hồ tập trung hoặc kết nối coding agent qua MCP (TodoGlow).",
