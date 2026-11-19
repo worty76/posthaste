@@ -3,16 +3,24 @@
 // The hero is the capture window. Type, press Enter, and the note is saved
 // with a hard cut and timed from your first keystroke. Esc clears.
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useSite } from "./SiteState";
 import { Keys, useBrowserName } from "./os";
-import { MAX_NOTE_CHARS, formatSeconds, savedStack } from "@/lib/demo";
+import {
+  MAX_NOTE_CHARS,
+  demoScript,
+  formatSeconds,
+  savedStack,
+} from "@/lib/demo";
 
 export function CaptureHero() {
-  const { demo, dispatch } = useSite();
+  const { demo, dispatch, copy, lang } = useSite();
   const browser = useBrowserName();
   const input = useRef<HTMLInputElement>(null);
   const stack = savedStack(demo);
+  // Cancels the self-playing script; assigned while it runs, always safe
+  // to call.
+  const stopScript = useRef<() => void>(() => {});
 
   // Focused on arrival, like the real window, but only where there is a
   // keyboard: on a phone it would throw up the on-screen keyboard unasked.
@@ -21,6 +29,60 @@ export function CaptureHero() {
       input.current?.focus({ preventScroll: true });
     }
   }, []);
+
+  // Plays the capture loop by itself once: types two notes, saves each,
+  // and leaves the field to the visitor. Any real keystroke in the field,
+  // a paste, a click-away to another tab, or reduced motion steps it
+  // aside — the script never fights a person.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || location.hash) {
+      return;
+    }
+    let cancelled = false;
+    const timers = new Set<number>();
+    const stop = () => {
+      cancelled = true;
+      for (const t of timers) window.clearTimeout(t);
+      timers.clear();
+    };
+    stopScript.current = stop;
+
+    for (const step of demoScript(copy.demo.notes)) {
+      timers.add(
+        window.setTimeout(() => {
+          if (cancelled) return;
+          dispatch({ type: step.save ? "save" : "input", text: step.text, now: performance.now() });
+        }, step.at),
+      );
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      // Look switches and the demo field's own scripted typing aside, any
+      // real keydown is a person taking over.
+      if (e.target === input.current) stop();
+      else if (!e.metaKey && !e.ctrlKey && !e.altKey) stop();
+    };
+    const onVisibility = () => {
+      if (document.hidden) stop();
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      stopScript.current = () => {};
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [copy.demo.notes, lang, dispatch]);
+
+  // A real edit in the field — typed, pasted, autofilled — takes over.
+  const onUserInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      stopScript.current();
+      dispatch({ type: "input", text: e.target.value, now: performance.now() });
+    },
+    [dispatch],
+  );
 
   return (
     <div className="capture">
@@ -43,9 +105,7 @@ export function CaptureHero() {
           maxLength={MAX_NOTE_CHARS}
           placeholder="What's on your mind?"
           value={demo.draft}
-          onChange={(e) =>
-            dispatch({ type: "input", text: e.target.value, now: performance.now() })
-          }
+          onChange={onUserInput}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter") {

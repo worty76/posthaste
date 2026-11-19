@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEMO_ENTER_PAUSE,
+  DEMO_NOTE_PAUSE,
+  DEMO_START_DELAY,
+  DEMO_TYPE_MS,
+  demoScript,
+} from "@/lib/demo";
+import {
   MAX_NOTE_CHARS,
   demoReducer,
   formatSeconds,
@@ -65,6 +72,46 @@ describe("capture demo", () => {
     let s = initialDemo();
     for (let i = 1; i <= 6; i++) s = typeThenSave(s, `note ${i}`, i * 1000, i * 1000 + 500);
     expect(savedStack(s).map((n) => n.text)).toEqual(["note 6", "note 5", "note 4", "note 3"]);
+  });
+});
+
+describe("the self-playing capture script", () => {
+  it("types one step per character, then presses Enter per note", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    const saves = steps.filter((s) => s.save);
+    const inputs = steps.filter((s) => !s.save);
+    expect(inputs).toHaveLength(4);
+    expect(saves).toHaveLength(2);
+  });
+
+  it("builds the text up character by character and clears after each save", () => {
+    const steps = demoScript(["Hey"]);
+    const texts = steps.map((s) => s.text);
+    expect(texts).toEqual(["H", "He", "Hey", "Hey"]);
+    expect(steps[2]!.save).toBe(false);
+    expect(steps[3]!.save).toBe(true);
+    expect(steps[3]!.text).toBe("Hey");
+  });
+
+  it("paces typing, Enter, and the breath between notes", () => {
+    const steps = demoScript(["Go", "Hi"]);
+    expect(steps[0]!.at).toBe(DEMO_START_DELAY);
+    expect(steps[1]!.at).toBe(DEMO_START_DELAY + DEMO_TYPE_MS);
+    expect(steps[2]!.at).toBe(DEMO_START_DELAY + 2 * DEMO_TYPE_MS + DEMO_ENTER_PAUSE);
+    expect(steps[2]!.save).toBe(true);
+    expect(steps[3]!.at).toBe(steps[2]!.at + DEMO_NOTE_PAUSE);
+    expect(steps[3]!.text).toBe("H");
+  });
+
+  it("never slows down or speeds up: steps stay in order", () => {
+    const steps = demoScript(["Buy oat milk on the way home", "Send Minh the demo link"]);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]!.at).toBeGreaterThan(steps[i - 1]!.at);
+    }
+  });
+
+  it("an empty script does nothing", () => {
+    expect(demoScript([])).toEqual([]);
   });
 });
 

@@ -112,6 +112,48 @@ export function todayView(state: DemoState): TodayView {
   return { carried, today, done: all.filter((n) => n.done).length, total: all.length };
 }
 
+// ---- the self-playing capture ----
+// On arrival the hero types two notes by itself, so the loop shows without a
+// single keystroke. The moment the visitor touches the field it steps aside.
+
+/** Delay before the first scripted character. */
+export const DEMO_START_DELAY = 1400;
+/** Delay between scripted characters: quick, but readable. */
+export const DEMO_TYPE_MS = 55;
+/** Delay from the last character to the scripted Enter. */
+export const DEMO_ENTER_PAUSE = 400;
+/** Delay from a save to the first character of the next note. */
+export const DEMO_NOTE_PAUSE = 1900;
+
+/** One scripted moment: the draft text at `at` ms from start, and whether
+    Enter is pressed with it. */
+export interface ScriptStep {
+  at: number;
+  text: string;
+  save: boolean;
+}
+
+/** The keystroke plan for `notes`: type character by character, Enter after
+    each, a breath between notes. Deterministic, so it is tested; the hero
+    only fills in the clock. */
+export function demoScript(notes: string[]): ScriptStep[] {
+  const steps: ScriptStep[] = [];
+  let at = DEMO_START_DELAY;
+  let text = "";
+  for (const note of notes) {
+    for (const char of [...note]) {
+      text += char;
+      steps.push({ at, text, save: false });
+      at += DEMO_TYPE_MS;
+    }
+    at += DEMO_ENTER_PAUSE;
+    steps.push({ at, text, save: true });
+    at += DEMO_NOTE_PAUSE;
+    text = "";
+  }
+  return steps;
+}
+
 /** Notes the visitor ticked off, for the Done column. */
 export function doneNotes(state: DemoState): DemoNote[] {
   return state.notes.filter((n) => n.done);

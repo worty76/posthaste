@@ -25,6 +25,10 @@ export interface SiteCopy {
     downloadFree: string;
     watchDemo: string;
   };
+  demo: {
+    /** The two notes the hero types by itself before the visitor does. */
+    notes: [string, string];
+  };
   moments: {
     heading: string;
     step1: string;
@@ -108,6 +112,9 @@ export const COPY: Record<Lang, SiteCopy> = {
       downloadFree: "Download free",
       watchDemo: "Watch the demo",
     },
+  demo: {
+    notes: ["Buy oat milk on the way home", "Send Minh the demo link"],
+  },
     moments: {
       heading: "Catch it. See what's left. Tick it off.",
       step1: "Catch it",
@@ -196,6 +203,9 @@ export const COPY: Record<Lang, SiteCopy> = {
       downloadFree: "Tải miễn phí",
       watchDemo: "Xem video demo",
     },
+  demo: {
+    notes: ["Mua sữa yến mạch trên đường về nhà", "Gửi Minh link bản demo"],
+  },
     moments: {
       heading: "Ghi nhanh. Xem việc hôm nay. Đánh dấu xong.",
       step1: "Ghi nhanh",
