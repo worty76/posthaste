@@ -6,7 +6,7 @@ use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
     Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
-    Status, ThemeEdit, TrashedNote, UpdateInfo,
+    Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;

@@ -336,4 +336,61 @@ describe("looks", () => {
     );
     await w.close();
   });
+
+  it("enables sync, shows a pairing code, pairs a device, forgets after confirming, and refreshes on sync-changed", async () => {
+    const w = await settings();
+    const devices = w.page.locator('section[aria-labelledby="s-devices"]');
+
+    // Switch calls sync_set_enabled.
+    await devices.getByRole("switch", { name: "Sync with my other computers" }).click();
+    await eventually(
+      async () => (await w.calls("sync_set_enabled")).at(-1)?.args.on,
+      (on) => on === true,
+      "sync_set_enabled(true)",
+    );
+
+    // "Pair a computer" shows the code from sync_pair_offer.
+    await devices.getByRole("button", { name: "Pair a computer" }).click();
+    await text(devices.locator(".devices__offer .path"), "posthaste-pair:1:TESTCODE123");
+
+    // Pairing with a code calls sync_pair_join and lists the device.
+    await devices.getByLabel("Have a code?").fill("posthaste-pair:1:OTHERDEVICE");
+    await devices.getByRole("button", { name: "Pair", exact: true }).click();
+    await eventually(
+      async () => (await w.calls("sync_pair_join")).at(-1)?.args.code,
+      (c) => c === "posthaste-pair:1:OTHERDEVICE",
+      "sync_pair_join called",
+    );
+    await text(devices.locator(".devices__list"), "Work laptop");
+
+    // Forget asks first, then calls sync_forget.
+    await devices.getByRole("button", { name: "Forget", exact: true }).click();
+    const dialog = w.page.getByRole("dialog", { name: "Forget Work laptop?" });
+    await text(
+      dialog,
+      "Forget Work laptop? It stops syncing with this computer. Notes already here stay.",
+    );
+    await dialog.getByRole("button", { name: "Forget", exact: true }).click();
+    await eventually(
+      async () => (await w.calls("sync_forget")).at(-1)?.args.id,
+      (id) => id === "peer-1",
+      "sync_forget called",
+    );
+    await text(devices, "No paired computers yet.");
+
+    // A sync-changed event refreshes the list.
+    await w.page.evaluate(() => {
+      window.__mock.store.sync.devices.push({
+        id: "peer-9",
+        name: "Studio Mac",
+        last_sync_at: null,
+        online: false,
+      });
+      window.__mock.emit("sync-changed");
+    });
+    await text(devices.locator(".devices__list"), "Studio Mac");
+    await text(devices.locator(".devices__list"), "Not synced yet");
+    assert.deepEqual(w.errors, []);
+    await w.close();
+  });
 });

@@ -5,6 +5,7 @@
 mod ai;
 mod appearance;
 mod data;
+mod devices;
 mod look_editor;
 mod shortcut_recorder;
 
@@ -290,6 +291,7 @@ pub(super) fn SettingsView(
             </section>
 
             <ai::AiSection context=context language=language />
+            <devices::DevicesSection context=context language=language />
             <data::DataSection context=context />
             <UpdatesSection context=context updates=updates version=info.version />
         </div>
