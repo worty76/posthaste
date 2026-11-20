@@ -45,7 +45,7 @@
   --quick: 140ms;
 
   --sidebar: 228px;
-  --measure: 680px;
+  --measure: 100%;
 
   /* Scene: how opaque the content panels stay over a backdrop image.
      The band itself is per window, below. */

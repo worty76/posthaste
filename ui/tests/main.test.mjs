@@ -257,6 +257,8 @@ describe("inbox", () => {
   it("collapses and expands the sidebar with the toggle button and Ctrl+B, and saves it", async () => {
     const w = await main();
     const sidebar = w.page.locator(".sidebar");
+    const column = w.page.locator(".content__column");
+    const widthBefore = await column.evaluate((el) => Math.round(el.getBoundingClientRect().width));
     const toggle = w.page.getByRole("button", { name: "Collapse sidebar (Ctrl+B)" });
     assert.equal(await toggle.getAttribute("aria-expanded"), "true");
 
@@ -270,6 +272,8 @@ describe("inbox", () => {
     assert.equal(await sidebar.getAttribute("data-collapsed"), "");
     assert.equal((await w.mock.settings()).sidebar_collapsed, true);
     assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 56);
+    const widthAfter = await column.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    assert.equal(widthAfter - widthBefore, 228 - 56);
 
     // Icon rail buttons keep their accessible names and still navigate.
     await w.page.getByRole("button", { name: "Archive", exact: true }).click();
