@@ -304,6 +304,16 @@ describe("inbox", () => {
       .evaluate((el) => el.scrollWidth - el.clientWidth);
     assert.equal(overflow, 0);
     await w.close();
+
+    // On macOS the collapsed rail stays wide enough to frame the traffic lights.
+    const mac = await main({ os: "macos", settings: { sidebar_collapsed: true } });
+    assert.equal(
+      await mac.page
+        .locator(".sidebar")
+        .evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+      80,
+    );
+    await mac.close();
   });
 
   it("is written in Vietnamese when that is the language", async () => {

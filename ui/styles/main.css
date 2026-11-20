@@ -11,6 +11,10 @@
 .app[data-collapsed] {
   --sidebar: 56px;
 }
+/* macOS: keep the collapsed rail wide enough to frame the traffic lights. */
+.os-macos[data-collapsed] {
+  --sidebar: 80px;
+}
 
 /* ---- Sidebar ---- */
 .sidebar {
@@ -26,11 +30,9 @@
   overflow-y: auto;
 }
 /* macOS: leave room for the traffic lights in the overlaid title bar. */
-.os-macos .sidebar {
-  padding-top: 44px;
-}
+.os-macos .sidebar,
 .os-macos .content__header {
-  padding-top: var(--s-6);
+  padding-top: 40px;
 }
 .sidebar__header {
   display: flex;
