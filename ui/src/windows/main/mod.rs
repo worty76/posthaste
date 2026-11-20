@@ -381,6 +381,9 @@ impl Main {
     }
 
     fn on_key(self, event: KeyboardEvent) {
+        if settings::is_recording_shortcut() {
+            return;
+        }
         let key = event.key();
         let in_search = self.search.get_untracked().is_some_and(|search| {
             event

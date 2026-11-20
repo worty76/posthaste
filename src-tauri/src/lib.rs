@@ -163,6 +163,7 @@ pub fn run() {
             commands::attachment_remove,
             commands::settings_get,
             commands::settings_update,
+            commands::shortcuts_set_paused,
             commands::data_info,
             commands::data_reveal,
             commands::data_export,

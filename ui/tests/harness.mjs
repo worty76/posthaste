@@ -190,6 +190,7 @@ export async function open({
           ...info,
         }),
         settings_get: () => ({ settings: mock.settings, shortcuts }),
+        shortcuts_set_paused: () => null,
         // Every install wears a look: the shell falls back to the factory
         // default when a selection cannot resolve, and so does this.
         look_active: () =>

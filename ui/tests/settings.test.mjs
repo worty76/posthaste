@@ -115,6 +115,14 @@ describe("settings", () => {
     await text(w.page.locator('.recorder[data-recording="true"]'), "Press shortcut…");
     await w.page.keyboard.press("a");
     assert.equal((await w.calls("settings_update")).length, 0, "a bare letter is not a shortcut");
+    // In-window navigation keys (like 1 or Ctrl+F) must not leave Settings while recording.
+    await w.page.keyboard.press("1");
+    assert.equal(await w.page.locator('.recorder[data-recording="true"]').count(), 1);
+    // Clicking the recorder again cancels recording cleanly.
+    await w.page.locator('.recorder[data-recording="true"]').click();
+    assert.equal(await w.page.locator('.recorder[data-recording="true"]').count(), 0);
+    await recorder.click();
+    await text(w.page.locator('.recorder[data-recording="true"]'), "Press shortcut…");
     // WebKit does not focus a button on click, so the capture must work
     // whatever has focus: drop the focus and record anyway.
     await w.page.evaluate(() => document.activeElement?.blur());

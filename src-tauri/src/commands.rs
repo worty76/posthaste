@@ -538,6 +538,16 @@ fn percent_decode(s: &str) -> String {
 // ---- settings ----------------------------------------------------------------
 
 #[tauri::command]
+pub fn shortcuts_set_paused(app: AppHandle, state: State<'_, AppState>, paused: bool) {
+    if paused {
+        shortcuts::pause(&app);
+    } else {
+        let settings = state.settings();
+        *lock(&state.shortcuts) = shortcuts::apply(&app, &settings);
+    }
+}
+
+#[tauri::command]
 pub fn settings_get(app: AppHandle, state: State<'_, AppState>) -> SettingsState {
     let mut settings = state.settings();
     // The OS is the source of truth: the user may have removed the login
