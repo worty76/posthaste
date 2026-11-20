@@ -40,9 +40,6 @@ export function SiteHeader({ stars }: { stars: number | null }) {
       <a className="head__icon" href={PRODUCT.repoUrl} aria-label="Posthaste on GitHub">
         <GitHubMark />
       </a>
-      <a className="btn btn--small" href="#get">
-        {copy.nav.download}
-      </a>
     </header>
   );
 }
