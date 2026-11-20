@@ -1195,6 +1195,73 @@ kbd:active,
 .downloads__also {
   font-size: var(--t-sm);
 }
+.downloads__notice {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+}
+.downloads__notice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.downloads__notice-tag {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.downloads__notice-body {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--text);
+  line-height: 1.55;
+}
+.downloads__notice-body code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+.downloads__cmd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+.downloads__cmd code {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--text);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.downloads__copy {
+  flex: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.downloads__copy:hover {
+  background: var(--hover);
+}
 .downloads__hint {
   margin: 0;
   max-width: 60ch;

@@ -3,10 +3,12 @@
 // One big button for the visitor's system, the others as rows. Without
 // JavaScript (or before hydration) all three are rows, none guessed.
 
+import { useState } from "react";
 import { useOs, OS_LABEL, type Os } from "./os";
 import type { Download } from "@/config";
 
 const ORDER: Os[] = ["mac", "windows", "linux"];
+const MAC_FIX_CMD = "xattr -cr /Applications/Posthaste.app";
 
 export function Downloads({
   downloads,
@@ -18,8 +20,19 @@ export function Downloads({
   releasesUrl: string;
 }) {
   const os = useOs();
+  const [copied, setCopied] = useState(false);
   const main = os ? downloads[os] : null;
   const rest = ORDER.filter((p) => !(main && p === os));
+
+  const copyMacCmd = async () => {
+    try {
+      await navigator.clipboard.writeText(MAC_FIX_CMD);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable; command stays selectable.
+    }
+  };
 
   return (
     <div className="downloads">
@@ -30,22 +43,45 @@ export function Downloads({
         </a>
       )}
       {main && os === "mac" && (
-        <p className="downloads__hint">
-          Unsigned build. If macOS blocks it on first open, run{" "}
-          <code>xattr -cr /Applications/Posthaste.app</code> in Terminal or allow it in{" "}
-          <strong>System Settings → Privacy &amp; Security</strong>.
-        </p>
+        <aside className="downloads__notice" aria-label="macOS first-open note">
+          <div className="downloads__notice-head">
+            <span className="downloads__notice-tag">First open on macOS</span>
+          </div>
+          <p className="downloads__notice-body">
+            Posthaste is an unsigned indie build, so macOS may say it can&apos;t be verified or is
+            damaged. After dragging it to <strong>Applications</strong>, run this once in Terminal
+            (or allow it in <strong>System Settings → Privacy &amp; Security</strong>):
+          </p>
+          <div className="downloads__cmd">
+            <code>{MAC_FIX_CMD}</code>
+            <button type="button" className="downloads__copy" onClick={copyMacCmd}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </aside>
       )}
       {main && os === "windows" && (
-        <p className="downloads__hint">
-          If Windows SmartScreen warns you, click <strong>More info → Run anyway</strong>.
-        </p>
+        <aside className="downloads__notice" aria-label="Windows first-open note">
+          <div className="downloads__notice-head">
+            <span className="downloads__notice-tag">First open on Windows</span>
+          </div>
+          <p className="downloads__notice-body">
+            Windows SmartScreen may warn that Posthaste is unrecognized because it is a new indie
+            release. Click <strong>More info</strong>, then <strong>Run anyway</strong> to install.
+          </p>
+        </aside>
       )}
       {main && os === "linux" && (
-        <p className="downloads__hint">
-          For the <code>.AppImage</code>, mark it executable (
-          <code>chmod +x Posthaste_*.AppImage</code>) before running.
-        </p>
+        <aside className="downloads__notice" aria-label="Linux first-open note">
+          <div className="downloads__notice-head">
+            <span className="downloads__notice-tag">First open on Linux</span>
+          </div>
+          <p className="downloads__notice-body">
+            For the <code>.AppImage</code>, mark it executable with{" "}
+            <code>chmod +x Posthaste_*.AppImage</code> before running — or install the{" "}
+            <code>.deb</code> / <code>.rpm</code> package directly.
+          </p>
+        </aside>
       )}
       {main && os === "linux" && linuxExtras.length > 0 && (
         <p className="downloads__also">
