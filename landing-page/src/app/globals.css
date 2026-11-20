@@ -1195,6 +1195,17 @@ kbd:active,
 .downloads__also {
   font-size: var(--t-sm);
 }
+.downloads__hint {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.downloads__hint code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
 .downloads__rows {
   width: 100%;
   max-width: 640px;

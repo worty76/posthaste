@@ -29,6 +29,24 @@ export function Downloads({
           <span className="btn__sub">{main.label}</span>
         </a>
       )}
+      {main && os === "mac" && (
+        <p className="downloads__hint">
+          Unsigned build. If macOS blocks it on first open, run{" "}
+          <code>xattr -cr /Applications/Posthaste.app</code> in Terminal or allow it in{" "}
+          <strong>System Settings → Privacy &amp; Security</strong>.
+        </p>
+      )}
+      {main && os === "windows" && (
+        <p className="downloads__hint">
+          If Windows SmartScreen warns you, click <strong>More info → Run anyway</strong>.
+        </p>
+      )}
+      {main && os === "linux" && (
+        <p className="downloads__hint">
+          For the <code>.AppImage</code>, mark it executable (
+          <code>chmod +x Posthaste_*.AppImage</code>) before running.
+        </p>
+      )}
       {main && os === "linux" && linuxExtras.length > 0 && (
         <p className="downloads__also">
           Also as{" "}
@@ -62,6 +80,17 @@ export function Downloads({
           );
         })}
       </ul>
+      <p className="downloads__hint">
+        Free Windows code signing provided by{" "}
+        <a href="https://signpath.io" rel="noreferrer">
+          SignPath.io
+        </a>
+        , certificate by{" "}
+        <a href="https://signpath.org" rel="noreferrer">
+          SignPath Foundation
+        </a>
+        .
+      </p>
     </div>
   );
 }
