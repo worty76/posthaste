@@ -22,6 +22,10 @@ use crate::logic::shortcut::{default_inbox_shortcut, default_today_shortcut};
 use crate::state::{Appearance, I18n, SettingsHandle, Updates};
 use shortcut_recorder::ShortcutRecorder;
 
+pub(super) fn is_recording_shortcut() -> bool {
+    shortcut_recorder::is_recording()
+}
+
 /// What every part of Settings needs: the language, the settings and a
 /// place to report a change that failed.
 #[derive(Clone, Copy)]

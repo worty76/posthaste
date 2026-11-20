@@ -62,6 +62,14 @@ fn register(app: &AppHandle, accelerator: &str, action: Action) -> ShortcutStatu
     status
 }
 
+/// Temporarily unregisters all global shortcuts (e.g. while the user is
+/// recording a new shortcut in Settings so existing ones don't fire).
+pub fn pause(app: &AppHandle) {
+    if let Err(e) = app.global_shortcut().unregister_all() {
+        log::warn!("could not pause global shortcuts: {e}");
+    }
+}
+
 /// Replaces every registered shortcut with the ones in `settings` and
 /// reports, per shortcut, whether the OS accepted it.
 pub fn apply(app: &AppHandle, settings: &Settings) -> ShortcutReport {

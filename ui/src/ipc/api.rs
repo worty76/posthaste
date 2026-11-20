@@ -19,6 +19,16 @@ pub async fn app_info() -> Response<AppInfo> {
     invoke("app_info", &NoArgs {}).await
 }
 
+#[derive(Serialize)]
+struct ShortcutsPaused {
+    paused: bool,
+}
+
+/// Temporarily pauses or resumes OS global shortcuts while recording one in Settings.
+pub async fn shortcuts_set_paused(paused: bool) -> Response<()> {
+    invoke("shortcuts_set_paused", &ShortcutsPaused { paused }).await
+}
+
 pub async fn settings_get() -> Response<SettingsState> {
     invoke("settings_get", &NoArgs {}).await
 }
