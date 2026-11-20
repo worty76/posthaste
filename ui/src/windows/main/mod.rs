@@ -467,6 +467,15 @@ impl Main {
     }
 }
 
+/// The three distinct content panes mounted inside the main scroll area.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pane {
+    LoadingSettings,
+    Settings,
+    Trash,
+    Notes,
+}
+
 #[component]
 pub fn MainWindow(info: AppInfo) -> impl IntoView {
     let os = info.os;
@@ -508,6 +517,19 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
         })
     });
     let in_settings = move || main.view.get() == View::Settings;
+    let pane = Memo::new(move |_| {
+        if in_settings() {
+            if settings.settings.with(Option::is_some) {
+                Pane::Settings
+            } else {
+                Pane::LoadingSettings
+            }
+        } else if main.shows_trash() {
+            Pane::Trash
+        } else {
+            Pane::Notes
+        }
+    });
     let title = move || {
         if main.searching() {
             key::INBOX_SEARCH_TITLE
@@ -655,25 +677,27 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
                 <div class="content__scroll">
                     <div class="content__column">
-                        {move || {
-                            if in_settings() {
-                                // Settings needs the settings; they arrive a moment after the window.
-                                settings.settings.with(Option::is_some).then(|| view! {
-                                    <settings::SettingsView
-                                        info=info.get_value()
-                                        i18n=i18n
-                                        settings=settings
-                                        appearance=appearance
-                                        updates=updates
-                                        toaster=main.toaster
-                                    />
-                                }).into_any()
-                            } else if main.shows_trash() {
-                                view! { <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster /> }
-                                    .into_any()
-                            } else {
-                                view! { <notes::NoteList main=main capture_keys=capture_keys /> }.into_any()
+                        {move || match pane.get() {
+                            Pane::LoadingSettings => ().into_any(),
+                            Pane::Settings => view! {
+                                <settings::SettingsView
+                                    info=info.get_value()
+                                    i18n=i18n
+                                    settings=settings
+                                    appearance=appearance
+                                    updates=updates
+                                    toaster=main.toaster
+                                />
                             }
+                            .into_any(),
+                            Pane::Trash => view! {
+                                <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster />
+                            }
+                            .into_any(),
+                            Pane::Notes => view! {
+                                <notes::NoteList main=main capture_keys=capture_keys />
+                            }
+                            .into_any(),
                         }}
                     </div>
                 </div>
