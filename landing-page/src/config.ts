@@ -42,9 +42,9 @@ export const PRODUCT = {
 
 /** The demo film in `public/demo/`. Same-origin files; `seconds` is the film's own length. */
 export const DEMO_VIDEO = {
-  src: "/demo/posthaste-demo.mp4?v=3",
-  poster: "/demo/posthaste-demo-poster.jpg?v=3",
-  seconds: 73,
+  src: "/demo/posthaste-launch.mp4?v=1",
+  poster: "/demo/posthaste-launch-poster.jpg?v=1",
+  seconds: 54,
 } as const;
 
 /** The sync film in `public/demo/`. Same-origin files; `seconds` is the film's own length. */
