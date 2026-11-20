@@ -10,19 +10,32 @@ export function HeroActions({ downloads }: { downloads: Record<Platform, Downloa
   const { copy } = useSite();
   const main = primaryDownload(downloads, os);
   return (
-    <div className="hero__actions">
-      {main && os ? (
-        <a className="btn btn--cta" href={main.url}>
-          {copy.hero.downloadFor(OS_LABEL[os])}
+    <div className="hero__actions-wrap">
+      <div className="hero__actions">
+        {main && os ? (
+          <a className="btn btn--cta" href={main.url}>
+            {copy.hero.downloadFor(OS_LABEL[os])}
+          </a>
+        ) : (
+          <a className="btn btn--cta" href="#get">
+            {copy.hero.downloadFree}
+          </a>
+        )}
+        <a className="btn btn--ghost" href="#demo">
+          {copy.hero.watchDemo}
         </a>
-      ) : (
-        <a className="btn btn--cta" href="#get">
-          {copy.hero.downloadFree}
-        </a>
+      </div>
+      {main && os === "mac" && (
+        <p className="hero__download-note">
+          Unsigned build — if macOS blocks it, run <code>xattr -cr /Applications/Posthaste.app</code>{" "}
+          or allow it in <strong>Privacy &amp; Security</strong>.
+        </p>
       )}
-      <a className="btn btn--ghost" href="#demo">
-        {copy.hero.watchDemo}
-      </a>
+      {main && os === "windows" && (
+        <p className="hero__download-note">
+          If Windows SmartScreen warns you, click <strong>More info → Run anyway</strong>.
+        </p>
+      )}
     </div>
   );
 }
