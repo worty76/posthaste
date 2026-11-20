@@ -178,6 +178,7 @@ pub enum KeyAction {
     Go(View),
     FocusSearch,
     NewNote,
+    ToggleSidebar,
     Help,
     /// Esc in the search box: end the search and leave the box.
     LeaveSearch,
@@ -244,6 +245,7 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<Keyed> {
             "," => plain(KeyAction::Go(View::Settings)),
             "f" | "F" => plain(KeyAction::FocusSearch),
             "n" | "N" => plain(KeyAction::NewNote),
+            "b" | "B" => plain(KeyAction::ToggleSidebar),
             _ => None,
         };
     }
@@ -460,6 +462,8 @@ mod tests {
         );
         assert_eq!(action(primary("f"), typing), Some(KeyAction::FocusSearch));
         assert_eq!(action(primary("n"), typing), Some(KeyAction::NewNote));
+        assert_eq!(action(primary("b"), typing), Some(KeyAction::ToggleSidebar));
+        assert_eq!(action(primary("B"), typing), Some(KeyAction::ToggleSidebar));
         assert_eq!(
             action(primary("x"), on(View::Inbox, Some(Status::Inbox))),
             None

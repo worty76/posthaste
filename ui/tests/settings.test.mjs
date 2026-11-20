@@ -41,6 +41,22 @@ async function settings(options = {}) {
 }
 
 describe("settings", () => {
+  it("keeps Settings mounted without reloading when a setting changes", async () => {
+    const w = await settings();
+    await w.page.evaluate(() => {
+      const root = document.querySelector(".settings");
+      root.dataset.marker = "same-instance";
+    });
+    await w.page.getByRole("switch", { name: "Launch at login" }).click();
+    await eventually(async () => (await w.saved())?.launch_at_login, Boolean, "setting saved");
+    const marker = await w.page.evaluate(
+      () => document.querySelector(".settings")?.dataset.marker ?? null,
+    );
+    assert.equal(marker, "same-instance");
+    assert.deepEqual(w.errors, []);
+    await w.close();
+  });
+
   it("turns Simple looks on and saves the setting", async () => {
     const w = await settings();
     await w.page.getByRole("switch", { name: "Simple looks" }).click();

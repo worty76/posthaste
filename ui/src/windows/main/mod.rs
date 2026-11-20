@@ -28,7 +28,9 @@ use crate::logic::inbox::{
 };
 use crate::logic::selection::{moved_from_none, neighbour};
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
-use crate::state::{use_appearance, use_i18n, use_settings, use_updates, I18n, Message};
+use crate::state::{
+    use_appearance, use_i18n, use_settings, use_updates, I18n, Message, SettingsHandle,
+};
 use crate::time;
 use posthaste_model::Window as SceneWindow;
 
@@ -65,6 +67,7 @@ fn view_icon(view: View) -> IconName {
 struct Main {
     os: Os,
     i18n: I18n,
+    settings: SettingsHandle,
     toaster: Toaster,
     /// The locale dates and times are written in.
     locale: Memo<String>,
@@ -89,10 +92,11 @@ struct Main {
 }
 
 impl Main {
-    fn new(os: Os, i18n: I18n) -> Self {
+    fn new(os: Os, i18n: I18n, settings: SettingsHandle) -> Self {
         Main {
             os,
             i18n,
+            settings,
             toaster: Toaster::new(),
             locale: Memo::new(move |_| time::locale_for(i18n.translator().language().code)),
             view: RwSignal::new(View::Inbox),
@@ -177,6 +181,18 @@ impl Main {
     fn new_note(self) {
         spawn_local(async move {
             if let Err(error) = api::capture_open().await {
+                self.fail(error);
+            }
+        });
+    }
+
+    fn toggle_sidebar(self) {
+        spawn_local(async move {
+            if let Err(error) = self
+                .settings
+                .update(|s| s.sidebar_collapsed = !s.sidebar_collapsed)
+                .await
+            {
                 self.fail(error);
             }
         });
@@ -420,6 +436,7 @@ impl Main {
             (KeyAction::Go(view), _) => self.go(view),
             (KeyAction::FocusSearch, _) => self.focus_search(),
             (KeyAction::NewNote, _) => self.new_note(),
+            (KeyAction::ToggleSidebar, _) => self.toggle_sidebar(),
             (KeyAction::Help, _) => self.help_open.set(true),
             (KeyAction::LeaveSearch, _) => {
                 self.clear_search();
@@ -467,6 +484,15 @@ impl Main {
     }
 }
 
+/// The three distinct content panes mounted inside the main scroll area.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pane {
+    LoadingSettings,
+    Settings,
+    Trash,
+    Notes,
+}
+
 #[component]
 pub fn MainWindow(info: AppInfo) -> impl IntoView {
     let os = info.os;
@@ -474,7 +500,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     let appearance = use_appearance(settings);
     let i18n = use_i18n(settings);
     let updates = use_updates();
-    let main = Main::new(os, i18n);
+    let main = Main::new(os, i18n, settings);
 
     Effect::new(move |_| main.load());
     Effect::new(move |_| main.load_counts());
@@ -508,6 +534,19 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
         })
     });
     let in_settings = move || main.view.get() == View::Settings;
+    let pane = Memo::new(move |_| {
+        if in_settings() {
+            if settings.settings.with(Option::is_some) {
+                Pane::Settings
+            } else {
+                Pane::LoadingSettings
+            }
+        } else if main.shows_trash() {
+            Pane::Trash
+        } else {
+            Pane::Notes
+        }
+    });
     let title = move || {
         if main.searching() {
             key::INBOX_SEARCH_TITLE
@@ -528,14 +567,38 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             (count > 0).then_some(count)
         })
     };
+    let sidebar_collapsed = Memo::new(move |_| {
+        settings
+            .settings
+            .with(|s| s.as_ref().is_some_and(|s| s.sidebar_collapsed))
+    });
+    let sidebar_shortcut = format!("{}+B", mod_cap(os));
+    let sidebar_toggle_label = Signal::derive(move || {
+        let key = if sidebar_collapsed.get() {
+            key::INBOX_SIDEBAR_EXPAND
+        } else {
+            key::INBOX_SIDEBAR_COLLAPSE
+        };
+        i18n.translator()
+            .format(key, &[("keys", &sidebar_shortcut)])
+    });
     let nav_item = move |view: View| {
         // A search is its own place: no section is the current one then.
         let current = move || {
             let here = main.view.get() == view && (view == View::Settings || !main.searching());
             here.then_some("page")
         };
+        let label = i18n.label(view_title(view));
         view! {
-            <button type="button" class="nav__item" aria-current=current on:click=move |_| main.go(view)>
+            <button
+                type="button"
+                class="nav__item"
+                data-collapsed=move || sidebar_collapsed.get().then_some("")
+                aria-current=current
+                aria-label=move || sidebar_collapsed.get().then(|| label.get())
+                title=move || sidebar_collapsed.get().then(|| label.get())
+                on:click=move |_| main.go(view)
+            >
                 <Icon name=view_icon(view) />
                 <span class="nav__label">{i18n.text(view_title(view))}</span>
                 {move || count(view).map(|count| view! { <span class="nav__count">{count}</span> })}
@@ -564,21 +627,40 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     let info = StoredValue::new(info);
 
     view! {
-        <div class=class>
-            <aside class="sidebar">
-                <div class="sidebar__brand">"Posthaste"</div>
+        <div class=class data-collapsed=move || sidebar_collapsed.get().then_some("")>
+            <aside class="sidebar" data-collapsed=move || sidebar_collapsed.get().then_some("")>
+                <div class="sidebar__header">
+                    <div class="sidebar__brand">"Posthaste"</div>
+                    <IconButton
+                        class="sidebar__toggle"
+                        icon=IconName::Sidebar
+                        label=sidebar_toggle_label
+                        expanded=Signal::derive(move || !sidebar_collapsed.get())
+                        on_click=move |()| main.toggle_sidebar()
+                    />
+                </div>
                 <nav class="nav" aria-label=i18n.text(key::INBOX_SECTIONS)>
                     {View::LISTS.into_iter().map(nav_item).collect_view()}
                 </nav>
                 <div class="sidebar__spacer"></div>
-                <Button class="sidebar__new" on_click=move |()| main.new_note()>
+                <button
+                    type="button"
+                    class="btn sidebar__new"
+                    data-collapsed=move || sidebar_collapsed.get().then_some("")
+                    aria-label=move || sidebar_collapsed.get().then(|| i18n.translator().text(key::INBOX_NEW_NOTE).to_owned())
+                    title=move || sidebar_collapsed.get().then(|| i18n.translator().text(key::INBOX_NEW_NOTE).to_owned())
+                    on:click=move |_| main.new_note()
+                >
+                    <span class="sidebar__new__icon">
+                        <Icon name=IconName::Plus />
+                    </span>
                     <span class="sidebar__new__label">
                         {i18n.text(key::INBOX_NEW_NOTE)}
                     </span>
-                    <Show when=move || capture_keys.with(|keys| !keys.is_empty())>
+                    <Show when=move || !sidebar_collapsed.get() && capture_keys.with(|keys| !keys.is_empty())>
                         <Kbd keys=capture_keys />
                     </Show>
-                </Button>
+                </button>
                 {nav_item(View::Settings)}
             </aside>
 
@@ -655,25 +737,27 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
                 <div class="content__scroll">
                     <div class="content__column">
-                        {move || {
-                            if in_settings() {
-                                // Settings needs the settings; they arrive a moment after the window.
-                                settings.settings.with(Option::is_some).then(|| view! {
-                                    <settings::SettingsView
-                                        info=info.get_value()
-                                        i18n=i18n
-                                        settings=settings
-                                        appearance=appearance
-                                        updates=updates
-                                        toaster=main.toaster
-                                    />
-                                }).into_any()
-                            } else if main.shows_trash() {
-                                view! { <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster /> }
-                                    .into_any()
-                            } else {
-                                view! { <notes::NoteList main=main capture_keys=capture_keys /> }.into_any()
+                        {move || match pane.get() {
+                            Pane::LoadingSettings => ().into_any(),
+                            Pane::Settings => view! {
+                                <settings::SettingsView
+                                    info=info.get_value()
+                                    i18n=i18n
+                                    settings=settings
+                                    appearance=appearance
+                                    updates=updates
+                                    toaster=main.toaster
+                                />
                             }
+                            .into_any(),
+                            Pane::Trash => view! {
+                                <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster />
+                            }
+                            .into_any(),
+                            Pane::Notes => view! {
+                                <notes::NoteList main=main capture_keys=capture_keys />
+                            }
+                            .into_any(),
                         }}
                     </div>
                 </div>

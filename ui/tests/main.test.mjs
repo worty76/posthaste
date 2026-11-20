@@ -254,6 +254,68 @@ describe("inbox", () => {
     await w.close();
   });
 
+  it("collapses and expands the sidebar with the toggle button and Ctrl+B, and saves it", async () => {
+    const w = await main();
+    const sidebar = w.page.locator(".sidebar");
+    const column = w.page.locator(".content__column");
+    const widthBefore = await column.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    const toggle = w.page.getByRole("button", { name: "Collapse sidebar (Ctrl+B)" });
+    assert.equal(await toggle.getAttribute("aria-expanded"), "true");
+
+    await toggle.click();
+    const expand = w.page.getByRole("button", { name: "Expand sidebar (Ctrl+B)" });
+    await eventually(
+      () => expand.getAttribute("aria-expanded"),
+      (v) => v === "false",
+      "sidebar collapsed",
+    );
+    assert.equal(await sidebar.getAttribute("data-collapsed"), "");
+    assert.equal((await w.mock.settings()).sidebar_collapsed, true);
+    assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 56);
+    const widthAfter = await column.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    assert.equal(widthAfter - widthBefore, 228 - 56);
+
+    // Icon rail buttons keep their accessible names and still navigate.
+    await w.page.getByRole("button", { name: "Archive", exact: true }).click();
+    await text(w.page.locator(".content__title"), "Archive");
+
+    // Ctrl+B expands it back.
+    await w.key("Control+b");
+    await eventually(
+      () => w.page.getByRole("button", { name: "Collapse sidebar (Ctrl+B)" }).count(),
+      (n) => n === 1,
+      "sidebar expanded",
+    );
+    assert.equal((await w.mock.settings()).sidebar_collapsed, false);
+    assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 228);
+
+    // At the minimum window width (620px), the sidebar stays a vertical left
+    // column (180px expanded, 56px collapsed) and nothing overflows horizontally.
+    await w.page.setViewportSize({ width: 620, height: 480 });
+    assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 180);
+    await w.key("Control+b");
+    await eventually(
+      () => sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+      (width) => width === 56,
+      "collapsed at 620px",
+    );
+    const overflow = await w.page
+      .locator(".content__scroll")
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    assert.equal(overflow, 0);
+    await w.close();
+
+    // On macOS the collapsed rail stays wide enough to frame the traffic lights.
+    const mac = await main({ os: "macos", settings: { sidebar_collapsed: true } });
+    assert.equal(
+      await mac.page
+        .locator(".sidebar")
+        .evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+      80,
+    );
+    await mac.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");

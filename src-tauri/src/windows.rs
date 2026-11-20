@@ -225,11 +225,18 @@ pub fn show_capture(app: &AppHandle) {
             return;
         }
     };
-    // Some window managers only honour a position once the window is mapped.
-    if let Some(pos) = placed {
-        let _ = window.set_position(pos);
+    // Some Linux/Windows window managers only honour a position once the window
+    // is mapped. On macOS, NSPanel already honours placement before showing,
+    // and re-applying position/level after showing forces a second composite.
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(pos) = placed {
+            let _ = window.set_position(pos);
+        }
+        let _ = window.set_always_on_top(true);
     }
-    let _ = window.set_always_on_top(true);
+    #[cfg(target_os = "macos")]
+    let _ = placed;
     if !has_keyboard {
         if let Err(e) = window.set_focus() {
             log::warn!("capture window could not take focus: {e}");
@@ -321,11 +328,18 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
             return;
         }
     };
-    // Some window managers only honour a position once the window is mapped.
-    if let Some(pos) = placed {
-        let _ = window.set_position(pos);
+    // Some Linux/Windows window managers only honour a position once the window
+    // is mapped. On macOS, NSPanel already honours placement before showing,
+    // and re-applying position/level after showing forces a second composite.
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(pos) = placed {
+            let _ = window.set_position(pos);
+        }
+        let _ = window.set_always_on_top(true);
     }
-    let _ = window.set_always_on_top(true);
+    #[cfg(target_os = "macos")]
+    let _ = placed;
     if !has_keyboard {
         if let Err(e) = window.set_focus() {
             log::warn!("today window could not take focus: {e}");
@@ -638,12 +652,28 @@ fn place_in_area(
     };
     // Position first so the size is applied at the destination display's scale.
     let _ = window.set_position(position);
-    // The window is fixed-size by pinning min and max to the same value
-    // rather than by `resizable(false)`, which on GTK would also stop us
-    // resizing it for a different display.
-    let _ = window.set_min_size(Some(size));
-    let _ = window.set_max_size(Some(size));
-    let _ = window.set_size(size);
+    // Skip resizing when the window is already at the target size: redundant
+    // set_size calls on a transparent WKWebView invalidate its backing store
+    // and flash a dark frame around the shadow margin.
+    let current = window.inner_size().ok();
+    let target_physical = match size {
+        tauri::Size::Physical(s) => s,
+        tauri::Size::Logical(s) => {
+            let scale = window.scale_factor().unwrap_or(area.scale);
+            PhysicalSize::new(
+                (s.width * scale).round() as u32,
+                (s.height * scale).round() as u32,
+            )
+        }
+    };
+    if current != Some(target_physical) {
+        // The window is fixed-size by pinning min and max to the same value
+        // rather than by `resizable(false)`, which on GTK would also stop us
+        // resizing it for a different display.
+        let _ = window.set_min_size(Some(size));
+        let _ = window.set_max_size(Some(size));
+        let _ = window.set_size(size);
+    }
     position
 }
 

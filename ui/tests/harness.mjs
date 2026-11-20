@@ -34,6 +34,7 @@ export const defaultSettings = {
   draft_retention: "forever",
   look_id: "builtin:ink",
   simple_looks: false,
+  sidebar_collapsed: false,
   language: "en",
   ai_provider: "none",
   ai_models: {},

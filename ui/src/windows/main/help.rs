@@ -11,7 +11,7 @@ pub(super) fn ShortcutHelp(
     open: RwSignal<bool>,
     mod_key: &'static str,
 ) -> impl IntoView {
-    let rows: [(Key, &[&str]); 15] = [
+    let rows: [(Key, &[&str]); 16] = [
         (key::INBOX_HELP_MOVE, &["↑", "↓"]),
         (key::INBOX_HELP_EDIT, &["E"]),
         (key::INBOX_HELP_DETAILS, &["O"]),
@@ -26,6 +26,7 @@ pub(super) fn ShortcutHelp(
         (key::INBOX_HELP_TRASH_RESTORE, &["R", "↵"]),
         (key::INBOX_HELP_TRASH_DELETE, &["Del"]),
         (key::INBOX_HELP_NEW_NOTE, &["N"]),
+        (key::INBOX_HELP_SIDEBAR, &[mod_key, "B"]),
         (key::INBOX_HELP_SETTINGS, &[mod_key, ","]),
     ];
     let rows: Vec<(Key, Vec<String>)> = rows
