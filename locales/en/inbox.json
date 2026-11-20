@@ -1,5 +1,9 @@
 {
   "sections": "Sections",
+  "sidebar": {
+    "collapse": "Collapse sidebar ({keys})",
+    "expand": "Expand sidebar ({keys})"
+  },
   "nav": {
     "inbox": "Inbox",
     "today": "Today",
@@ -108,6 +112,7 @@
     "trash_restore": "Restore (in Trash)",
     "trash_delete": "Delete forever (in Trash)",
     "new_note": "New note",
+    "sidebar": "Collapse or expand sidebar",
     "settings": "Settings"
   },
   "fatal": {

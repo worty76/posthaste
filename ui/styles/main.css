@@ -8,6 +8,9 @@
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
 }
+.app[data-collapsed] {
+  --sidebar: 56px;
+}
 
 /* ---- Sidebar ---- */
 .sidebar {
@@ -25,12 +28,25 @@
 .os-macos .content__header {
   padding-top: var(--s-6);
 }
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+}
+.sidebar[data-collapsed] .sidebar__header {
+  justify-content: center;
+}
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-1) var(--s-2) var(--s-4);
+  padding: var(--s-1) var(--s-2);
   font-weight: 600;
+}
+.sidebar[data-collapsed] .sidebar__brand {
+  display: none;
 }
 .sidebar__brand::before {
   content: "";
@@ -58,6 +74,10 @@
     background var(--fast) var(--ease),
     color var(--fast) var(--ease);
 }
+.nav__item[data-collapsed] {
+  justify-content: center;
+  padding: 0;
+}
 .nav__item:hover {
   background: var(--hover);
   color: var(--text);
@@ -78,6 +98,10 @@
   font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;
 }
+.nav__item[data-collapsed] .nav__label,
+.nav__item[data-collapsed] .nav__count {
+  display: none;
+}
 .sidebar__spacer {
   flex: 1;
 }
@@ -88,6 +112,19 @@
   margin-bottom: var(--s-2);
   padding: 0 var(--s-2) 0 var(--s-3);
   overflow: hidden;
+}
+.sidebar__new__icon {
+  display: none;
+}
+.sidebar__new[data-collapsed] {
+  justify-content: center;
+  padding: 0;
+}
+.sidebar__new[data-collapsed] .sidebar__new__icon {
+  display: inline-flex;
+}
+.sidebar__new[data-collapsed] .sidebar__new__label {
+  display: none;
 }
 /* System fonts on Linux and Windows run wider than the macOS metrics the
    sizes assume, so the label yields and the key cap never clips. */

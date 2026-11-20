@@ -1,5 +1,9 @@
 {
   "sections": "Các mục",
+  "sidebar": {
+    "collapse": "Thu gọn thanh bên ({keys})",
+    "expand": "Mở rộng thanh bên ({keys})"
+  },
   "nav": {
     "inbox": "Hộp thư",
     "today": "Hôm nay",
@@ -106,6 +110,7 @@
     "trash_restore": "Khôi phục (trong Thùng rác)",
     "trash_delete": "Xóa vĩnh viễn (trong Thùng rác)",
     "new_note": "Ghi chú mới",
+    "sidebar": "Thu gọn hoặc mở rộng thanh bên",
     "settings": "Cài đặt"
   },
   "fatal": {
