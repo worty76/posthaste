@@ -129,6 +129,7 @@ export const RELEASE_NOTES: Record<string, string[]> = {
 export const FALLBACK_RELEASES: { version: string; date: string; url: string; notes: string[] }[] =
   (
     [
+      ["0.6.4", "2026-11-20"],
       ["0.6.3", "2026-11-20"],
       ["0.6.2", "2026-11-20"],
       ["0.6.1", "2026-11-19"],
