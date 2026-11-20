@@ -35,7 +35,6 @@ html.is-linux.is-today .today__panel {
   background: var(--surface-raised);
   box-shadow: var(--shadow-float);
   overflow: hidden;
-  animation: capture-in 130ms var(--ease);
 }
 
 .today__header {
