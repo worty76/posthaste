@@ -41,13 +41,6 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
   background: var(--surface-raised);
   box-shadow: var(--shadow-float);
   overflow: hidden;
-  animation: capture-in 130ms var(--ease);
-}
-@keyframes capture-in {
-  from {
-    opacity: 0;
-    transform: scale(0.975) translateY(4px);
-  }
 }
 
 .capture__header {

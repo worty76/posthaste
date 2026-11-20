@@ -86,7 +86,6 @@ struct Capture {
     touched: StoredValue<bool>,
     drafts: StoredValue<DraftSync, LocalStorage>,
     input: NodeRef<html::Textarea>,
-    panel: NodeRef<html::Section>,
 }
 
 impl Capture {
@@ -113,7 +112,6 @@ impl Capture {
             touched: StoredValue::new(false),
             drafts: StoredValue::new_local(drafts),
             input: NodeRef::new(),
-            panel: NodeRef::new(),
         }
     }
 
@@ -255,7 +253,6 @@ impl Capture {
     fn shown(self, source: Option<String>) {
         self.touched.set_value(false);
         self.source.set(source);
-        self.replay_entrance();
         if let Some(input) = self.input.get_untracked() {
             let _ = input.focus();
             let end = input.value().encode_utf16().count() as u32;
@@ -273,17 +270,6 @@ impl Capture {
                 self.categories.set(categories);
             }
         });
-    }
-
-    /// Replays the entrance animation without remounting (which would drop
-    /// focus): clear it, force a style flush, let the stylesheet reapply it.
-    fn replay_entrance(self) {
-        if let Some(panel) = self.panel.get_untracked() {
-            let style = panel.style();
-            let _ = style.set_property("animation", "none");
-            let _ = panel.offset_width();
-            let _ = style.remove_property("animation");
-        }
     }
 }
 
@@ -350,7 +336,6 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
     view! {
         <div class="capture" on:keydown=on_keydown>
             <section
-                node_ref=capture.panel
                 class="capture__panel"
                 aria-label=i18n.text(key::CAPTURE_TITLE)
                 data-shake=move || capture.shake.get().to_string()
