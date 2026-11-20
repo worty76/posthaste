@@ -288,6 +288,21 @@ describe("inbox", () => {
     );
     assert.equal((await w.mock.settings()).sidebar_collapsed, false);
     assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 228);
+
+    // At the minimum window width (620px), the sidebar stays a vertical left
+    // column (180px expanded, 56px collapsed) and nothing overflows horizontally.
+    await w.page.setViewportSize({ width: 620, height: 480 });
+    assert.equal(await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)), 180);
+    await w.key("Control+b");
+    await eventually(
+      () => sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+      (width) => width === 56,
+      "collapsed at 620px",
+    );
+    const overflow = await w.page
+      .locator(".content__scroll")
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    assert.equal(overflow, 0);
     await w.close();
   });
 

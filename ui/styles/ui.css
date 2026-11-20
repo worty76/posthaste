@@ -189,6 +189,8 @@
 /* ---- Segmented ---- */
 .segmented {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   padding: 2px;
   border-radius: var(--r-md);
   background: var(--bg-sunken);
@@ -202,6 +204,7 @@
   background: transparent;
   color: var(--text-muted);
   font-size: var(--t-sm);
+  white-space: nowrap;
   transition:
     background var(--fast) var(--ease),
     color var(--fast) var(--ease);
