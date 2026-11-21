@@ -763,7 +763,8 @@ impl Db {
         let tx = self.conn.transaction()?;
         tx.execute_batch(
             "DELETE FROM notes; DELETE FROM drafts; DELETE FROM settings; DELETE FROM looks;
-             DELETE FROM look_assets; DELETE FROM sync_fields; DELETE FROM sync_peers;",
+             DELETE FROM look_assets; DELETE FROM sync_fields; DELETE FROM sync_peers;
+             DELETE FROM projects;",
         )?;
         tx.commit()?;
         self.conn.execute_batch("VACUUM;")?;

@@ -153,6 +153,17 @@ pub struct CategoryCount {
     pub count: u32,
 }
 
+/// A project that groups related notes. Identified by `name`, which lives in
+/// each note's `category` column.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Project {
+    pub name: String,
+    pub archived: bool,
+    pub open: u32,
+    pub total: u32,
+    pub last_at: i64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Counts {
     pub inbox: i64,
