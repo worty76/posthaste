@@ -10,6 +10,8 @@ use uuid::Uuid;
 
 use crate::db::{now_ms, Db};
 use crate::error::{CoreError, Result};
+use crate::sync::merge::StepPart;
+use crate::sync::record::record_step_parts;
 use posthaste_model::{NewStep, Step, MAX_STEPS_PER_NOTE};
 
 #[cfg(test)]
@@ -97,6 +99,13 @@ impl Db {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
                 params![step.id, note_id, step.text, step.done as i64, rank, now],
             )?;
+            record_step_parts(
+                &tx,
+                note_id,
+                &step.id,
+                &[StepPart::Text, StepPart::Done, StepPart::Rank],
+                now,
+            )?;
             before = Some(rank);
             added.push(step);
         }
@@ -117,6 +126,7 @@ impl Db {
             "UPDATE note_steps SET text = ?1, updated_at = ?2 WHERE id = ?3",
             params![text, now, id],
         )?;
+        record_step_parts(&tx, &step.note_id, id, &[StepPart::Text], now)?;
         finish_step_write(&tx, &step.note_id, now)?;
         tx.commit()?;
         Ok(Step { text, ..step })
@@ -133,6 +143,7 @@ impl Db {
             "UPDATE note_steps SET done = ?1, updated_at = ?2 WHERE id = ?3",
             params![done as i64, now, id],
         )?;
+        record_step_parts(&tx, &step.note_id, id, &[StepPart::Done], now)?;
         finish_step_write(&tx, &step.note_id, now)?;
         tx.commit()?;
         Ok(Step { done, ..step })
@@ -169,6 +180,7 @@ impl Db {
             "UPDATE note_steps SET rank = ?1, updated_at = ?2 WHERE id = ?3",
             params![rank, now, id],
         )?;
+        record_step_parts(&tx, &step.note_id, id, &[StepPart::Rank], now)?;
         finish_step_write(&tx, &step.note_id, now)?;
         tx.commit()?;
         Ok(Step { rank, ..step })
@@ -187,6 +199,7 @@ impl Db {
             "UPDATE note_steps SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2",
             params![now, id],
         )?;
+        record_step_parts(&tx, &step.note_id, id, &[StepPart::Deleted], now)?;
         finish_step_write(&tx, &step.note_id, now)?;
         tx.commit()?;
         Ok(())
@@ -209,6 +222,7 @@ impl Db {
             return Err(CoreError::NotFound);
         }
         let step = live_step(&tx, id)?;
+        record_step_parts(&tx, &step.note_id, id, &[StepPart::Deleted], now)?;
         finish_step_write(&tx, &step.note_id, now)?;
         tx.commit()?;
         Ok(step)

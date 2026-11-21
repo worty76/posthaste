@@ -1,6 +1,7 @@
 mod merge;
 mod record;
 mod session;
+mod steps;
 
 use rusqlite::Connection;
 

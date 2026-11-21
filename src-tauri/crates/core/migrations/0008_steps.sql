@@ -16,3 +16,17 @@ CREATE TABLE note_steps (
 );
 
 CREATE INDEX note_steps_by_note ON note_steps (note_id, rank, id) WHERE deleted_at IS NULL;
+
+-- Step changes for a note this device does not have yet wait here until the
+-- note arrives in a later batch, then apply once and are deleted.
+CREATE TABLE sync_held_steps (
+    note_id TEXT NOT NULL,
+    field   TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    hlc     TEXT NOT NULL,
+    PRIMARY KEY (note_id, field)
+) WITHOUT ROWID;
+
+-- Lowest seq of step changes withheld from a peer without the steps
+-- capability, so they can all be resent once it upgrades.
+ALTER TABLE sync_peers ADD COLUMN steps_resend_from INTEGER;

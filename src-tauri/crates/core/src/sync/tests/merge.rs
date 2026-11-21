@@ -25,10 +25,12 @@ fn sync_one_way(src: &mut Db, src_id: &str, dst: &mut Db, dst_id: &str, now_ms: 
         .unwrap()
         .map(|p| p.sent_up_to)
         .unwrap_or(0);
-    let (changes, up_to) = src.changes_since(since, 1000).unwrap();
-    if !changes.is_empty() {
-        dst.apply_changes(src_id, &changes, now_ms).unwrap();
-        src.update_peer_sent_up_to(dst_id, up_to, now_ms).unwrap();
+    let export = src.changes_since(since, 1000, true).unwrap();
+    if !export.changes.is_empty() || !export.steps.is_empty() {
+        dst.apply_changes(src_id, &export.changes, &export.steps, now_ms)
+            .unwrap();
+        src.update_peer_sent_up_to(dst_id, export.up_to, now_ms)
+            .unwrap();
     }
 }
 
@@ -65,13 +67,18 @@ fn a_new_note_reaches_the_other_device() {
 fn applying_the_same_batch_twice_changes_nothing() {
     let (mut a, mut b) = setup_pair();
     let n = a.create_note_at(note("idempotent"), 1_000).unwrap();
-    let (changes, _) = a.changes_since(0, 100).unwrap();
+    let export = a.changes_since(0, 100, true).unwrap();
+    let changes = export.changes.clone();
 
-    let first = b.apply_changes("dev-a", &changes, 2_000).unwrap();
+    let first = b
+        .apply_changes("dev-a", &changes, &export.steps, 2_000)
+        .unwrap();
     assert!(first.applied >= 2);
     assert_eq!(first.conflicts, 0);
 
-    let second = b.apply_changes("dev-a", &changes, 2_100).unwrap();
+    let second = b
+        .apply_changes("dev-a", &changes, &export.steps, 2_100)
+        .unwrap();
     assert_eq!(second.applied, 0);
     assert_eq!(second.skipped, changes.len());
     assert_eq!(second.conflicts, 0);

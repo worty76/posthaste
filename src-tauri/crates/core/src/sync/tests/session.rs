@@ -132,6 +132,7 @@ fn an_unpaired_device_is_refused_before_any_notes_are_read() {
                 device_id: "stranger".into(),
                 name: "Stranger".into(),
                 pair_secret: None,
+                capabilities: Vec::new(),
             },
             2_000,
         )
