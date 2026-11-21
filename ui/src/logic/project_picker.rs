@@ -78,6 +78,38 @@ pub fn rows(projects: &[Project], typed: &str, mode: PickerMode) -> Vec<PickerRo
     out
 }
 
+/// Decision when renaming a project from `from` to `to`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RenameDecision {
+    /// Blank, invalid, or unchanged.
+    NoOp,
+    /// Target name does not exist yet: rename directly.
+    Rename(String),
+    /// Target name already exists: ask before merging `count` notes into `target`.
+    ConfirmMerge { target: String, count: u32 },
+}
+
+/// Decides whether renaming `from` to `to` needs a merge confirmation.
+pub fn rename_decision(from: &str, to: &str, projects: &[Project]) -> RenameDecision {
+    let cleaned = to.trim();
+    let cleaned = cleaned.strip_prefix('#').unwrap_or(cleaned).trim();
+    if cleaned.is_empty() || cleaned.chars().count() > MAX_NAME_CHARS || cleaned == from {
+        return RenameDecision::NoOp;
+    }
+    if projects.iter().any(|p| p.name == cleaned) {
+        let count = projects
+            .iter()
+            .find(|p| p.name == from)
+            .map_or(0, |p| p.total);
+        RenameDecision::ConfirmMerge {
+            target: cleaned.to_owned(),
+            count,
+        }
+    } else {
+        RenameDecision::Rename(cleaned.to_owned())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,5 +231,23 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn rename_onto_an_existing_name_asks_before_merging() {
+        let list = vec![project("work", false, 3), project("taxes", false, 2)];
+        assert_eq!(
+            rename_decision("work", "taxes", &list),
+            RenameDecision::ConfirmMerge {
+                target: "taxes".into(),
+                count: 3,
+            }
+        );
+        assert_eq!(
+            rename_decision("work", "office", &list),
+            RenameDecision::Rename("office".into())
+        );
+        assert_eq!(rename_decision("work", "work", &list), RenameDecision::NoOp);
+        assert_eq!(rename_decision("work", "   ", &list), RenameDecision::NoOp);
     }
 }

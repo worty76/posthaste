@@ -1,11 +1,14 @@
 //! What the Today window does with a key, which row is selected, and how a
 //! note relates to the day being looked at.
 
+use std::collections::HashSet;
+
 use posthaste_model::{Note, Status};
 
 pub use super::selection::{moved_selection, neighbour, selection_after_load};
 
 use super::dates::Day;
+use super::sections;
 
 /// What the window is showing when a key arrives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +47,8 @@ pub enum KeyAction {
     Toggle,
     /// Park the selected note in Later.
     SendToLater,
+    /// Open the project picker for the selected note.
+    SetProject,
     OpenDetails,
 }
 
@@ -67,9 +72,20 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<KeyAction>
         "ArrowUp" | "k" => Some(KeyAction::Move(-1)),
         "x" | "X" if acts_on_note => Some(KeyAction::Toggle),
         "l" | "L" if acts_on_note => Some(KeyAction::SendToLater),
+        "p" | "P" if acts_on_note => Some(KeyAction::SetProject),
         "Enter" if context.has_selection && !context.on_button => Some(KeyAction::OpenDetails),
         _ => None,
     }
+}
+
+/// Visible note ids across Carried over and Today, each grouped by project
+/// separately (so Carried over projects always precede Today projects).
+pub fn visible_ids(carried: &[Note], today: &[Note], collapsed: &HashSet<String>) -> Vec<String> {
+    let carried_sections = sections::group(carried);
+    let today_sections = sections::group(today);
+    let mut ids = sections::visible_order(&carried_sections, collapsed);
+    ids.extend(sections::visible_order(&today_sections, collapsed));
+    ids
 }
 
 /// The day to show for a request: `None` (follow today) for today or any
@@ -331,5 +347,50 @@ mod tests {
             })
         );
         assert_eq!(origin(day("2026-11-12"), viewed, today), None);
+    }
+
+    #[test]
+    fn p_in_today_sets_the_selected_notes_project() {
+        assert_eq!(key_action(press("p"), TODAY), Some(KeyAction::SetProject));
+        assert_eq!(key_action(press("P"), TODAY), Some(KeyAction::SetProject));
+        let past = KeyContext {
+            viewing_today: false,
+            ..TODAY
+        };
+        assert_eq!(key_action(press("p"), past), None);
+        let empty = KeyContext {
+            has_selection: false,
+            ..TODAY
+        };
+        assert_eq!(key_action(press("p"), empty), None);
+    }
+
+    #[test]
+    fn today_groups_carried_and_today_by_project_separately() {
+        let mut c1 = note(Status::Inbox, None);
+        c1.id = "c-work".into();
+        c1.category = Some("work".into());
+        let mut c2 = note(Status::Inbox, None);
+        c2.id = "c-plain".into();
+        let mut t1 = note(Status::Inbox, None);
+        t1.id = "t-work".into();
+        t1.category = Some("work".into());
+        let mut t2 = note(Status::Inbox, None);
+        t2.id = "t-home".into();
+        t2.category = Some("home".into());
+
+        let ids = visible_ids(
+            &[c2.clone(), c1.clone()],
+            &[t2.clone(), t1.clone()],
+            &HashSet::new(),
+        );
+        // Carried over (work, then plain) comes before Today (home, then work).
+        assert_eq!(ids, vec!["c-work", "c-plain", "t-home", "t-work"]);
+
+        let collapsed = HashSet::from(["work".to_owned()]);
+        assert_eq!(
+            visible_ids(&[c2, c1], &[t2, t1], &collapsed),
+            vec!["c-plain", "t-home"]
+        );
     }
 }

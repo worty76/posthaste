@@ -30,7 +30,7 @@ describe("capture input", () => {
 
   it("refocuses the input every time the window is shown, and names where you came from", async () => {
     const w = await capture();
-    await w.page.getByLabel("Category (optional)").focus();
+    await w.page.getByLabel("Project (optional)").focus();
     await w.mock.emit("capture-shown", { source: "Code" });
     await eventually(
       () => w.note.evaluate((el) => el === document.activeElement),
@@ -206,7 +206,7 @@ describe("save states", () => {
   it("passes the optional category along, trimmed", async () => {
     const w = await capture();
     await w.note.fill("call the bank");
-    await w.page.getByLabel("Category (optional)").fill(" money ");
+    await w.page.getByLabel("Project (optional)").fill(" money ");
     await w.note.press("Enter");
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
     assert.equal(save.args.category, "money");
@@ -215,7 +215,7 @@ describe("save states", () => {
 
   it("Enter in the category returns to the note without saving", async () => {
     const w = await capture();
-    const category = w.page.getByLabel("Category (optional)");
+    const category = w.page.getByLabel("Project (optional)");
     await w.note.fill("x");
     await category.fill("work");
     await category.press("Enter");
@@ -451,6 +451,13 @@ describe("appearance", () => {
     );
     assert.equal(await html.getAttribute("data-shape"), "soft");
     assert.equal(await html.getAttribute("data-font"), "system");
+    await w.close();
+  });
+
+  it("capture labels the field Project", async () => {
+    const w = await capture();
+    const field = w.page.getByLabel("Project (optional)");
+    assert.equal(await field.getAttribute("placeholder"), "# project");
     await w.close();
   });
 });

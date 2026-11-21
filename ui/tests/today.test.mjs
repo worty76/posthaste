@@ -583,4 +583,34 @@ describe("language", () => {
     await text(w.page.locator(".today__hints"), "X xong");
     await w.close();
   });
+
+  it("today shows project sections and P sets a project", async () => {
+    const a = note("pay rent", { created_at: at("2026-11-12T09:00:00"), category: "home" });
+    const b = note("draft spec", { created_at: at("2026-11-15T09:00:00"), category: "work" });
+    const c = note("call mum", { created_at: at("2026-11-15T08:00:00") });
+    const w = await today({
+      store: {
+        notes: [a, b, c],
+        projects: [
+          { name: "home", archived: false },
+          { name: "work", archived: false },
+        ],
+      },
+      glance: glance({ carried: [a], today: [b, c], done: 0, total: 3 }),
+    });
+    await text(w.page.locator(".proj-section__header").nth(0), "home");
+    await text(w.page.locator(".proj-section__header").nth(1), "work");
+    await text(w.page.locator(".today__hints"), "P project");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (calls) => calls.length === 1 && calls[0].args.project === "work",
+      "project set from Today",
+    );
+    await w.close();
+  });
 });

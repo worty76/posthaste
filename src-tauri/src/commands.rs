@@ -11,9 +11,9 @@ use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocExt as _};
 use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdit};
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
-    now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CategoryCount, CommandError, Counts,
-    DataInfo, DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, NewStep, Note,
-    NoteDetail, NoteQuery, Os, Project, Settings, SettingsState, Status, Step, TrashedNote,
+    now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
+    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, NewStep, Note, NoteDetail,
+    NoteQuery, Os, Project, Settings, SettingsState, Status, Step, TrashedNote,
     MAX_ATTACHMENT_BYTES,
 };
 use posthaste_i18n::key;
@@ -130,11 +130,6 @@ pub fn notes_counts(
     state.with_db(|db| db.counts(today_from, today_to))
 }
 
-#[tauri::command]
-pub fn categories_list(state: State<'_, AppState>) -> AppResult<Vec<String>> {
-    state.with_db(|db| db.categories())
-}
-
 // ---- steps -------------------------------------------------------------------
 
 #[tauri::command]
@@ -198,11 +193,6 @@ pub fn step_restore(app: AppHandle, state: State<'_, AppState>, id: String) -> A
     let step = state.with_db(|db| db.restore_step(&id))?;
     notes_changed(&app);
     Ok(step)
-}
-
-#[tauri::command]
-pub fn categories_counts(state: State<'_, AppState>) -> AppResult<Vec<CategoryCount>> {
-    state.with_db(|db| db.category_counts())
 }
 
 // ---- projects -----------------------------------------------------------------

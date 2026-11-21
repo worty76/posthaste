@@ -443,6 +443,10 @@ html.is-linux.is-details .details__panel {
   position: relative;
   display: inline-flex;
 }
+.details__cat-editor .proj-picker {
+  top: calc(100% + var(--s-1));
+  left: 0;
+}
 .details__cat-editor .field {
   width: 160px;
   height: 26px;

@@ -136,8 +136,6 @@ pub fn run() {
             commands::draft_clear,
             commands::notes_list,
             commands::notes_counts,
-            commands::categories_list,
-            commands::categories_counts,
             commands::projects_list,
             commands::project_create,
             commands::project_rename,

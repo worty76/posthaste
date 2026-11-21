@@ -116,7 +116,7 @@ describe("inbox", () => {
     await w.key("e");
     const field = w.page.getByLabel("Edit note");
     await field.fill("book dentist for Monday");
-    await w.page.getByLabel("Category (optional)").fill("teeth");
+    await w.page.getByLabel("Project (optional)").fill("teeth");
     await w.key("Enter");
     await eventually(w.contents, (c) => c[0] === "book dentist for Monday", "edit stored");
     assert.deepEqual((await w.calls("note_update"))[0].args.category, "teeth");
@@ -667,6 +667,129 @@ describe("inbox", () => {
     await w.key("Enter");
     await text(w.page.locator(".content__title"), "work");
     await eventually(w.contents, (c) => c.join() === "draft spec", "project page opened");
+    await w.close();
+  });
+
+  it("manage projects renames, archives and unarchives by keyboard", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await text(w.page.locator(".content__title"), "Manage projects");
+    const rows = w.page.locator(".manage-projects__row");
+    await eventually(
+      () => rows.count(),
+      (n) => n === 2,
+      "two active projects",
+    );
+    // Select first ("home"), press R, rename to "house".
+    await w.key("ArrowDown");
+    await w.key("r");
+    const input = w.page.getByLabel("New project name");
+    await input.fill("house");
+    await input.press("Enter");
+    await eventually(
+      () => w.calls("project_rename"),
+      (c) => c.length === 1,
+      "renamed",
+    );
+    assert.deepEqual((await w.calls("project_rename"))[0].args, {
+      from: "home",
+      to: "house",
+      merge: false,
+    });
+    await text(w.page.locator(".manage-projects"), "house");
+    // Archive "house" with A.
+    await w.key("a");
+    await eventually(
+      () => w.calls("project_set_archived"),
+      (c) => c.length === 1 && c[0].args.archived === true,
+      "archived",
+    );
+    // Expand Archived group and unarchive with U.
+    await w.page.getByRole("button", { name: /Archived/ }).click();
+    const archRow = w.page.locator(".manage-projects__archived .manage-projects__row").first();
+    await archRow.click();
+    await w.key("u");
+    await eventually(
+      () => w.calls("project_set_archived"),
+      (c) => c.length === 2 && c[1].args.archived === false,
+      "unarchived",
+    );
+    await w.close();
+  });
+
+  it("renaming onto an existing project asks and then merges", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("n1", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("n2", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+          note("n3", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await w.key("ArrowDown");
+    await w.key("r");
+    const input = w.page.getByLabel("New project name");
+    await input.fill("work");
+    await input.press("Enter");
+    const dialog = w.page.getByRole("dialog");
+    await text(dialog, "Move 2 notes into work?");
+    assert.equal((await w.calls("project_rename")).length, 0);
+    await dialog.getByRole("button", { name: "Move" }).click();
+    await eventually(
+      () => w.calls("project_rename"),
+      (c) => c.length === 1 && c[0].args.merge === true,
+      "merged",
+    );
+    await w.close();
+  });
+
+  it("removing a project clears it from its notes", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("n1", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("n2", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await w.key("ArrowDown");
+    await w.key("Delete");
+    const dialog = w.page.getByRole("dialog");
+    await text(dialog, "Remove project from 2 notes?");
+    assert.equal((await w.calls("project_clear")).length, 0);
+    await dialog.getByRole("button", { name: "Remove" }).click();
+    await eventually(
+      () => w.calls("project_clear"),
+      (c) => c.length === 1 && c[0].args.name === "home",
+      "cleared",
+    );
+    await w.close();
+  });
+
+  it("an archived project is gone from the sidebar but its notes still show in today", async () => {
+    const w = await main({
+      store: {
+        notes: [note("tax form", { created_at: at("2026-11-15T09:00:00"), category: "taxes" })],
+        projects: [{ name: "taxes", archived: true }],
+      },
+    });
+    assert.equal(
+      await w.page.locator(".sidebar__projects").getByRole("button", { name: /taxes/ }).count(),
+      0,
+    );
+    await w.key("2");
+    await eventually(w.contents, (c) => c.join() === "tax form", "still shown in Today view");
+    await text(w.page.locator(".proj-section__header").first(), "taxes");
     await w.close();
   });
 

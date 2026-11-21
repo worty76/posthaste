@@ -13,23 +13,24 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Translator};
 use posthaste_model::{
-    AttachReport, Attachment, CommandError, DetailsTarget, NewStep, Note, NoteDetail, Os, Status,
-    Step, MAX_ATTACHMENTS_PER_NOTE, MAX_ATTACHMENT_BYTES, MAX_STEPS_PER_NOTE, MAX_STEP_CHARS,
+    AttachReport, Attachment, CommandError, DetailsTarget, NewStep, Note, NoteDetail, Os, Project,
+    Status, Step, MAX_ATTACHMENTS_PER_NOTE, MAX_ATTACHMENT_BYTES, MAX_STEPS_PER_NOTE,
+    MAX_STEP_CHARS,
 };
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::browser::{self, bind_text};
-use crate::components::{caps, Icon, IconButton, IconName, Kbd, Toaster, Toasts};
+use crate::components::{caps, Icon, IconButton, IconName, Kbd, ProjectPicker, Toaster, Toasts};
 use crate::draft_sync::DraftSync;
 use crate::ipc::{api, events};
 use crate::logic::attachments::{
     data_url, format_bytes, has_room, image_extension, is_unnamed_paste, type_label, Kind,
 };
 use crate::logic::details::{
-    badge, carried_days, category_suggestions, field_after_load, key_action, was_edited, Badge,
-    KeyAction, KeyPress,
+    badge, carried_days, field_after_load, key_action, was_edited, Badge, KeyAction, KeyPress,
 };
+use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::selection::neighbour;
 use crate::logic::shortcut::{has_mod, mod_cap};
 use crate::logic::steps::{badge_text, key_action as step_key_action, split_paste, StepKey};
@@ -38,9 +39,6 @@ use crate::time::{self, DateStyle, Width};
 
 /// How long typing pauses before the text is written.
 const SAVE_DELAY_MS: u32 = 500;
-
-/// Longest category a note can have.
-const MAX_CATEGORY_CHARS: &str = "40";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Save {
@@ -89,11 +87,9 @@ struct Details {
     step_text: RwSignal<String>,
     /// The open editor's debounced write, once its row exists.
     step_sync: StoredValue<Option<StepSync>, LocalStorage>,
-    /// Editing the category in the header, and what is typed there.
-    cat_editing: RwSignal<bool>,
-    cat_value: RwSignal<String>,
-    /// The categories in use, offered as suggestions while editing.
-    cat_all: RwSignal<Vec<String>>,
+    /// Project picker in the header.
+    picker_open: RwSignal<bool>,
+    projects: RwSignal<Vec<Project>>,
     /// A step row is being created (the write is in flight): keystrokes
     /// that land meanwhile wait for it instead of making another row.
     step_creating: StoredValue<bool, LocalStorage>,
@@ -133,9 +129,8 @@ impl Details {
             step_editor: RwSignal::new(None),
             step_text: RwSignal::new(String::new()),
             step_sync: StoredValue::new_local(None),
-            cat_editing: RwSignal::new(false),
-            cat_value: RwSignal::new(String::new()),
-            cat_all: RwSignal::new(Vec::new()),
+            picker_open: RwSignal::new(false),
+            projects: RwSignal::new(Vec::new()),
             step_creating: StoredValue::new_local(false),
             step_epoch: StoredValue::new(0),
             creating_text: StoredValue::new(String::new()),
@@ -262,7 +257,7 @@ impl Details {
         self.step_editor.set(None);
         self.step_sync.set_value(None);
         self.step_creating.set_value(false);
-        self.cat_editing.set(false);
+        self.picker_open.set(false);
         self.step_epoch
             .update_value(|epoch| *epoch = epoch.wrapping_add(1));
         self.creating_text.set_value(String::new());
@@ -719,43 +714,33 @@ impl Details {
         });
     }
 
-    // ---- category ---------------------------------------------------------
+    // ---- project ----------------------------------------------------------
 
-    fn open_category_edit(self) {
+    fn open_project_picker(self) {
         if self.id.with_value(Option::is_none) {
             return;
         }
-        let current = self
-            .detail
-            .with_untracked(|detail| detail.as_ref().and_then(|d| d.note.category.clone()));
-        self.cat_value.set(current.unwrap_or_default());
-        self.cat_editing.set(true);
+        self.picker_open.set(true);
         spawn_local(async move {
-            // The chip still works without its suggestions.
-            if let Ok(all) = api::categories_list().await {
-                self.cat_all.set(all);
+            if let Ok(all) = api::projects_list(true).await {
+                self.projects.set(all);
             }
         });
     }
 
-    fn cancel_category_edit(self) {
-        self.cat_editing.set(false);
+    fn close_project_picker(self) {
+        self.picker_open.set(false);
     }
 
-    /// Saves the typed category, or clears it when the field is empty.
-    /// A failure keeps the editor open with the text in it.
-    fn save_category(self) {
+    fn set_project(self, project: Option<String>) {
         let Some(id) = self.id.get_value() else {
             return;
         };
-        let typed = self.cat_value.get_untracked();
-        let category = (!typed.trim().is_empty()).then(|| typed.trim().to_owned());
-        let title = self.title.get_untracked();
         self.save.set(Save::Saving);
         spawn_local(async move {
-            match api::note_update(&id, &title, category.as_deref()).await {
-                Ok(()) => {
-                    self.cat_editing.set(false);
+            match api::note_set_project(&id, project.as_deref()).await {
+                Ok(_) => {
+                    self.picker_open.set(false);
                     if self.shows(&id) {
                         self.save.set(Save::Saved);
                     }
@@ -1578,136 +1563,63 @@ fn AddLine(details: Details, i18n: I18n, os: Os) -> impl IntoView {
     }
 }
 
-/// The category as a small chip next to the status pill, or a quiet
-/// "Add category" control when the note has none. Enter or a click turns it
-/// into a field with suggestions; Esc puts the old value back.
+/// The project as a small chip next to the status pill, or a quiet
+/// "Add project" control when the note has none. Enter or a click opens the
+/// shared project picker; Esc closes it.
 #[component]
 fn CategoryChip(details: Details, i18n: I18n) -> impl IntoView {
-    let editing = details.cat_editing;
-    let value = details.cat_value;
-    let picked = RwSignal::new(0usize);
     let current = Memo::new(move |_| {
         details
             .detail
             .with(|detail| detail.as_ref().and_then(|d| d.note.category.clone()))
     });
-    let suggestions = Memo::new(move |_| {
-        details
-            .cat_all
-            .with(|all| category_suggestions(all, &value.get()))
-    });
-    let field = NodeRef::<html::Input>::new();
-    Effect::new(move |_| {
-        if editing.get() {
-            if let Some(field) = field.get() {
-                let _ = field.focus();
-            }
-        }
-    });
-
-    let choose = move |name: String| {
-        details.cat_value.set(name);
-        details.save_category();
-    };
-    let open = move |_| details.open_category_edit();
+    let open = move |_| details.open_project_picker();
 
     view! {
-        <Show
-            when=move || editing.get()
-            fallback=move || {
-                match current.get() {
-                    Some(name) => {
-                        let named = name.clone();
-                        view! {
-                            <button
-                                type="button"
-                                class="details__category"
-                                title=i18n.text(key::DETAILS_CATEGORY_EDIT)
-                                on:click=open
-                            >
-                                {named}
-                            </button>
-                        }
-                        .into_any()
-                    }
-                    None => view! {
-                        <button
-                            type="button"
-                            class="details__category"
-                            data-empty=""
-                            title=i18n.text(key::DETAILS_CATEGORY_EDIT)
-                            on:click=open
-                        >
-                            {i18n.text(key::DETAILS_CATEGORY_ADD)}
-                        </button>
-                    }
-                    .into_any(),
+        <span class="details__cat-editor">
+            {move || match current.get() {
+                Some(name) => view! {
+                    <button
+                        type="button"
+                        class="details__category"
+                        title=i18n.text(key::DETAILS_CATEGORY_EDIT)
+                        on:click=open
+                    >
+                        {name}
+                    </button>
                 }
-            }
-        >
-            <span class="details__cat-editor">
-                <input
-                    node_ref=field
-                    class="field"
-                    aria-label=i18n.text(key::DETAILS_CATEGORY_LABEL)
-                    placeholder=i18n.text(key::DETAILS_CATEGORY_LABEL)
-                    maxlength=MAX_CATEGORY_CHARS
-                    spellcheck="false"
-                    use:bind_text=Signal::derive(move || value.get())
-                    on:input=move |event| details.cat_value.set(event_target_value(&event))
-                    on:keydown=move |event| {
-                        if event.is_composing() {
-                            return;
-                        }
-                        match event.key().as_str() {
-                            "ArrowDown" => {
-                                event.prevent_default();
-                                let options = suggestions.get_untracked();
-                                if !options.is_empty() {
-                                    picked.update(|at| *at = (*at + 1).min(options.len() - 1));
-                                    value.set(options[picked.get_untracked()].clone());
-                                }
-                            }
-                            "ArrowUp" => {
-                                event.prevent_default();
-                                let options = suggestions.get_untracked();
-                                if !options.is_empty() {
-                                    picked.update(|at| *at = at.saturating_sub(1));
-                                    value.set(options[picked.get_untracked()].clone());
-                                }
-                            }
-                            "Enter" => {
-                                event.prevent_default();
-                                event.stop_propagation();
-                                details.save_category();
-                            }
-                            "Escape" => {
-                                event.prevent_default();
-                                event.stop_propagation();
-                                details.cancel_category_edit();
-                            }
-                            _ => {}
-                        }
+                .into_any(),
+                None => view! {
+                    <button
+                        type="button"
+                        class="details__category"
+                        data-empty=""
+                        title=i18n.text(key::DETAILS_CATEGORY_EDIT)
+                        on:click=open
+                    >
+                        {i18n.text(key::DETAILS_CATEGORY_ADD)}
+                    </button>
+                }
+                .into_any(),
+            }}
+            <Show when=move || details.picker_open.get()>
+                <ProjectPicker
+                    i18n=i18n
+                    mode=PickerMode::SetNote
+                    projects=Signal::derive(move || details.projects.get())
+                    on_pick=move |row| {
+                        let project = match row {
+                            PickerRow::NoProject => None,
+                            PickerRow::Project { name, .. }
+                            | PickerRow::Create(name)
+                            | PickerRow::Unarchive(name) => Some(name),
+                        };
+                        details.set_project(project);
                     }
+                    on_close=move |()| details.close_project_picker()
                 />
-                <Show when=move || suggestions.with(|s| !s.is_empty())>
-                    <ul class="details__suggestions">
-                        <For each=move || suggestions.get() key=|name| name.clone() let:name>
-                            {
-                                let named = name.clone();
-                                view! {
-                                    <li>
-                                        <button type="button" on:click=move |_| choose(named.clone())>
-                                            {name}
-                                        </button>
-                                    </li>
-                                }
-                            }
-                        </For>
-                    </ul>
-                </Show>
-            </span>
-        </Show>
+            </Show>
+        </span>
     }
 }
 

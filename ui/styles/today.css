@@ -248,3 +248,12 @@ html.is-linux.is-today .today__panel {
 .today__origin:hover {
   text-decoration: underline;
 }
+
+.today__picker {
+  position: relative;
+}
+.today__picker .proj-picker {
+  top: auto;
+  bottom: var(--s-2);
+  left: var(--s-4);
+}

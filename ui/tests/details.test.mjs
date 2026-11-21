@@ -9,7 +9,14 @@ const NOON = "2026-11-15T12:00:00+07:00";
 const at = (iso) => new Date(`${iso}+07:00`).getTime();
 
 /** Opens the details window on one note and waits for it to show. */
-async function details({ patch = {}, text: body = "", files = [], steps = [], ...options } = {}) {
+async function details({
+  patch = {},
+  text: body = "",
+  files = [],
+  steps = [],
+  projects = [],
+  ...options
+} = {}) {
   const n = note("call the bank", {
     created_at: at("2026-11-15T09:05:00"),
     updated_at: at("2026-11-15T09:05:00"),
@@ -20,6 +27,7 @@ async function details({ patch = {}, text: body = "", files = [], steps = [], ..
     now: NOON,
     store: {
       notes: [n],
+      projects,
       details: { [n.id]: body },
       attachments: {
         [n.id]: files.map((f, i) => ({ id: `f${i}`, note_id: n.id, created_at: 1, ...f })),
@@ -390,72 +398,68 @@ describe("details window", () => {
     await w.close();
   });
 
-  it("sets a category from suggestions by keyboard", async () => {
-    const w = await details();
-    await w.mock.answer("categories_list", ["money", "health", "work"]);
-    await w.page.getByRole("button", { name: "Add category" }).focus();
+  it("sets a project from the picker by keyboard", async () => {
+    const w = await details({
+      projects: [
+        { name: "money", archived: false },
+        { name: "health", archived: false },
+        { name: "work", archived: false },
+      ],
+    });
+    await w.page.getByRole("button", { name: "Add project" }).focus();
     await w.page.keyboard.press("Enter");
-    const field = w.page.getByLabel("Category");
-    await eventually(
-      () => field.evaluate((el) => el === document.activeElement),
-      Boolean,
-      "field focus",
-    );
-    await field.fill("mo");
-    await text(w.page.locator(".details__suggestions"), "money");
-    assert.equal(await w.page.locator(".details__suggestions button").count(), 1);
-    await w.page.keyboard.press("ArrowDown");
-    assert.equal(await field.inputValue(), "money");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "money");
+    await w.page.keyboard.type("mo");
+    assert.equal(await picker.locator(".proj-picker__item").count(), 2);
     await w.page.keyboard.press("Enter");
     await eventually(
-      () => w.calls("note_update"),
+      () => w.calls("note_set_project"),
       (c) => c.length === 1,
       "saved",
     );
-    assert.deepEqual((await w.calls("note_update"))[0].args, {
+    assert.deepEqual((await w.calls("note_set_project"))[0].args, {
       id: w.n.id,
-      content: "call the bank",
-      category: "money",
+      project: "money",
     });
     await text(w.page.locator(".details__saved"), "Saved");
     await text(w.page.locator(".details__category"), "money");
     await w.close();
   });
 
-  it("an empty category field clears it", async () => {
+  it("picking No project clears it", async () => {
     const w = await details({ patch: { category: "money" } });
     await text(w.page.locator(".details__category"), "money");
     await w.page.getByRole("button", { name: "money" }).focus();
     await w.page.keyboard.press("Enter");
-    await w.page.getByLabel("Category").fill("");
+    await text(w.page.locator(".proj-picker"), "No project");
     await w.page.keyboard.press("Enter");
     await eventually(
-      () => w.calls("note_update"),
+      () => w.calls("note_set_project"),
       (c) => c.length === 1,
       "cleared",
     );
-    assert.equal((await w.calls("note_update"))[0].args.category, null);
+    assert.equal((await w.calls("note_set_project"))[0].args.project, null);
     await eventually(
-      () => w.page.getByRole("button", { name: "Add category" }).count(),
+      () => w.page.getByRole("button", { name: "Add project" }).count(),
       (c) => c === 1,
       "quiet control back",
     );
     await w.close();
   });
 
-  it("escape cancels a category edit", async () => {
+  it("escape cancels the project picker", async () => {
     const w = await details({ patch: { category: "money" } });
     await w.page.getByRole("button", { name: "money" }).focus();
     await w.page.keyboard.press("Enter");
-    const field = w.page.getByLabel("Category");
-    await field.fill("bills");
+    await text(w.page.locator(".proj-picker"), "No project");
     await w.page.keyboard.press("Escape");
     await eventually(
-      () => w.page.getByLabel("Category").count(),
+      () => w.page.locator(".proj-picker").count(),
       (c) => c === 0,
-      "editor gone",
+      "picker gone",
     );
-    assert.equal(await w.calls("note_update").then((c) => c.length), 0);
+    assert.equal(await w.calls("note_set_project").then((c) => c.length), 0);
     await text(w.page.locator(".details__category"), "money");
     // The window still closes with Esc afterwards.
     await w.page.keyboard.press("Escape");
@@ -467,15 +471,16 @@ describe("details window", () => {
     await w.close();
   });
 
-  it("a failed category save keeps the typed text", async () => {
+  it("a failed project save keeps the typed text", async () => {
     const w = await details();
-    await w.mock.fail("note_update", "The disk is full.", "storage");
-    await w.page.getByRole("button", { name: "Add category" }).focus();
+    await w.mock.fail("note_set_project", "The disk is full.", "storage");
+    await w.page.getByRole("button", { name: "Add project" }).focus();
     await w.page.keyboard.press("Enter");
-    await w.page.getByLabel("Category").fill("work");
+    const field = w.page.getByLabel("Filter or create project");
+    await field.fill("work");
     await w.page.keyboard.press("Enter");
     await text(w.page.getByRole("alert"), "The disk is full.");
-    assert.equal(await w.page.getByLabel("Category").inputValue(), "work");
+    assert.equal(await field.inputValue(), "work");
     await w.close();
   });
 
@@ -668,6 +673,29 @@ describe("details window", () => {
     await text(w.page.locator(".details__meta"), "Tạo hôm nay");
     await text(w.page.locator(".details__status"), "Hộp thư");
     assert.equal(await w.page.getByRole("button", { name: "Thêm tệp" }).count(), 1);
+    await w.close();
+  });
+
+  it("details shows the project chip and changes it with the picker", async () => {
+    const w = await details({
+      patch: { category: "home" },
+      projects: [
+        { name: "home", archived: false },
+        { name: "work", archived: false },
+      ],
+    });
+    const chip = w.page.getByRole("button", { name: /home/ });
+    await chip.focus();
+    await w.page.keyboard.press("Enter");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1 && c[0].args.project === "work",
+      "project changed via picker",
+    );
     await w.close();
   });
 });

@@ -25,9 +25,9 @@
     "edited_on": "sửa {date}, {time}"
   },
   "category": {
-    "label": "Danh mục",
-    "add": "Thêm danh mục",
-    "edit": "Sửa danh mục"
+    "label": "Dự án",
+    "add": "Thêm dự án",
+    "edit": "Đổi dự án"
   },
   "files": {
     "title": "Tệp đính kèm",

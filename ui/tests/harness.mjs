@@ -225,11 +225,6 @@ export async function open({
           store.scene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset: ({ id }) =>
           `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#${id}`,
-        categories_list: () => ["work", "home"],
-        categories_counts: () => [
-          { name: "work", count: 3 },
-          { name: "home", count: 1 },
-        ],
         projects_list: ({ includeArchived }) => listProjects(Boolean(includeArchived)),
         project_create: ({ name }) => {
           const cleaned = cleanProject(name);

@@ -26,9 +26,9 @@
     "edited_on": "edited {date}, {time}"
   },
   "category": {
-    "label": "Category",
-    "add": "Add category",
-    "edit": "Edit category"
+    "label": "Project",
+    "add": "Add project",
+    "edit": "Edit project"
   },
   "files": {
     "title": "Attachments",

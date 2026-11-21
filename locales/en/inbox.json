@@ -25,6 +25,19 @@
     "empty_title": "No notes in this project yet.",
     "archived_toast": "Project archived"
   },
+  "manage_projects": {
+    "empty": "No projects yet.",
+    "archived_group": "Archived ({count})",
+    "rename": "Rename (R)",
+    "archive": "Archive (A)",
+    "unarchive": "Unarchive (U)",
+    "remove": "Remove (Delete)",
+    "remove_title": "Remove project from {count} notes?",
+    "remove_empty_title": "Remove project?",
+    "remove_text": "The notes stay in your inbox, without a project.",
+    "remove_action": "Remove",
+    "merge_text": "Both projects will become one."
+  },
   "new_note": "New note",
   "search": {
     "title": "Search",
@@ -109,8 +122,8 @@
   },
   "edit": {
     "label": "Edit note",
-    "category_label": "Category (optional)",
-    "category_placeholder": "Category",
+    "category_label": "Project (optional)",
+    "category_placeholder": "Project",
     "hint": "Enter saves, Shift+Enter adds a line"
   },
   "toast": {

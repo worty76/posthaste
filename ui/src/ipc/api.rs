@@ -3,11 +3,11 @@
 //! `src-tauri/src/commands.rs`.
 
 use posthaste_model::{
-    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CategoryCount, CommandError, Counts,
-    DataInfo, DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview,
-    LookSummary, NewStep, Note, NoteDetail, NoteQuery, Project, ResolvedLook, ResolvedScene,
-    SceneEdit, Settings, SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit,
-    TrashedNote, UpdateInfo,
+    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
+    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
+    NewStep, Note, NoteDetail, NoteQuery, Project, ResolvedLook, ResolvedScene, SceneEdit,
+    Settings, SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit, TrashedNote,
+    UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -38,16 +38,6 @@ pub async fn settings_get() -> Response<SettingsState> {
 /// the factory default when a selection cannot resolve.
 pub async fn look_active() -> Response<ResolvedLook> {
     invoke("look_active", &NoArgs {}).await
-}
-
-pub async fn categories_list() -> Response<Vec<String>> {
-    invoke("categories_list", &NoArgs {}).await
-}
-
-/// How many live notes use each category, most used first.
-#[allow(dead_code)]
-pub async fn categories_counts() -> Response<Vec<CategoryCount>> {
-    invoke("categories_counts", &NoArgs {}).await
 }
 
 // ---- projects ---------------------------------------------------------------
@@ -101,7 +91,6 @@ pub async fn project_set_archived(name: &str, archived: bool) -> Response<()> {
     .await
 }
 
-#[allow(dead_code)]
 pub async fn project_clear(name: &str) -> Response<u32> {
     invoke("project_clear", &ProjectByName { name }).await
 }

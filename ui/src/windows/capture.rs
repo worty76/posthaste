@@ -266,8 +266,9 @@ impl Capture {
             self.status.set(Status::Restored);
         }
         spawn_local(async move {
-            if let Ok(categories) = api::categories_list().await {
-                self.categories.set(categories);
+            if let Ok(projects) = api::projects_list(false).await {
+                self.categories
+                    .set(projects.into_iter().map(|p| p.name).collect());
             }
         });
     }

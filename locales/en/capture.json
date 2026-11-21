@@ -3,8 +3,8 @@
   "from_source": "from {app}",
   "note_label": "Note",
   "placeholder": "What's on your mind?",
-  "category_label": "Category (optional)",
-  "category_placeholder": "# category",
+  "category_label": "Project (optional)",
+  "category_placeholder": "# project",
   "polish_label": "Polish note with AI",
   "discard": "Discard",
   "status": {

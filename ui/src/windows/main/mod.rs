@@ -3,6 +3,7 @@
 
 mod date_filter;
 mod help;
+mod manage_projects;
 mod notes;
 mod project_page;
 mod settings;
@@ -1029,7 +1030,10 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                 />
                             }
                             .into_any(),
-                            Pane::ManageProjects => ().into_any(),
+                            Pane::ManageProjects => view! {
+                                <manage_projects::ManageProjectsView main=main />
+                            }
+                            .into_any(),
                             Pane::Trash => view! {
                                 <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster />
                             }

@@ -3,22 +3,28 @@
 //! ← and → show earlier days, read-only and rebuilt from timestamps. There
 //! are no future days, because notes have no dates.
 
+use std::collections::HashSet;
+
 use leptos::ev::KeyboardEvent;
 use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Translator};
-use posthaste_model::{CommandError, Glance, Note, Os, Status};
+use posthaste_model::{CommandError, Glance, Note, Os, Project, Status};
 use wasm_bindgen::JsCast;
 
 use super::note_badges::NoteBadges;
-use crate::components::{caps, Calendar, DayMarks, EmptyState, Icon, IconButton, IconName, Kbd};
+use crate::components::{
+    caps, Calendar, DayMarks, EmptyState, Icon, IconButton, IconName, Kbd, ProjectPicker,
+};
 use crate::ipc::{self, api, events};
 use crate::logic::dates::Day;
+use crate::logic::project_picker::{PickerMode, PickerRow};
+use crate::logic::sections;
 use crate::logic::shortcut::format_accelerator;
 use crate::logic::today::{
     clamp_to_past, is_done, key_action, moved_selection, neighbour, origin, selection_after_load,
-    KeyAction, KeyContext, KeyPress, Origin,
+    visible_ids, KeyAction, KeyContext, KeyPress, Origin,
 };
 use crate::state::{use_appearance, use_i18n, use_settings, I18n};
 use crate::time::{self, DateStyle, Width};
@@ -38,6 +44,9 @@ struct Today {
     today: RwSignal<Day>,
     calendar_open: RwSignal<bool>,
     marks: RwSignal<DayMarks>,
+    collapsed_sections: RwSignal<HashSet<String>>,
+    picker_open: RwSignal<bool>,
+    picker_projects: RwSignal<Vec<Project>>,
     list: NodeRef<html::Div>,
     /// Counts loads, so a slow answer to an old one cannot replace a newer.
     request: StoredValue<u32>,
@@ -53,6 +62,9 @@ impl Today {
             today: RwSignal::new(time::today()),
             calendar_open: RwSignal::new(false),
             marks: RwSignal::new(DayMarks::new()),
+            collapsed_sections: RwSignal::new(HashSet::new()),
+            picker_open: RwSignal::new(false),
+            picker_projects: RwSignal::new(Vec::new()),
             list: NodeRef::new(),
             request: StoredValue::new(0),
         }
@@ -70,15 +82,80 @@ impl Today {
         self.error.set(Some(error));
     }
 
-    /// The ids of every row, carried notes first, as listed on screen.
+    fn is_section_collapsed(self, project: &str) -> bool {
+        self.collapsed_sections.with(|set| set.contains(project))
+    }
+
+    fn set_section_collapsed(self, project: &str, collapse: bool) {
+        if collapse {
+            let current = self.selected.get_untracked();
+            if current.is_some() {
+                let next = self.glance.with_untracked(|glance| {
+                    let g = glance.as_ref()?;
+                    let mut combined = sections::group(&g.carried);
+                    combined.extend(sections::group(&g.today));
+                    self.collapsed_sections.with_untracked(|collapsed| {
+                        sections::selection_after_collapse(
+                            &combined,
+                            collapsed,
+                            project,
+                            current.as_deref(),
+                        )
+                    })
+                });
+                if next != current {
+                    self.selected.set(next);
+                }
+            }
+            self.collapsed_sections.update(|set| {
+                set.insert(project.to_owned());
+            });
+        } else {
+            self.collapsed_sections.update(|set| {
+                set.remove(project);
+            });
+        }
+    }
+
+    fn toggle_section(self, project: &str) {
+        let collapsed = self
+            .collapsed_sections
+            .with_untracked(|set| set.contains(project));
+        self.set_section_collapsed(project, !collapsed);
+    }
+
+    fn open_picker(self) {
+        self.picker_open.set(true);
+        spawn_local(async move {
+            match api::projects_list(true).await {
+                Ok(projects) => self.picker_projects.set(projects),
+                Err(error) => self.fail(error),
+            }
+        });
+    }
+
+    fn set_note_project(self, note_id: String, project: Option<String>) {
+        self.picker_open.set(false);
+        self.focus_list();
+        spawn_local(async move {
+            if let Err(error) = api::note_set_project(&note_id, project.as_deref()).await {
+                self.fail(error);
+            }
+        });
+    }
+
+    /// The ids of every visible row, carried notes first, skipping collapsed
+    /// project sections.
     fn with_ids<T>(self, read: impl FnOnce(&[&str]) -> T) -> T {
         self.glance.with_untracked(|glance| {
-            let ids: Vec<&str> = glance
-                .iter()
-                .flat_map(|g| g.carried.iter().chain(&g.today))
-                .map(|note| note.id.as_str())
-                .collect();
-            read(&ids)
+            let ids = match glance {
+                Some(g) => self
+                    .collapsed_sections
+                    .with_untracked(|collapsed| visible_ids(&g.carried, &g.today, collapsed)),
+                None => Vec::new(),
+            };
+            let refs: Vec<&str> = ids.iter().map(String::as_str).collect();
+            read(&refs)
         })
     }
 
@@ -227,6 +304,9 @@ impl Today {
     }
 
     fn on_key(self, event: KeyboardEvent) {
+        if self.picker_open.get_untracked() {
+            return;
+        }
         let key = event.key();
         let on_button = event
             .target()
@@ -260,9 +340,16 @@ impl Today {
             (KeyAction::Move(delta), _) => self.move_selection(delta),
             (KeyAction::Toggle, Some(note)) => self.toggle(&note),
             (KeyAction::SendToLater, Some(note)) => self.send_to_later(&note),
+            (KeyAction::SetProject, Some(_)) => self.open_picker(),
             (KeyAction::OpenDetails, Some(note)) => self.open_details(&note),
             // `key_action` only asks for these with a note selected.
-            (KeyAction::Toggle | KeyAction::SendToLater | KeyAction::OpenDetails, None) => {}
+            (
+                KeyAction::Toggle
+                | KeyAction::SendToLater
+                | KeyAction::SetProject
+                | KeyAction::OpenDetails,
+                None,
+            ) => {}
         }
     }
 }
@@ -297,6 +384,7 @@ pub fn TodayWindow(os: Os) -> impl IntoView {
     events::on::<events::TodayShown>(move |()| {
         today.view_day.set(None);
         today.calendar_open.set(false);
+        today.picker_open.set(false);
         spawn_local(today.load(true));
         today.focus_list();
     });
@@ -444,6 +532,34 @@ pub fn TodayWindow(os: Os) -> impl IntoView {
                     Body::Notes => view! { <Notes today=today i18n=i18n locale=locale /> }.into_any(),
                 }}
 
+                <Show when=move || today.picker_open.get()>
+                    <div class="today__picker">
+                        <ProjectPicker
+                            i18n=i18n
+                            mode=PickerMode::SetNote
+                            projects=Signal::derive(move || today.picker_projects.get())
+                            on_pick=move |row| {
+                                if let Some(note) = today.selected_note() {
+                                    let project = match row {
+                                        PickerRow::NoProject => None,
+                                        PickerRow::Project { name, .. }
+                                        | PickerRow::Create(name)
+                                        | PickerRow::Unarchive(name) => Some(name),
+                                    };
+                                    today.set_note_project(note.id, project);
+                                } else {
+                                    today.picker_open.set(false);
+                                    today.focus_list();
+                                }
+                            }
+                            on_close=move |()| {
+                                today.picker_open.set(false);
+                                today.focus_list();
+                            }
+                        />
+                    </div>
+                </Show>
+
                 <Hints today=today i18n=i18n />
             </section>
         </div>
@@ -573,15 +689,113 @@ fn Group(
     notes: Signal<Vec<Note>>,
     label: Signal<String>,
 ) -> impl IntoView {
+    let grouped = Memo::new(move |_| {
+        notes.with(|notes| {
+            sections::group(notes)
+                .into_iter()
+                .map(|section| {
+                    (
+                        section.project.map(str::to_owned),
+                        section.notes.into_iter().cloned().collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+    });
+    let keys = move || {
+        grouped.with(|groups| {
+            groups
+                .iter()
+                .map(|(project, _)| project.clone())
+                .collect::<Vec<_>>()
+        })
+    };
+    let notes_of = move |project: Option<&str>| {
+        grouped.with(|groups| {
+            groups
+                .iter()
+                .find(|(name, _)| name.as_deref() == project)
+                .map(|(_, notes)| notes.clone())
+                .unwrap_or_default()
+        })
+    };
+
     view! {
         <Show when=move || notes.with(|notes| !notes.is_empty())>
             <section class="today__group" aria-label=move || label.get()>
                 <h2 class="today__group-label">{move || label.get()}</h2>
-                <ul class="today__rows">
-                    <For each=move || notes.get() key=row_key let:note>
-                        <Row today=today i18n=i18n locale=locale note=note />
-                    </For>
-                </ul>
+                <For each=keys key=|project| project.clone() let:project>
+                    {match project {
+                        Some(name) => {
+                            let project = StoredValue::new(name);
+                            let expanded = move || {
+                                project.with_value(|name| !today.is_section_collapsed(name))
+                            };
+                            view! {
+                                <div class="proj-section">
+                                    <button
+                                        type="button"
+                                        class="proj-section__header"
+                                        aria-expanded=move || expanded().to_string()
+                                        on:click=move |_| {
+                                            project.with_value(|name| today.toggle_section(name));
+                                        }
+                                        on:keydown=move |event| {
+                                            if event.is_composing() {
+                                                return;
+                                            }
+                                            match event.key().as_str() {
+                                                "ArrowLeft" => {
+                                                    event.prevent_default();
+                                                    event.stop_propagation();
+                                                    project.with_value(|name| {
+                                                        today.set_section_collapsed(name, true);
+                                                    });
+                                                }
+                                                "ArrowRight" => {
+                                                    event.prevent_default();
+                                                    event.stop_propagation();
+                                                    project.with_value(|name| {
+                                                        today.set_section_collapsed(name, false);
+                                                    });
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    >
+                                        <span class="proj-section__chevron">
+                                            <Icon name=IconName::Next size=12 />
+                                        </span>
+                                        <span class="proj-section__name">{project.get_value()}</span>
+                                        <span class="proj-section__count">
+                                            {move || project.with_value(|name| notes_of(Some(name)).len())}
+                                        </span>
+                                    </button>
+                                    <Show when=expanded>
+                                        <ul class="today__rows">
+                                            <For
+                                                each=move || project.with_value(|name| notes_of(Some(name)))
+                                                key=row_key
+                                                let:note
+                                            >
+                                                <Row today=today i18n=i18n locale=locale note=note />
+                                            </For>
+                                        </ul>
+                                    </Show>
+                                </div>
+                            }
+                            .into_any()
+                        }
+                        None => view! {
+                            <ul class="today__rows">
+                                <For each=move || notes_of(None) key=row_key let:note>
+                                    <Row today=today i18n=i18n locale=locale note=note />
+                                </For>
+                            </ul>
+                        }
+                        .into_any(),
+                    }}
+                </For>
             </section>
         </Show>
     }
@@ -722,6 +936,7 @@ fn Hints(today: Today, i18n: I18n) -> impl IntoView {
                     view! {
                         {hint(&["X"], key::TODAY_HINT_DONE)}
                         {hint(&["L"], key::TODAY_HINT_LATER)}
+                        {hint(&["P"], key::TODAY_HINT_PROJECT)}
                     }
                     .into_any()
                 } else {

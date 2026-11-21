@@ -25,6 +25,19 @@
     "empty_title": "Chưa có ghi chú nào trong dự án này.",
     "archived_toast": "Đã lưu trữ dự án"
   },
+  "manage_projects": {
+    "empty": "Chưa có dự án nào.",
+    "archived_group": "Đã lưu trữ ({count})",
+    "rename": "Đổi tên (R)",
+    "archive": "Lưu trữ (A)",
+    "unarchive": "Bỏ lưu trữ (U)",
+    "remove": "Gỡ (Delete)",
+    "remove_title": "Gỡ dự án khỏi {count} ghi chú?",
+    "remove_empty_title": "Gỡ dự án?",
+    "remove_text": "Các ghi chú vẫn còn trong hộp thư, không còn dự án.",
+    "remove_action": "Gỡ",
+    "merge_text": "Hai dự án sẽ gộp thành một."
+  },
   "new_note": "Ghi chú mới",
   "search": {
     "title": "Tìm kiếm",
@@ -106,8 +119,8 @@
   },
   "edit": {
     "label": "Sửa ghi chú",
-    "category_label": "Danh mục (không bắt buộc)",
-    "category_placeholder": "Danh mục",
+    "category_label": "Dự án (không bắt buộc)",
+    "category_placeholder": "Dự án",
     "hint": "Enter để lưu, Shift+Enter để xuống dòng"
   },
   "toast": {
