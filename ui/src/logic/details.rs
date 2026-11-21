@@ -79,6 +79,17 @@ pub fn key_action(press: KeyPress<'_>) -> Option<KeyAction> {
     }
 }
 
+/// Categories to offer while editing: a prefix match, case-insensitive, in
+/// the order given, at most eight.
+pub fn category_suggestions(all: &[String], typed: &str) -> Vec<String> {
+    let prefix = typed.trim().to_lowercase();
+    all.iter()
+        .filter(|c| prefix.is_empty() || c.to_lowercase().starts_with(&prefix))
+        .take(8)
+        .cloned()
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,5 +199,31 @@ mod tests {
             ..press("Escape", false)
         };
         assert_eq!(key_action(composing), None);
+    }
+
+    #[test]
+    fn category_suggestions_filter_by_prefix_and_keep_use_order() {
+        let all = ["work".to_owned(), "ideas".to_owned(), "Workshop".to_owned()];
+        assert_eq!(category_suggestions(&all, "w"), ["work", "Workshop"]);
+        assert_eq!(category_suggestions(&all, "W"), ["work", "Workshop"]);
+        assert_eq!(category_suggestions(&all, "wor"), ["work", "Workshop"]);
+        assert_eq!(category_suggestions(&all, "ideas"), ["ideas"]);
+        assert!(category_suggestions(&all, "zzz").is_empty());
+        // Nothing typed: every category, in the order given.
+        assert_eq!(
+            category_suggestions(&all, ""),
+            ["work", "ideas", "Workshop"]
+        );
+        assert_eq!(
+            category_suggestions(&all, "  "),
+            ["work", "ideas", "Workshop"]
+        );
+    }
+
+    #[test]
+    fn category_suggestions_are_capped_at_eight() {
+        let all: Vec<String> = (0..12).map(|i| format!("cat{i}")).collect();
+        assert_eq!(category_suggestions(&all, "cat").len(), 8);
+        assert_eq!(category_suggestions(&all[9..], "cat").len(), 3);
     }
 }

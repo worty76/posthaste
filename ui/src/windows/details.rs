@@ -27,7 +27,8 @@ use crate::logic::attachments::{
     data_url, format_bytes, has_room, image_extension, is_unnamed_paste, type_label, Kind,
 };
 use crate::logic::details::{
-    badge, carried_days, field_after_load, key_action, was_edited, Badge, KeyAction, KeyPress,
+    badge, carried_days, category_suggestions, field_after_load, key_action, was_edited, Badge,
+    KeyAction, KeyPress,
 };
 use crate::logic::shortcut::{has_mod, mod_cap};
 use crate::state::{use_appearance, use_i18n, use_settings, I18n, Message};
@@ -35,6 +36,9 @@ use crate::time::{self, DateStyle, Width};
 
 /// How long typing pauses before the text is written.
 const SAVE_DELAY_MS: u32 = 500;
+
+/// Longest category a note can have.
+const MAX_CATEGORY_CHARS: &str = "40";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Save {
@@ -60,6 +64,11 @@ struct Details {
     previews: RwSignal<Previews>,
     /// Files are being held over the window.
     dropping: RwSignal<bool>,
+    /// Editing the category in the header, and what is typed there.
+    cat_editing: RwSignal<bool>,
+    cat_value: RwSignal<String>,
+    /// The categories in use, offered as suggestions while editing.
+    cat_all: RwSignal<Vec<String>>,
     /// The note being shown. Answers for any other note are dropped.
     id: StoredValue<Option<String>>,
     /// The text as last stored, to tell unsaved typing from a stale field.
@@ -85,6 +94,9 @@ impl Details {
             errors: RwSignal::new(Vec::new()),
             previews: RwSignal::new(Previews::new()),
             dropping: RwSignal::new(false),
+            cat_editing: RwSignal::new(false),
+            cat_value: RwSignal::new(String::new()),
+            cat_all: RwSignal::new(Vec::new()),
             id: StoredValue::new(None),
             stored_text: StoredValue::new(String::new()),
             stored_title: StoredValue::new(String::new()),
@@ -197,6 +209,7 @@ impl Details {
         self.notice.set(None);
         self.errors.set(Vec::new());
         self.save.set(Save::Idle);
+        self.cat_editing.set(false);
 
         let note = id.clone();
         self.text_sync.set_value(Some(DraftSync::with_delay(
@@ -282,6 +295,52 @@ impl Details {
         spawn_local(async move {
             if let Err(error) = api::note_set_status(&id, next).await {
                 self.fail(error);
+            }
+        });
+    }
+
+    // ---- category ---------------------------------------------------------
+
+    fn open_category_edit(self) {
+        if self.id.with_value(Option::is_none) {
+            return;
+        }
+        let current = self
+            .detail
+            .with_untracked(|detail| detail.as_ref().and_then(|d| d.note.category.clone()));
+        self.cat_value.set(current.unwrap_or_default());
+        self.cat_editing.set(true);
+        spawn_local(async move {
+            // The chip still works without its suggestions.
+            if let Ok(all) = api::categories_list().await {
+                self.cat_all.set(all);
+            }
+        });
+    }
+
+    fn cancel_category_edit(self) {
+        self.cat_editing.set(false);
+    }
+
+    /// Saves the typed category, or clears it when the field is empty.
+    /// A failure keeps the editor open with the text in it.
+    fn save_category(self) {
+        let Some(id) = self.id.get_value() else {
+            return;
+        };
+        let typed = self.cat_value.get_untracked();
+        let category = (!typed.trim().is_empty()).then(|| typed.trim().to_owned());
+        let title = self.title.get_untracked();
+        self.save.set(Save::Saving);
+        spawn_local(async move {
+            match api::note_update(&id, &title, category.as_deref()).await {
+                Ok(()) => {
+                    self.cat_editing.set(false);
+                    if self.shows(&id) {
+                        self.save.set(Save::Saved);
+                    }
+                }
+                Err(error) => self.fail(error),
             }
         });
     }
@@ -637,6 +696,7 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                             }
                         }
                     />
+                    <CategoryChip details=details i18n=i18n />
                     <StatusButton details=details i18n=i18n os=os />
                     <IconButton
                         icon=IconName::Close
@@ -722,6 +782,139 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                 </footer>
             </section>
         </div>
+    }
+}
+
+/// The category as a small chip next to the status pill, or a quiet
+/// "Add category" control when the note has none. Enter or a click turns it
+/// into a field with suggestions; Esc puts the old value back.
+#[component]
+fn CategoryChip(details: Details, i18n: I18n) -> impl IntoView {
+    let editing = details.cat_editing;
+    let value = details.cat_value;
+    let picked = RwSignal::new(0usize);
+    let current = Memo::new(move |_| {
+        details
+            .detail
+            .with(|detail| detail.as_ref().and_then(|d| d.note.category.clone()))
+    });
+    let suggestions = Memo::new(move |_| {
+        details
+            .cat_all
+            .with(|all| category_suggestions(all, &value.get()))
+    });
+    let field = NodeRef::<html::Input>::new();
+    Effect::new(move |_| {
+        if editing.get() {
+            if let Some(field) = field.get() {
+                let _ = field.focus();
+            }
+        }
+    });
+
+    let choose = move |name: String| {
+        details.cat_value.set(name);
+        details.save_category();
+    };
+    let open = move |_| details.open_category_edit();
+
+    view! {
+        <Show
+            when=move || editing.get()
+            fallback=move || {
+                match current.get() {
+                    Some(name) => {
+                        let named = name.clone();
+                        view! {
+                            <button
+                                type="button"
+                                class="details__category"
+                                title=i18n.text(key::DETAILS_CATEGORY_EDIT)
+                                on:click=open
+                            >
+                                {named}
+                            </button>
+                        }
+                        .into_any()
+                    }
+                    None => view! {
+                        <button
+                            type="button"
+                            class="details__category"
+                            data-empty=""
+                            title=i18n.text(key::DETAILS_CATEGORY_EDIT)
+                            on:click=open
+                        >
+                            {i18n.text(key::DETAILS_CATEGORY_ADD)}
+                        </button>
+                    }
+                    .into_any(),
+                }
+            }
+        >
+            <span class="details__cat-editor">
+                <input
+                    node_ref=field
+                    class="field"
+                    aria-label=i18n.text(key::DETAILS_CATEGORY_LABEL)
+                    placeholder=i18n.text(key::DETAILS_CATEGORY_LABEL)
+                    maxlength=MAX_CATEGORY_CHARS
+                    spellcheck="false"
+                    use:bind_text=Signal::derive(move || value.get())
+                    on:input=move |event| details.cat_value.set(event_target_value(&event))
+                    on:keydown=move |event| {
+                        if event.is_composing() {
+                            return;
+                        }
+                        match event.key().as_str() {
+                            "ArrowDown" => {
+                                event.prevent_default();
+                                let options = suggestions.get_untracked();
+                                if !options.is_empty() {
+                                    picked.update(|at| *at = (*at + 1).min(options.len() - 1));
+                                    value.set(options[picked.get_untracked()].clone());
+                                }
+                            }
+                            "ArrowUp" => {
+                                event.prevent_default();
+                                let options = suggestions.get_untracked();
+                                if !options.is_empty() {
+                                    picked.update(|at| *at = at.saturating_sub(1));
+                                    value.set(options[picked.get_untracked()].clone());
+                                }
+                            }
+                            "Enter" => {
+                                event.prevent_default();
+                                event.stop_propagation();
+                                details.save_category();
+                            }
+                            "Escape" => {
+                                event.prevent_default();
+                                event.stop_propagation();
+                                details.cancel_category_edit();
+                            }
+                            _ => {}
+                        }
+                    }
+                />
+                <Show when=move || suggestions.with(|s| !s.is_empty())>
+                    <ul class="details__suggestions">
+                        <For each=move || suggestions.get() key=|name| name.clone() let:name>
+                            {
+                                let named = name.clone();
+                                view! {
+                                    <li>
+                                        <button type="button" on:click=move |_| choose(named.clone())>
+                                            {name}
+                                        </button>
+                                    </li>
+                                }
+                            }
+                        </For>
+                    </ul>
+                </Show>
+            </span>
+        </Show>
     }
 }
 

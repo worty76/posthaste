@@ -24,6 +24,11 @@
     "edited_yesterday": "sửa hôm qua, {time}",
     "edited_on": "sửa {date}, {time}"
   },
+  "category": {
+    "label": "Danh mục",
+    "add": "Thêm danh mục",
+    "edit": "Sửa danh mục"
+  },
   "files": {
     "title": "Tệp đính kèm",
     "add": "Thêm tệp",

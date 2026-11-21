@@ -25,6 +25,11 @@
     "edited_yesterday": "edited yesterday, {time}",
     "edited_on": "edited {date}, {time}"
   },
+  "category": {
+    "label": "Category",
+    "add": "Add category",
+    "edit": "Edit category"
+  },
   "files": {
     "title": "Attachments",
     "add": "Add files",
