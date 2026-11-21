@@ -558,9 +558,18 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     // "Today" depends on the clock: refresh when the window comes back.
     let refocus = window_event_listener(leptos::ev::focus, move |_| main.refresh());
     let keys = window_event_listener(leptos::ev::keydown, move |event| main.on_key(event));
+    // Closing the window only hides it, so a category filter would outlive
+    // the look at the list it belonged to: take it off when the window goes.
+    let hidden = window_event_listener(leptos::ev::visibilitychange, move |_| {
+        if document().visibility_state() == web_sys::VisibilityState::Hidden {
+            main.picker_open.set(false);
+            main.filters.update(|filters| filters.category = None);
+        }
+    });
     on_cleanup(move || {
         refocus.remove();
         keys.remove();
+        hidden.remove();
     });
 
     let capture_keys = Memo::new(move |_| {
