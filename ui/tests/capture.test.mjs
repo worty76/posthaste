@@ -286,6 +286,43 @@ describe("save states", () => {
     assert.equal(await workChip.getAttribute("aria-pressed"), "false");
     await w.close();
   });
+
+  it("toggles active projects from the keyboard with Ctrl+1..9 without leaving the note", async () => {
+    const w = await capture({
+      store: {
+        projects: [
+          { name: "work", color: "#5b8def", archived: false },
+          { name: "money", archived: false },
+          { name: "old", archived: true },
+        ],
+      },
+    });
+    const chips = w.page.locator(".capture__project-chip");
+    await eventually(
+      () => chips.count(),
+      (n) => n === 2,
+      "two active chips",
+    );
+    await w.note.fill("pay electricity");
+    // Projects with equal recency sort alphabetically: 1 = money, 2 = work.
+    await w.note.press("Control+1");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    await w.note.press("Control+2");
+    await text(w.page.getByLabel("Project (optional)"), "work");
+    // Pressing the same shortcut again clears the project.
+    await w.note.press("Control+2");
+    await text(w.page.getByLabel("Project (optional)"), "# project");
+    await w.note.press("Control+1");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    // Out-of-range slot is ignored.
+    await w.note.press("Control+9");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    assert.equal(await w.note.evaluate((el) => el === document.activeElement), true);
+    await w.note.press("Enter");
+    const [save] = await eventually(w.saves, (c) => c.length === 1, "saved with Ctrl+1 project");
+    assert.equal(save.args.category, "money");
+    await w.close();
+  });
 });
 
 describe("error states", () => {

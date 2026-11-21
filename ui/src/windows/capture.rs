@@ -195,6 +195,18 @@ impl Capture {
         self.focus();
     }
 
+    fn toggle_project_index(self, index: usize) {
+        let target = self.projects.with_untracked(|list| {
+            list.iter()
+                .filter(|p| !p.archived)
+                .nth(index)
+                .map(|p| p.name.clone())
+        });
+        if let Some(name) = target {
+            self.toggle_project(name);
+        }
+    }
+
     /// Every change to either field goes through here, so it is drafted.
     fn edit(self, content: String, category: String) {
         self.touched.set_value(true);
@@ -389,6 +401,7 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
             KeyAction::Dismiss => spawn_local(capture.dismiss()),
             KeyAction::Polish => spawn_local(capture.polish()),
             KeyAction::PickProject => capture.open_picker(),
+            KeyAction::ToggleProject(index) => capture.toggle_project_index(index),
             KeyAction::Save { hide } => spawn_local(capture.save(hide)),
         }
     };
@@ -448,20 +461,41 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                             >
                                 {active
                                     .into_iter()
-                                    .map(|project| {
+                                    .enumerate()
+                                    .map(|(i, project)| {
                                         let name_click = project.name.clone();
                                         let name_sel = project.name.clone();
                                         let selected = Signal::derive(move || {
                                             capture.category.with(|c| c == &name_sel)
+                                        });
+                                        let slot = (i < 9).then_some(i + 1);
+                                        let shortcut_attr = slot.map(|n| {
+                                            if os == Os::Macos {
+                                                format!("Meta+{n}")
+                                            } else {
+                                                format!("Control+{n}")
+                                            }
+                                        });
+                                        let title = slot.map(|n| {
+                                            format!("{} ({}+{n})", project.name, mod_cap(os))
                                         });
                                         view! {
                                             <button
                                                 type="button"
                                                 class="capture__project-chip"
                                                 aria-pressed=move || selected.get().to_string()
+                                                aria-keyshortcuts=shortcut_attr
+                                                title=title
                                                 data-selected=move || selected.get().to_string()
                                                 on:click=move |_| capture.toggle_project(name_click.clone())
                                             >
+                                                {slot.map(|n| {
+                                                    view! {
+                                                        <span class="capture__project-key" aria-hidden="true">
+                                                            {n}
+                                                        </span>
+                                                    }
+                                                })}
                                                 {project.color.map(|c| view! { <ProjectDot color=c /> })}
                                                 <span class="capture__project-chip-name">{project.name}</span>
                                             </button>

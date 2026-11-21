@@ -256,6 +256,18 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.capture__project-key {
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-faint);
+}
+.capture__project-chip:hover .capture__project-key {
+  color: var(--text-muted);
+}
+.capture__project-chip[data-selected="true"] .capture__project-key {
+  color: var(--accent-ink);
+}
 
 /* A message outranks the hints people learn first: they step aside for it. */
 .capture__footer[data-status="true"] .capture__hint--extra {
