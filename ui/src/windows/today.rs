@@ -732,10 +732,10 @@ fn Group(
                                 project.with_value(|name| !today.is_section_collapsed(name))
                             };
                             view! {
-                                <div class="proj-section">
+                                <div class="proj-section today__section">
                                     <button
                                         type="button"
-                                        class="proj-section__header"
+                                        class="proj-section__header today__section-header"
                                         aria-expanded=move || expanded().to_string()
                                         on:click=move |_| {
                                             project.with_value(|name| today.toggle_section(name));
@@ -772,7 +772,7 @@ fn Group(
                                         </span>
                                     </button>
                                     <Show when=expanded>
-                                        <ul class="today__rows">
+                                        <ul class="today__rows today__rows--project">
                                             <For
                                                 each=move || project.with_value(|name| notes_of(Some(name)))
                                                 key=row_key
@@ -787,11 +787,13 @@ fn Group(
                             .into_any()
                         }
                         None => view! {
-                            <ul class="today__rows">
-                                <For each=move || notes_of(None) key=row_key let:note>
-                                    <Row today=today i18n=i18n locale=locale note=note />
-                                </For>
-                            </ul>
+                            <div class="proj-section proj-section--plain today__section">
+                                <ul class="today__rows">
+                                    <For each=move || notes_of(None) key=row_key let:note>
+                                        <Row today=today i18n=i18n locale=locale note=note />
+                                    </For>
+                                </ul>
+                            </div>
                         }
                         .into_any(),
                     }}
