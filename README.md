@@ -57,6 +57,8 @@ you turn on AI polish or experimental device sync yourself.
 - **Later** — press L on a to-do you won't get to today. It leaves Today and
   the inbox and waits in Later, your backlog, until you bring it back. No dates,
   no reminders
+- **Categories** — a label, not a folder: set one in capture (`# category`) or
+  Note details, then filter the inbox by it with `#`. There is no project view
 - **Trash** — deleting a note moves it to Trash, where it waits 30 days. Restore
   it exactly as it was, or erase it for good
 - **Earlier days** — ← and → in Today step back through earlier days, as they
