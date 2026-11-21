@@ -318,6 +318,11 @@ html.is-linux.is-details .details__panel {
   margin: 0 0 var(--s-1);
   padding: 0;
 }
+.steps__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
 .steps__item + .steps__item {
   border-top: 1px solid var(--border);
 }
@@ -325,7 +330,8 @@ html.is-linux.is-details .details__panel {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: var(--s-1) var(--s-2);
   margin-left: calc(var(--s-2) * -1);
   border: 0;
@@ -341,6 +347,17 @@ html.is-linux.is-details .details__panel {
 }
 .step[data-selected="true"] {
   background: var(--hover);
+}
+.step__actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+}
+.steps__item:hover .step__actions,
+.steps__item:focus-within .step__actions {
+  opacity: 1;
 }
 .step__mark {
   display: inline-flex;

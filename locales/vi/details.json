@@ -63,6 +63,8 @@
   "steps": {
     "title": "Bước thực hiện",
     "add": "Thêm một bước",
+    "edit": "Sửa bước (E)",
+    "remove": "Xóa bước (Delete)",
     "removed": "Đã xóa bước.",
     "limit": "Ghi chú này có hơn 100 bước. Hãy gỡ bớt để thêm bước mới."
   }

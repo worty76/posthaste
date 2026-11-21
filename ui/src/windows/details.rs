@@ -29,6 +29,7 @@ use crate::logic::attachments::{
 use crate::logic::details::{
     badge, carried_days, field_after_load, key_action, was_edited, Badge, KeyAction, KeyPress,
 };
+use crate::logic::selection::neighbour;
 use crate::logic::shortcut::{has_mod, mod_cap};
 use crate::logic::steps::{badge_text, key_action as step_key_action, split_paste, StepKey};
 use crate::state::{use_appearance, use_i18n, use_settings, I18n, Message};
@@ -353,6 +354,12 @@ impl Details {
         self.id.get_value()
     }
 
+    fn next_step_epoch(self) -> u32 {
+        let next = self.step_epoch.get_value().wrapping_add(1);
+        self.step_epoch.set_value(next);
+        next
+    }
+
     /// Adding stops when the note holds the normal limit or more (steps
     /// merged in from another computer are never dropped to make room).
     fn step_limit_reached(self) -> bool {
@@ -412,10 +419,12 @@ impl Details {
         }) else {
             return;
         };
+        let epoch = self.next_step_epoch();
         spawn_local(async move {
             self.flush().await;
-            self.step_epoch
-                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
+            if self.step_epoch.get_value() != epoch {
+                return;
+            }
             self.step_text.set(text);
             self.step_editor.set(Some(StepEditor {
                 id: Some(id.clone()),
@@ -432,10 +441,12 @@ impl Details {
         if self.step_limit_reached() || self.note_id().is_none() {
             return;
         }
+        let epoch = self.next_step_epoch();
         spawn_local(async move {
             self.flush().await;
-            self.step_epoch
-                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
+            if self.step_epoch.get_value() != epoch {
+                return;
+            }
             self.step_sync.set_value(None);
             self.step_text.set(String::new());
             self.step_editor.set(Some(StepEditor {
@@ -568,14 +579,16 @@ impl Details {
 
     /// Enter in the editor: save, then make room for the next step.
     fn step_enter(self) {
+        let epoch = self.next_step_epoch();
         let was_add_line = self
             .step_editor
             .get_untracked()
             .is_some_and(|e| e.is_add_line);
         spawn_local(async move {
             self.flush().await;
-            self.step_epoch
-                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
+            if self.step_epoch.get_value() != epoch {
+                return;
+            }
             self.step_sync.set_value(None);
             self.step_text.set(String::new());
             if self.step_limit_reached() {
@@ -598,14 +611,19 @@ impl Details {
 
     /// Esc, or Enter on an empty line: leave, keeping what was saved.
     fn step_leave(self) {
+        if self.step_editor.get_untracked().is_none() {
+            return;
+        }
+        let epoch = self.next_step_epoch();
         let was_add_line = self
             .step_editor
             .get_untracked()
             .is_some_and(|e| e.is_add_line);
         spawn_local(async move {
             self.flush().await;
-            self.step_epoch
-                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
+            if self.step_epoch.get_value() != epoch {
+                return;
+            }
             self.step_editor.set(None);
             self.step_sync.set_value(None);
             if was_add_line {
@@ -624,10 +642,24 @@ impl Details {
 
     /// Removes a step, with an undo toast that puts it back.
     fn remove_step(self, id: String) {
+        let next = {
+            let steps = self.steps();
+            let ids: Vec<&str> = steps.iter().map(|s| s.id.as_str()).collect();
+            neighbour(&ids, &id)
+        };
+        let editing_this = self
+            .step_editor
+            .with_untracked(|e| e.as_ref().is_some_and(|e| e.id.as_deref() == Some(&id)));
+        if editing_this {
+            self.step_epoch.update_value(|e| *e = e.wrapping_add(1));
+            self.step_editor.set(None);
+            self.step_sync.set_value(None);
+            self.step_text.set(String::new());
+        }
         spawn_local(async move {
             match api::step_remove(&id).await {
                 Ok(()) => {
-                    self.step_selected.set(None);
+                    self.step_selected.set(next);
                     self.toaster
                         .undoable(Message::Plain(key::DETAILS_STEPS_REMOVED), move || {
                             let id = id.clone();
@@ -1168,6 +1200,7 @@ fn StepsSection(details: Details, i18n: I18n, os: Os) -> impl IntoView {
 #[component]
 fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
     let row = NodeRef::<html::Button>::new();
+    let edit_field = NodeRef::<html::Input>::new();
     let id = StoredValue::new(step.id.clone());
     let is_this = move |shown: &Option<String>| shown.as_deref() == Some(id.get_value().as_str());
     let selected = Memo::new(move |_| details.step_selected.with(is_this));
@@ -1190,6 +1223,14 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
         if selected.get() && !any_editor.get() {
             if let Some(row) = row.get() {
                 let _ = row.focus();
+            }
+        }
+    });
+    // Focus the step input as soon as edit mode opens.
+    Effect::new(move |_| {
+        if editor.get() {
+            if let Some(field) = edit_field.get() {
+                let _ = field.focus();
             }
         }
     });
@@ -1252,12 +1293,18 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                 if editor.get() {
                     view! {
                         <input
+                            node_ref=edit_field
                             class="field details__step-input"
                             aria-label=i18n.text(key::DETAILS_STEPS_TITLE)
                             maxlength=MAX_STEP_CHARS.to_string()
                             spellcheck="false"
                             use:bind_text=Signal::derive(move || details.step_text.get())
                             on:input=move |event| details.edit_step_text(event_target_value(&event))
+                            on:blur=move |_| {
+                                if editor.get_untracked() {
+                                    details.step_leave();
+                                }
+                            }
                             on:keydown=move |event| {
                                 if event.is_composing() {
                                     return;
@@ -1304,6 +1351,7 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                                 details.select_step(Some(id.get_value()));
                                 details.toggle_step(id.get_value(), !done.get_untracked());
                             }
+                            on:dblclick=move |_| details.edit_step(id.get_value())
                             on:keydown=on_key
                         >
                             <span class="step__mark" aria-hidden="true">
@@ -1311,6 +1359,19 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                             </span>
                             <span class="step__text">{text}</span>
                         </button>
+                        <span class="step__actions">
+                            <IconButton
+                                icon=IconName::Edit
+                                label=i18n.label(key::DETAILS_STEPS_EDIT)
+                                on_click=move |()| details.edit_step(id.get_value())
+                            />
+                            <IconButton
+                                icon=IconName::Trash
+                                label=i18n.label(key::DETAILS_STEPS_REMOVE)
+                                danger=true
+                                on_click=move |()| details.remove_step(id.get_value())
+                            />
+                        </span>
                     }
                     .into_any()
                 }
@@ -1408,6 +1469,11 @@ fn AddLine(details: Details, i18n: I18n, os: Os) -> impl IntoView {
                 spellcheck="false"
                 use:bind_text=Signal::derive(move || details.step_text.get())
                 on:input=move |event| details.edit_step_text(event_target_value(&event))
+                on:blur=move |_| {
+                    if open.get_untracked() {
+                        details.step_leave();
+                    }
+                }
                 on:keydown=on_key
                 on:paste=on_paste
             />

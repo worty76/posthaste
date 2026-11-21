@@ -57,7 +57,7 @@ pub fn key_action(press: KeyPress<'_>, editing: bool, text_empty: bool) -> Optio
         "ArrowUp" | "k" => Some(StepKey::Up),
         "ArrowDown" | "j" => Some(StepKey::Down),
         " " => Some(StepKey::Toggle),
-        "Enter" | "F2" => Some(StepKey::Edit),
+        "Enter" | "F2" | "e" | "E" => Some(StepKey::Edit),
         "Backspace" | "Delete" => Some(StepKey::Remove),
         _ => None,
     }
@@ -150,6 +150,8 @@ mod tests {
             Some(StepKey::Edit)
         );
         assert_eq!(key_action(press("F2"), false, false), Some(StepKey::Edit));
+        assert_eq!(key_action(press("e"), false, false), Some(StepKey::Edit));
+        assert_eq!(key_action(press("E"), false, false), Some(StepKey::Edit));
         // Esc while editing saves and leaves edit mode; the window closes
         // itself, as today, when no step is being edited.
         assert_eq!(

@@ -183,6 +183,50 @@ describe("steps", () => {
     await w.close();
   });
 
+  it("edits and deletes steps by mouse buttons and focuses the editor on E", async () => {
+    const w = await details({ steps: [step("first"), step("second")] });
+
+    // Clicking the Edit button on a step row opens the inline editor and focuses it.
+    await w.page.getByRole("button", { name: "Edit step (E)" }).first().click();
+    const input = w.page.getByRole("textbox", { name: "Steps" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "inline step editor focused",
+    );
+    await w.page.keyboard.type(" updated");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.page.getByRole("checkbox", { name: "first updated" }).count(),
+      (c) => c === 1,
+      "edited step saved",
+    );
+
+    // Pressing E on a focused step row also opens and focuses the inline editor.
+    const second = w.page.getByRole("checkbox", { name: "second" });
+    await second.focus();
+    await w.page.keyboard.press("e");
+    await eventually(
+      () =>
+        w.page
+          .getByRole("textbox", { name: "Steps" })
+          .evaluate((el) => el === document.activeElement),
+      Boolean,
+      "E key focuses the inline step editor",
+    );
+    await w.page.keyboard.press("Escape");
+
+    // Clicking the Delete button on a step row removes it with an undo toast.
+    await w.page.getByRole("button", { name: "Delete step (Delete)" }).first().click();
+    await text(w.toast.first(), "Step removed.");
+    await eventually(
+      () => w.calls("step_remove").then((c) => c.length),
+      (c) => c === 1,
+      "removed by mouse button",
+    );
+    await w.close();
+  });
+
   it("undo restores a removed step", async () => {
     const w = await details({ steps: [step("only step")] });
     const row = w.page.getByRole("checkbox", { name: "only step" });
