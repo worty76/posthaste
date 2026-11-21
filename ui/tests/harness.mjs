@@ -56,6 +56,8 @@ export function emptyStore() {
     attachments: {},
     /** Steps by note id, in storage order. */
     steps: {},
+    /** Explicit project rows `{ name, archived }`. */
+    projects: [],
     /** The note the details window opens on. */
     target: null,
     /** What the file dialog answers: an attach report, or null for cancel. */
@@ -228,6 +230,95 @@ export async function open({
           { name: "work", count: 3 },
           { name: "home", count: 1 },
         ],
+        projects_list: ({ includeArchived }) => listProjects(Boolean(includeArchived)),
+        project_create: ({ name }) => {
+          const cleaned = cleanProject(name);
+          if (!cleaned) {
+            return Promise.reject({
+              code: "project_invalid",
+              message: "A project name is between 1 and 40 characters.",
+            });
+          }
+          if (listProjects(true).some((p) => p.name === cleaned)) {
+            return Promise.reject({
+              code: "project_exists",
+              message: "A project with that name already exists.",
+            });
+          }
+          store.projects.push({ name: cleaned, archived: false });
+          changed();
+          return { name: cleaned, archived: false, open: 0, total: 0, last_at: 0 };
+        },
+        project_rename: ({ from, to, merge }) => {
+          const src = cleanProject(from);
+          const dst = cleanProject(to);
+          if (!src || !dst) {
+            return Promise.reject({
+              code: "project_invalid",
+              message: "A project name is between 1 and 40 characters.",
+            });
+          }
+          if (src === dst) return 0;
+          const all = listProjects(true);
+          if (!all.some((p) => p.name === src)) {
+            return Promise.reject({ code: "not_found", message: "That note no longer exists." });
+          }
+          if (all.some((p) => p.name === dst) && !merge) {
+            return Promise.reject({
+              code: "project_exists",
+              message: "A project with that name already exists.",
+            });
+          }
+          let moved = 0;
+          for (const n of store.notes) {
+            if (n.category === src) {
+              n.category = dst;
+              moved += 1;
+            }
+          }
+          const oldRow = store.projects.find((p) => p.name === src);
+          store.projects = store.projects.filter((p) => p.name !== src);
+          if (!store.projects.some((p) => p.name === dst)) {
+            store.projects.push({ name: dst, archived: Boolean(oldRow?.archived) });
+          }
+          changed();
+          return moved;
+        },
+        project_set_archived: ({ name, archived }) => {
+          const cleaned = cleanProject(name);
+          const existing = store.projects.find((p) => p.name === cleaned);
+          if (existing) existing.archived = Boolean(archived);
+          else if (cleaned) store.projects.push({ name: cleaned, archived: Boolean(archived) });
+          return changed();
+        },
+        project_clear: ({ name }) => {
+          const cleaned = cleanProject(name);
+          let cleared = 0;
+          for (const n of store.notes) {
+            if (n.category === cleaned) {
+              n.category = null;
+              cleared += 1;
+            }
+          }
+          store.projects = store.projects.filter((p) => p.name !== cleaned);
+          changed();
+          return cleared;
+        },
+        note_set_project: ({ id, project }) => {
+          const found = note(id);
+          if (!found) {
+            return Promise.reject({ code: "not_found", message: "That note no longer exists." });
+          }
+          const cleaned = project == null ? null : cleanProject(project);
+          found.category = cleaned;
+          if (cleaned) {
+            const row = store.projects.find((p) => p.name === cleaned);
+            if (row) row.archived = false;
+            else store.projects.push({ name: cleaned, archived: false });
+          }
+          changed();
+          return { ...found };
+        },
         draft_get: () => mock.draft,
         draft_set: ({ content, category }) => {
           mock.draft = { content, category, updated_at: 1 };
@@ -554,6 +645,32 @@ export async function open({
         }),
       };
       const note = (id) => store.notes.find((n) => n.id === id);
+      const cleanProject = (raw) => {
+        if (typeof raw !== "string") return null;
+        const c = raw.trim().replace(/^#+/, "").trim();
+        return c ? [...c].slice(0, 40).join("") : null;
+      };
+      const listProjects = (includeArchived) => {
+        const names = new Set((store.projects ?? []).map((p) => p.name));
+        for (const n of store.notes) {
+          if (n.category) names.add(n.category);
+        }
+        const out = [];
+        for (const name of names) {
+          const row = (store.projects ?? []).find((p) => p.name === name);
+          const archived = Boolean(row?.archived);
+          if (!includeArchived && archived) continue;
+          const live = store.notes.filter((n) => n.category === name);
+          const open = live.filter((n) => n.status === "inbox").length;
+          const total = live.length;
+          const last_at = live.reduce((m, n) => Math.max(m, n.created_at ?? 0), 0);
+          out.push({ name, archived, open, total, last_at });
+        }
+        out.sort(
+          (a, b) => b.last_at - a.last_at || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+        );
+        return out;
+      };
       let nextStep = 0;
       const step = (id) =>
         Object.values(store.steps)

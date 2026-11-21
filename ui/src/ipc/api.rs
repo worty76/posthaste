@@ -5,9 +5,9 @@
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CategoryCount, CommandError, Counts,
     DataInfo, DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview,
-    LookSummary, NewStep, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit,
-    Settings, SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit, TrashedNote,
-    UpdateInfo,
+    LookSummary, NewStep, Note, NoteDetail, NoteQuery, Project, ResolvedLook, ResolvedScene,
+    SceneEdit, Settings, SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit,
+    TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -47,6 +47,77 @@ pub async fn categories_list() -> Response<Vec<String>> {
 /// How many live notes use each category, most used first.
 pub async fn categories_counts() -> Response<Vec<CategoryCount>> {
     invoke("categories_counts", &NoArgs {}).await
+}
+
+// ---- projects ---------------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct ProjectsList {
+    include_archived: bool,
+}
+
+#[allow(dead_code)]
+pub async fn projects_list(include_archived: bool) -> Response<Vec<Project>> {
+    invoke("projects_list", &ProjectsList { include_archived }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectByName<'a> {
+    name: &'a str,
+}
+
+#[allow(dead_code)]
+pub async fn project_create(name: &str) -> Response<Project> {
+    invoke("project_create", &ProjectByName { name }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectRename<'a> {
+    from: &'a str,
+    to: &'a str,
+    merge: bool,
+}
+
+#[allow(dead_code)]
+pub async fn project_rename(from: &str, to: &str, merge: bool) -> Response<u32> {
+    invoke("project_rename", &ProjectRename { from, to, merge }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectSetArchived<'a> {
+    name: &'a str,
+    archived: bool,
+}
+
+#[allow(dead_code)]
+pub async fn project_set_archived(name: &str, archived: bool) -> Response<()> {
+    invoke(
+        "project_set_archived",
+        &ProjectSetArchived { name, archived },
+    )
+    .await
+}
+
+#[allow(dead_code)]
+pub async fn project_clear(name: &str) -> Response<u32> {
+    invoke("project_clear", &ProjectByName { name }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct NoteSetProject<'a> {
+    id: &'a str,
+    project: Option<&'a str>,
+}
+
+#[allow(dead_code)]
+pub async fn note_set_project(id: &str, project: Option<&str>) -> Response<Note> {
+    invoke("note_set_project", &NoteSetProject { id, project }).await
 }
 
 #[derive(Serialize)]
