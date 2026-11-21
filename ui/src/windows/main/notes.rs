@@ -180,7 +180,7 @@ pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl Into
 
 /// Everything about a note that changes how its card is drawn. A card is
 /// redrawn only when this changes, so focus and scroll survive a refresh.
-fn row_key(note: &Note) -> (String, i64, Status, Option<i64>, bool, u32) {
+pub(super) fn row_key(note: &Note) -> (String, i64, Status, Option<i64>, bool, u32) {
     (
         note.id.clone(),
         note.updated_at,
@@ -196,13 +196,13 @@ fn row_key(note: &Note) -> (String, i64, Status, Option<i64>, bool, u32) {
 fn Nothing(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
     let i18n = main.i18n;
     let reason = Memo::new(move |_| {
-        main.filters
-            .with(|filters| empty_reason(main.view.get(), filters))
+        main.view
+            .with(|view| main.filters.with(|filters| empty_reason(view, filters)))
     });
     let title = Signal::derive(move || {
         let key = match reason.get() {
             Empty::NoMatch { .. } | Empty::NothingThatDay => key::INBOX_EMPTY_SEARCH_TITLE,
-            Empty::NoCategory => key::INBOX_EMPTY_CATEGORY_TITLE,
+            Empty::Project => key::INBOX_PROJECT_PAGE_EMPTY_TITLE,
             Empty::Today => key::INBOX_EMPTY_TODAY_TITLE,
             Empty::Later => key::INBOX_EMPTY_LATER_TITLE,
             Empty::Archive => key::INBOX_EMPTY_ARCHIVE_TITLE,
@@ -224,13 +224,7 @@ fn Nothing(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
                         let text = main.filters.with(|filters| filters.text.trim().to_owned());
                         t.format(key, &[("text", &text)]).into_any()
                     }
-                    Empty::NoCategory => view! {
-                        <span>{t.text(key::INBOX_EMPTY_CATEGORY_TEXT)}</span>
-                        <Button variant=Variant::Quiet on_click=move |()| main.clear_category()>
-                            {t.text(key::INBOX_FILTER_CATEGORY_CLEAR)}
-                        </Button>
-                    }
-                    .into_any(),
+                    Empty::Project => ().into_any(),
                     Empty::NothingThatDay => t.text(key::INBOX_EMPTY_SEARCH_DATE).into_any(),
                     Empty::Today => t.text(key::INBOX_EMPTY_TODAY_TEXT).into_any(),
                     Empty::Archive => t.text(key::INBOX_EMPTY_ARCHIVE_TEXT).into_any(),
@@ -252,7 +246,7 @@ fn Nothing(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
 }
 
 #[component]
-fn NoteCard(main: Main, note: Note) -> impl IntoView {
+pub(super) fn NoteCard(main: Main, note: Note) -> impl IntoView {
     let i18n = main.i18n;
     let item = NodeRef::<html::Li>::new();
     let expanded = RwSignal::new(false);
@@ -383,10 +377,10 @@ fn NoteBody(
                                 i18n.translator()
                                     .format(key::INBOX_NOTE_CATEGORY_TIP, &[("name", &named)])
                             }
-                            // Its own control: it filters, it does not select the row.
+                            // Its own control: it opens the project page, not the row.
                             on:click=move |event| {
                                 event.stop_propagation();
-                                main.set_category(pick.clone());
+                                main.go(crate::logic::inbox::View::Project(pick.clone()));
                             }
                         >
                             {category}

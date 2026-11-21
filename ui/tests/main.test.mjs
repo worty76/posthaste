@@ -340,113 +340,6 @@ describe("inbox", () => {
     await w.close();
   });
 
-  it("pressing # and enter filters the inbox by category", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", [
-      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
-      { name: "work", archived: false, open: 2, total: 2, last_at: 50 },
-    ]);
-    await w.key("#");
-    const picker = w.page.locator(".proj-picker");
-    await text(picker, "health");
-    await w.key("Enter");
-    await eventually(w.contents, (c) => c.join() === "book dentist", "filtered");
-    await text(w.page.locator(".catfilter"), "health");
-    assert.equal((await w.calls("notes_list")).at(-1).args.query.category, "health");
-    await w.close();
-  });
-
-  it("the filter line clears with escape", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", [
-      { name: "work", archived: false, open: 2, total: 2, last_at: 50 },
-    ]);
-    await w.key("#");
-    await text(w.page.locator(".proj-picker"), "work");
-    await w.key("Enter");
-    await text(w.page.locator(".empty"), "No notes in this category here.");
-    await w.key("Escape");
-    await eventually(w.contents, (c) => c.length === 3, "filter cleared");
-    await w.key("Escape");
-    await eventually(
-      () => w.selected.count(),
-      (c) => c === 0,
-      "selection cleared next",
-    );
-    await w.close();
-  });
-
-  it("the filter line clears with its × and the picker is gone", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", [
-      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
-    ]);
-    await w.key("#");
-    await text(w.page.locator(".proj-picker"), "health");
-    await w.key("Enter");
-    await eventually(w.contents, (c) => c.length === 1, "filtered");
-    await w.page.getByRole("button", { name: "Clear the category filter" }).click();
-    await eventually(w.contents, (c) => c.length === 3, "filter cleared");
-    await w.close();
-  });
-
-  it("clicking a row's category filters by it", async () => {
-    const w = await main();
-    await w.rows.first().locator(".note__category").click();
-    await eventually(w.contents, (c) => c.join() === "book dentist", "only that category");
-    await text(w.page.locator(".catfilter"), "health");
-    await w.close();
-  });
-
-  it("the filter stays when switching views", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", [
-      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
-    ]);
-    await w.key("#");
-    await text(w.page.locator(".proj-picker"), "health");
-    await w.key("Enter");
-    await eventually(w.contents, (c) => c.length === 1, "filtered");
-    await w.key("3");
-    await text(w.page.locator(".catfilter"), "health");
-    const query = (await w.calls("notes_list")).at(-1).args.query;
-    assert.equal(query.category, "health");
-    await w.key("Escape");
-    await eventually(w.contents, (c) => c.join() === "someday trip", "later again");
-    await w.close();
-  });
-
-  it("the picker narrows as you type and shows counts", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", [
-      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
-      { name: "work", archived: false, open: 2, total: 2, last_at: 90 },
-      { name: "home", archived: false, open: 3, total: 3, last_at: 80 },
-    ]);
-    await w.key("#");
-    const picker = w.page.locator(".proj-picker");
-    await text(picker, "health");
-    await text(picker, "3");
-    await w.page.keyboard.type("ho");
-    await text(picker, "home");
-    assert.equal(await picker.locator(".proj-picker__item").count(), 1);
-    await w.key("Escape");
-    await eventually(
-      () => picker.count(),
-      (c) => c === 0,
-      "picker closed",
-    );
-    await w.close();
-  });
-
-  it("the picker says so when no category is in use", async () => {
-    const w = await main();
-    await w.mock.answer("projects_list", []);
-    await w.key("#");
-    await text(w.page.locator(".proj-picker"), "Press P on a note to create a project.");
-    await w.close();
-  });
-
   it("the inbox shows project sections with counts", async () => {
     const w = await main({
       store: {
@@ -666,11 +559,122 @@ describe("inbox", () => {
     await w.close();
   });
 
+  it("the sidebar lists active projects with counts", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("fix sink", {
+            created_at: at("2026-11-14T09:00:00"),
+            category: "home",
+            status: "completed",
+          }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+          note("old tax", { created_at: at("2026-11-10T09:00:00"), category: "taxes" }),
+        ],
+        projects: [{ name: "taxes", archived: true }],
+      },
+    });
+    const list = w.page.locator(".sidebar__projects");
+    await text(list, "home");
+    await text(list, "2");
+    await text(list, "work");
+    await text(list, "1");
+    assert.equal(await list.getByRole("button", { name: /taxes/ }).count(), 0);
+    await text(w.page.locator(".sidebar"), "Manage projects");
+    await w.close();
+  });
+
+  it("enter on a sidebar project opens its page grouped by day", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("open today", { created_at: at("2026-11-15T08:00:00"), category: "home" }),
+          note("done today", {
+            created_at: at("2026-11-15T10:00:00"),
+            category: "home",
+            status: "completed",
+          }),
+          note("earlier note", { created_at: at("2026-11-13T09:00:00"), category: "home" }),
+          note("other project", { created_at: at("2026-11-15T11:00:00"), category: "work" }),
+        ],
+      },
+    });
+    const btn = w.page.locator(".sidebar__projects").getByRole("button", { name: /home/ });
+    await btn.focus();
+    await w.key("Enter");
+    await text(w.page.locator(".content__title"), "home");
+    await eventually(
+      w.contents,
+      (c) => c.join() === "open today,done today,earlier note",
+      "open before done within today, then earlier day",
+    );
+    await text(w.page.locator(".day__label").first(), "Today");
+    await w.close();
+  });
+
+  it("the add line creates a note in that project", async () => {
+    const w = await main({
+      store: {
+        notes: [note("existing", { created_at: at("2026-11-15T09:00:00"), category: "home" })],
+      },
+    });
+    await w.page.locator(".sidebar__projects").getByRole("button", { name: /home/ }).click();
+    await text(w.page.locator(".content__title"), "home");
+    const add = w.page.getByLabel("Add a note to home");
+    await add.fill("buy paint");
+    await add.press("Enter");
+    await eventually(
+      () => w.calls("capture_save"),
+      (c) => c.length === 1,
+      "capture_save called",
+    );
+    assert.equal((await w.calls("capture_save"))[0].args.category, "home");
+    assert.equal((await w.calls("capture_save"))[0].args.content, "buy paint");
+    await eventually(w.contents, (c) => c.includes("buy paint"), "new note appears");
+    await w.close();
+  });
+
+  it("an empty project says so", async () => {
+    const w = await main({
+      store: {
+        notes: [],
+        projects: [{ name: "emptyproj", archived: false }],
+      },
+    });
+    await w.page
+      .locator(".sidebar__projects")
+      .getByRole("button", { name: /emptyproj/ })
+      .click();
+    await text(w.page.locator(".content__title"), "emptyproj");
+    await text(w.page.locator(".empty"), "No notes in this project yet.");
+    await w.close();
+  });
+
+  it("hash jumps to a project's page", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.key("#");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.key("Enter");
+    await text(w.page.locator(".content__title"), "work");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "project page opened");
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");
-    await text(w.page.locator(".nav"), "Hôm nay");
-    await text(w.page.locator(".nav"), "Thùng rác");
+    await text(w.page.locator(".nav").first(), "Hôm nay");
+    await text(w.page.locator(".nav").first(), "Thùng rác");
     await w.close();
   });
 

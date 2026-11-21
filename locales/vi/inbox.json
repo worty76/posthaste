@@ -10,7 +10,20 @@
     "later": "Để sau",
     "archive": "Lưu trữ",
     "trash": "Thùng rác",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "projects": "Dự án",
+    "manage_projects": "Quản lý dự án"
+  },
+  "project_page": {
+    "menu": "Thao tác dự án (M)",
+    "rename": "Đổi tên",
+    "archive": "Lưu trữ dự án",
+    "rename_label": "Tên dự án mới",
+    "merge_confirm": "Chuyển {count} ghi chú sang {name}?",
+    "merge_action": "Chuyển",
+    "add_placeholder": "Thêm ghi chú vào {name}",
+    "empty_title": "Chưa có ghi chú nào trong dự án này.",
+    "archived_toast": "Đã lưu trữ dự án"
   },
   "new_note": "Ghi chú mới",
   "search": {

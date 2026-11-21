@@ -82,7 +82,6 @@ struct ProjectRename<'a> {
     merge: bool,
 }
 
-#[allow(dead_code)]
 pub async fn project_rename(from: &str, to: &str, merge: bool) -> Response<u32> {
     invoke("project_rename", &ProjectRename { from, to, merge }).await
 }
@@ -94,7 +93,6 @@ struct ProjectSetArchived<'a> {
     archived: bool,
 }
 
-#[allow(dead_code)]
 pub async fn project_set_archived(name: &str, archived: bool) -> Response<()> {
     invoke(
         "project_set_archived",

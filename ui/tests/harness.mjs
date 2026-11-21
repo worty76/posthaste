@@ -328,6 +328,28 @@ export async function open({
           mock.draft = null;
           return null;
         },
+        capture_save: ({ content, category }) => {
+          const now = Date.now();
+          const saved = {
+            id: `n-${store.notes.length + 1}-${now}`,
+            content,
+            category: category == null ? null : cleanProject(category),
+            source: null,
+            status: "inbox",
+            later_at: null,
+            created_at: now,
+            updated_at: now,
+            completed_at: null,
+            archived_at: null,
+            has_details: false,
+            attachment_count: 0,
+            step_total: 0,
+            step_done: 0,
+          };
+          store.notes.unshift(saved);
+          changed();
+          return saved;
+        },
         glance_get: () => mock.glance,
         notes_day_marks: ({ edges }) =>
           edges.slice(0, -1).map((start) => mock.marks[start] ?? { total: 0, open: 0 }),
@@ -629,20 +651,6 @@ export async function open({
           changed();
           return { ...found };
         },
-        capture_save: ({ content, category }) => ({
-          id: "n1",
-          content,
-          status: "inbox",
-          category,
-          source: null,
-          created_at: 1,
-          updated_at: 1,
-          completed_at: null,
-          archived_at: null,
-          has_details: false,
-          attachment_count: 0,
-          later_at: null,
-        }),
       };
       const note = (id) => store.notes.find((n) => n.id === id);
       const cleanProject = (raw) => {

@@ -4,6 +4,7 @@
 mod date_filter;
 mod help;
 mod notes;
+mod project_page;
 mod settings;
 mod trash;
 
@@ -25,7 +26,8 @@ use crate::components::{
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{
-    build_query, key_action, Filters, KeyAction, KeyContext, KeyPress, StatusFilter, View,
+    build_query, group_by_day, key_action, Filters, KeyAction, KeyContext, KeyPress, StatusFilter,
+    View,
 };
 use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
@@ -42,7 +44,7 @@ const PAGE: usize = 200;
 /// A short pause while typing keeps a fast typist from queueing queries.
 const SEARCH_PAUSE: Duration = Duration::from_millis(90);
 
-fn view_title(view: View) -> Key {
+fn view_title(view: &View) -> Key {
     match view {
         View::Inbox => key::INBOX_NAV_INBOX,
         View::Today => key::INBOX_NAV_TODAY,
@@ -50,10 +52,12 @@ fn view_title(view: View) -> Key {
         View::Archive => key::INBOX_NAV_ARCHIVE,
         View::Trash => key::INBOX_NAV_TRASH,
         View::Settings => key::INBOX_NAV_SETTINGS,
+        View::ManageProjects => key::INBOX_NAV_MANAGE_PROJECTS,
+        View::Project(_) => key::INBOX_NAV_PROJECTS,
     }
 }
 
-fn view_icon(view: View) -> IconName {
+fn view_icon(view: &View) -> IconName {
     match view {
         View::Inbox => IconName::Inbox,
         View::Today => IconName::Sun,
@@ -61,6 +65,7 @@ fn view_icon(view: View) -> IconName {
         View::Archive => IconName::Archive,
         View::Trash => IconName::Trash,
         View::Settings => IconName::Settings,
+        View::Project(_) | View::ManageProjects => IconName::Lines,
     }
 }
 
@@ -80,6 +85,10 @@ struct Main {
     /// The project picker, opened with `P` (SetNote) or `#` (Jump).
     picker: RwSignal<Option<PickerMode>>,
     picker_projects: RwSignal<Vec<Project>>,
+    /// Active projects shown in the sidebar, newest note first.
+    projects: RwSignal<Vec<Project>>,
+    /// Whether the project page's action menu (`M`) is open.
+    project_menu_open: RwSignal<bool>,
     /// What the last query answered: up to one more than `limit`, which is
     /// how the list knows there are older notes.
     notes: RwSignal<Vec<Note>>,
@@ -112,6 +121,8 @@ impl Main {
             filters_open: RwSignal::new(false),
             picker: RwSignal::new(None),
             picker_projects: RwSignal::new(Vec::new()),
+            projects: RwSignal::new(Vec::new()),
+            project_menu_open: RwSignal::new(false),
             notes: RwSignal::new(Vec::new()),
             loaded: RwSignal::new(false),
             limit: RwSignal::new(PAGE),
@@ -145,20 +156,11 @@ impl Main {
     }
 
     fn go(self, next: View) {
-        let switching = self.view.get_untracked() != next;
+        let switching = self.view.with_untracked(|current| *current != next);
         self.view.set(next);
-        // The category sits on top of the note views and follows them; a
-        // view that cannot show it (Trash, Settings) takes it off too, so
-        // nothing filters a list the user cannot see the reason for.
-        let keep_category = !matches!(next, View::Trash | View::Settings);
-        self.filters.update(|filters| {
-            let category = keep_category.then(|| filters.category.clone()).flatten();
-            *filters = Filters {
-                category,
-                ..Filters::default()
-            };
-        });
+        self.filters.set(Filters::default());
         self.picker.set(None);
+        self.project_menu_open.set(false);
         self.filters_open.set(false);
         self.limit.set(PAGE);
         self.editing.set(None);
@@ -168,21 +170,9 @@ impl Main {
         }
     }
 
-    /// Ends the search, keeping the category filter.
+    /// Ends the search.
     fn clear_search(self) {
-        self.filters.update(|filters| {
-            filters.text = String::new();
-            filters.status = StatusFilter::default();
-            filters.date = None;
-        });
-    }
-
-    /// Filters the list by one category, from the picker or a row.
-    fn set_category(self, name: String) {
-        self.limit.set(PAGE);
-        self.picker.set(None);
-        self.selected.set(None);
-        self.filters.update(|filters| filters.category = Some(name));
+        self.filters.set(Filters::default());
     }
 
     fn open_picker(self, mode: PickerMode) {
@@ -202,13 +192,6 @@ impl Main {
                 self.fail(error);
             }
         });
-    }
-
-    /// Takes the category filter off.
-    fn clear_category(self) {
-        self.limit.set(PAGE);
-        self.selected.set(None);
-        self.filters.update(|filters| filters.category = None);
     }
 
     fn set_search_text(self, text: String) {
@@ -266,7 +249,9 @@ impl Main {
         let filters = self.filters.get();
         let limit = self.limit.get();
         self.revision.with(|_| ());
-        if view == View::Settings || (view == View::Trash && !filters.is_searching()) {
+        if matches!(view, View::Settings | View::ManageProjects)
+            || (view == View::Trash && !filters.is_searching())
+        {
             return;
         }
         let request = self.request.get_value().wrapping_add(1);
@@ -281,7 +266,7 @@ impl Main {
                 return;
             }
             let mut query = build_query(
-                view,
+                view.clone(),
                 &filters,
                 time::bounds(time::today()),
                 filters.date.map(time::bounds),
@@ -315,6 +300,15 @@ impl Main {
             // The sidebar still works without its numbers.
             if let Ok(counts) = api::notes_counts(from, to).await {
                 self.counts.set(Some(counts));
+            }
+        });
+    }
+
+    fn load_projects(self) {
+        self.revision.with(|_| ());
+        spawn_local(async move {
+            if let Ok(projects) = api::projects_list(false).await {
+                self.projects.set(projects);
             }
         });
     }
@@ -366,10 +360,19 @@ impl Main {
     fn with_visible_ids<T>(self, read: impl FnOnce(&[&str]) -> T) -> T {
         let limit = self.limit.get_untracked();
         let searching = self.filters.with_untracked(Filters::is_searching);
+        let in_project = self.view.with_untracked(|v| matches!(v, View::Project(_)));
         self.notes.with_untracked(|notes| {
             let slice = &notes[..notes.len().min(limit)];
             if searching {
                 let ids: Vec<&str> = slice.iter().map(|n| n.id.as_str()).collect();
+                read(&ids)
+            } else if in_project {
+                let today = time::bounds(time::today());
+                let groups = group_by_day(slice, today);
+                let ids: Vec<&str> = groups
+                    .iter()
+                    .flat_map(|(_, day_notes)| day_notes.iter().map(|n| n.id.as_str()))
+                    .collect();
                 read(&ids)
             } else {
                 let grouped = sections::group(slice);
@@ -536,10 +539,9 @@ impl Main {
             in_search,
             on_control: browser::is_within(&event, "button, a, [role=radio]"),
             has_rows: self.with_visible_ids(|ids| !ids.is_empty()),
-            has_category: self.filters.with_untracked(|f| f.category.is_some()),
             selected: selected.as_ref().map(|note| note.status),
         };
-        let Some(keyed) = key_action(press, context) else {
+        let Some(keyed) = key_action(press, &context) else {
             return;
         };
         event.prevent_default();
@@ -574,9 +576,9 @@ impl Main {
                 }
             }
             (KeyAction::ClearSearch, _) => self.clear_search(),
-            (KeyAction::ClearCategory, _) => self.clear_category(),
             (KeyAction::PickCategory, _) => self.open_picker(PickerMode::Jump),
             (KeyAction::SetProject, Some(_)) => self.open_picker(PickerMode::SetNote),
+            (KeyAction::ProjectMenu, _) => self.project_menu_open.update(|open| *open = !*open),
             (KeyAction::ClearSelection, _) => self.selected.set(None),
             (KeyAction::Edit, Some(note)) => self.start_edit(&note.id),
             (KeyAction::ToggleComplete, Some(note)) => self.toggle_complete(&note),
@@ -606,12 +608,14 @@ impl Main {
     }
 }
 
-/// The three distinct content panes mounted inside the main scroll area.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The distinct content panes mounted inside the main scroll area.
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Pane {
     LoadingSettings,
     Settings,
+    ManageProjects,
     Trash,
+    Project(String),
     Notes,
 }
 
@@ -626,6 +630,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
     Effect::new(move |_| main.load());
     Effect::new(move |_| main.load_counts());
+    Effect::new(move |_| main.load_projects());
     events::on::<events::NotesChanged>(move |()| main.refresh());
     events::on::<events::Navigate>(move |target| {
         if let Some(view) = View::parse(&target) {
@@ -647,7 +652,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     let hidden = window_event_listener(leptos::ev::visibilitychange, move |_| {
         if document().visibility_state() == web_sys::VisibilityState::Hidden {
             main.picker.set(None);
-            main.filters.update(|filters| filters.category = None);
+            main.project_menu_open.set(false);
         }
     });
     on_cleanup(move || {
@@ -665,6 +670,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
         })
     });
     let in_settings = move || main.view.get() == View::Settings;
+    let in_manage = move || main.view.get() == View::ManageProjects;
     let pane = Memo::new(move |_| {
         if in_settings() {
             if settings.settings.with(Option::is_some) {
@@ -672,20 +678,31 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             } else {
                 Pane::LoadingSettings
             }
+        } else if in_manage() && !main.searching() {
+            Pane::ManageProjects
         } else if main.shows_trash() {
             Pane::Trash
+        } else if !main.searching() {
+            match main.view.get() {
+                View::Project(name) => Pane::Project(name),
+                _ => Pane::Notes,
+            }
         } else {
             Pane::Notes
         }
     });
     let title = move || {
+        let t = i18n.translator();
         if main.searching() {
-            key::INBOX_SEARCH_TITLE
+            t.text(key::INBOX_SEARCH_TITLE).to_owned()
         } else {
-            view_title(main.view.get())
+            match main.view.get() {
+                View::Project(name) => name,
+                view => t.text(view_title(&view)).to_owned(),
+            }
         }
     };
-    let count = move |view: View| {
+    let count = move |view: &View| {
         main.counts.with(|counts| {
             let counts = counts.as_ref()?;
             let count = match view {
@@ -693,7 +710,9 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 View::Today => counts.today,
                 View::Later => counts.later,
                 View::Trash => counts.trash,
-                View::Archive | View::Settings => return None,
+                View::Archive | View::Settings | View::Project(_) | View::ManageProjects => {
+                    return None
+                }
             };
             (count > 0).then_some(count)
         })
@@ -714,12 +733,18 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             .format(key, &[("keys", &sidebar_shortcut)])
     });
     let nav_item = move |view: View| {
+        let view_cur = view.clone();
+        let view_click = view.clone();
+        let view_count = view.clone();
+        let title_key = view_title(&view);
+        let icon = view_icon(&view);
         // A search is its own place: no section is the current one then.
         let current = move || {
-            let here = main.view.get() == view && (view == View::Settings || !main.searching());
+            let here = main.view.with(|v| *v == view_cur)
+                && (view_cur == View::Settings || !main.searching());
             here.then_some("page")
         };
-        let label = i18n.label(view_title(view));
+        let label = i18n.label(title_key);
         view! {
             <button
                 type="button"
@@ -728,11 +753,11 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 aria-current=current
                 aria-label=move || sidebar_collapsed.get().then(|| label.get())
                 title=move || sidebar_collapsed.get().then(|| label.get())
-                on:click=move |_| main.go(view)
+                on:click=move |_| main.go(view_click.clone())
             >
-                <Icon name=view_icon(view) />
-                <span class="nav__label">{i18n.text(view_title(view))}</span>
-                {move || count(view).map(|count| view! { <span class="nav__count">{count}</span> })}
+                <Icon name=icon />
+                <span class="nav__label">{i18n.text(title_key)}</span>
+                {move || count(&view_count).map(|count| view! { <span class="nav__count">{count}</span> })}
             </button>
         }
     };
@@ -759,7 +784,54 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
     view! {
         <div class=class data-collapsed=move || sidebar_collapsed.get().then_some("")>
-            <aside class="sidebar" data-collapsed=move || sidebar_collapsed.get().then_some("")>
+            <aside
+                class="sidebar"
+                data-collapsed=move || sidebar_collapsed.get().then_some("")
+                on:keydown=move |event| {
+                    let key = event.key();
+                    if key != "ArrowDown" && key != "ArrowUp" {
+                        return;
+                    }
+                    let Some(aside) = event
+                        .current_target()
+                        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+                    else {
+                        return;
+                    };
+                    fn collect(el: &web_sys::Element, out: &mut Vec<web_sys::HtmlElement>) {
+                        if el.class_list().contains("nav__item") {
+                            if let Ok(btn) = el.clone().dyn_into::<web_sys::HtmlElement>() {
+                                out.push(btn);
+                            }
+                        }
+                        let children = el.children();
+                        for i in 0..children.length() {
+                            if let Some(child) = children.item(i) {
+                                collect(&child, out);
+                            }
+                        }
+                    }
+                    let mut buttons = Vec::new();
+                    collect(&aside, &mut buttons);
+                    let active = document().active_element();
+                    let Some(pos) = buttons
+                        .iter()
+                        .position(|b| active.as_ref().is_some_and(|a| a.loose_eq(b.unchecked_ref())))
+                    else {
+                        return;
+                    };
+                    let next = if key == "ArrowDown" {
+                        (pos + 1).min(buttons.len().saturating_sub(1))
+                    } else {
+                        pos.saturating_sub(1)
+                    };
+                    if let Some(target) = buttons.get(next) {
+                        event.prevent_default();
+                        event.stop_propagation();
+                        let _ = target.focus();
+                    }
+                }
+            >
                 <div class="sidebar__header">
                     <div class="sidebar__brand">"Posthaste"</div>
                     <IconButton
@@ -773,6 +845,53 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 <nav class="nav" aria-label=i18n.text(key::INBOX_SECTIONS)>
                     {View::LISTS.into_iter().map(nav_item).collect_view()}
                 </nav>
+                <div class="sidebar__projects-wrap">
+                    <div class="sidebar__group-label">{i18n.text(key::INBOX_NAV_PROJECTS)}</div>
+                    <nav class="nav sidebar__projects" aria-label=i18n.text(key::INBOX_NAV_PROJECTS)>
+                        <For
+                            each=move || main.projects.get()
+                            key=|p| (p.name.clone(), p.total)
+                            let:project
+                        >
+                            {
+                                let name = project.name.clone();
+                                let name_cur = name.clone();
+                                let name_click = name.clone();
+                                let total = project.total;
+                                let current = move || {
+                                    let here = main.view.with(|v| {
+                                        matches!(v, View::Project(cur) if cur == &name_cur)
+                                    }) && !main.searching();
+                                    here.then_some("page")
+                                };
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="nav__item"
+                                        aria-current=current
+                                        on:click=move |_| main.go(View::Project(name_click.clone()))
+                                    >
+                                        <span class="nav__label">{name}</span>
+                                        {(total > 0).then(|| view! {
+                                            <span class="nav__count">{total}</span>
+                                        })}
+                                    </button>
+                                }
+                            }
+                        </For>
+                        <button
+                            type="button"
+                            class="nav__item nav__item--quiet"
+                            aria-current=move || {
+                                (main.view.get() == View::ManageProjects && !main.searching())
+                                    .then_some("page")
+                            }
+                            on:click=move |_| main.go(View::ManageProjects)
+                        >
+                            <span class="nav__label">{i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)}</span>
+                        </button>
+                    </nav>
+                </div>
                 <div class="sidebar__spacer"></div>
                 <button
                     type="button"
@@ -798,7 +917,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             <SceneHost window=SceneWindow::Main>
                 <main class="content">
                 <header class="content__header" data-tauri-drag-region=(os == Os::Macos).then_some("")>
-                    <h1 class="content__title">{move || i18n.translator().text(title())}</h1>
+                    <h1 class="content__title">{title}</h1>
                     <Show when=move || !in_settings()>
                         <div class="search" role="search">
                             <span class="search__icon">
@@ -868,25 +987,6 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
                 <div class="content__scroll">
                     <div class="content__column">
-                        {move || {
-                            let named = main.filters.with(|f| f.category.clone());
-                            (pane.get() == Pane::Notes && named.is_some()).then(|| {
-                                let t = i18n.translator();
-                                let name = t
-                                    .format(key::INBOX_FILTER_CATEGORY_LINE, &[("name", &named.unwrap_or_default())]);
-                                view! {
-                                    <div class="catfilter">
-                                        <span class="catfilter__name">{name}</span>
-                                        <IconButton
-                                            icon=IconName::Close
-                                            label=i18n.label(key::INBOX_FILTER_CATEGORY_CLEAR)
-                                            on_click=move |()| main.clear_category()
-                                        />
-                                    </div>
-                                }
-                                .into_any()
-                            })
-                        }}
                         <div class="cat-anchor">
                             {move || main.picker.get().map(|mode| view! {
                                 <ProjectPicker
@@ -895,7 +995,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                     projects=Signal::derive(move || main.picker_projects.get())
                                     on_pick=move |row| match (mode, row) {
                                         (PickerMode::Jump, PickerRow::Project { name, .. }) => {
-                                            main.set_category(name);
+                                            main.go(View::Project(name));
                                         }
                                         (PickerMode::SetNote, row) => {
                                             if let Some(note) = main.selected_note() {
@@ -929,8 +1029,13 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                 />
                             }
                             .into_any(),
+                            Pane::ManageProjects => ().into_any(),
                             Pane::Trash => view! {
                                 <trash::TrashView i18n=i18n locale=main.locale toaster=main.toaster />
+                            }
+                            .into_any(),
+                            Pane::Project(name) => view! {
+                                <project_page::ProjectPage main=main name=name />
                             }
                             .into_any(),
                             Pane::Notes => view! {

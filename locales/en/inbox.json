@@ -10,7 +10,20 @@
     "later": "Later",
     "archive": "Archive",
     "trash": "Trash",
-    "settings": "Settings"
+    "settings": "Settings",
+    "projects": "Projects",
+    "manage_projects": "Manage projects"
+  },
+  "project_page": {
+    "menu": "Project actions (M)",
+    "rename": "Rename",
+    "archive": "Archive project",
+    "rename_label": "New project name",
+    "merge_confirm": "Move {count} notes into {name}?",
+    "merge_action": "Move",
+    "add_placeholder": "Add a note to {name}",
+    "empty_title": "No notes in this project yet.",
+    "archived_toast": "Project archived"
   },
   "new_note": "New note",
   "search": {
