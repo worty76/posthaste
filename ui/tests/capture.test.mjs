@@ -249,6 +249,43 @@ describe("save states", () => {
     assert.equal(saves[1].args.category, "work");
     await w.close();
   });
+
+  it("picks and toggles an active project with one click on its chip", async () => {
+    const w = await capture({
+      store: {
+        projects: [
+          { name: "work", color: "#5b8def", archived: false },
+          { name: "money", archived: false },
+          { name: "old", archived: true },
+        ],
+      },
+    });
+    const chips = w.page.locator(".capture__project-chip");
+    await eventually(
+      () => chips.count(),
+      (n) => n === 2,
+      "only active projects shown",
+    );
+    const workChip = w.page.locator(".capture__project-chip", { hasText: "work" });
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "true");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus returns to note after chip click",
+    );
+    await w.note.fill("ship release");
+    await w.note.press("Enter");
+    const [save] = await eventually(w.saves, (c) => c.length === 1, "saved with clicked project");
+    assert.equal(save.args.category, "work");
+
+    // Clicking the selected chip again clears the project.
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "true");
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "false");
+    await w.close();
+  });
 });
 
 describe("error states", () => {

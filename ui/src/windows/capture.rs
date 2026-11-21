@@ -184,6 +184,17 @@ impl Capture {
         self.focus();
     }
 
+    fn toggle_project(self, name: String) {
+        let next = if self.category.get_untracked() == name {
+            String::new()
+        } else {
+            name
+        };
+        self.picker_open.set(false);
+        self.edit(self.content.get_untracked(), next);
+        self.focus();
+    }
+
     /// Every change to either field goes through here, so it is drafted.
     fn edit(self, content: String, category: String) {
         self.touched.set_value(true);
@@ -243,6 +254,7 @@ impl Capture {
                     self.touched.set_value(false);
                     self.content.set(String::new());
                     self.status.set(Status::Done(key::CAPTURE_STATUS_SAVED));
+                    self.load_projects();
                     self.focus();
                 }
             }
@@ -419,6 +431,47 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                     autofocus
                     spellcheck="true"
                 ></textarea>
+
+                {move || {
+                    let active: Vec<Project> = capture
+                        .projects
+                        .get()
+                        .into_iter()
+                        .filter(|p| !p.archived)
+                        .collect();
+                    (!active.is_empty()).then(|| {
+                        view! {
+                            <div
+                                class="capture__projects"
+                                role="group"
+                                aria-label=i18n.text(key::INBOX_NAV_PROJECTS)
+                            >
+                                {active
+                                    .into_iter()
+                                    .map(|project| {
+                                        let name_click = project.name.clone();
+                                        let name_sel = project.name.clone();
+                                        let selected = Signal::derive(move || {
+                                            capture.category.with(|c| c == &name_sel)
+                                        });
+                                        view! {
+                                            <button
+                                                type="button"
+                                                class="capture__project-chip"
+                                                aria-pressed=move || selected.get().to_string()
+                                                data-selected=move || selected.get().to_string()
+                                                on:click=move |_| capture.toggle_project(name_click.clone())
+                                            >
+                                                {project.color.map(|c| view! { <ProjectDot color=c /> })}
+                                                <span class="capture__project-chip-name">{project.name}</span>
+                                            </button>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        }
+                    })
+                }}
 
                 <Show when=move || capture.picker_open.get()>
                     <div class="capture__picker">
