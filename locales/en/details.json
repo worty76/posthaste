@@ -66,7 +66,6 @@
   "steps": {
     "title": "Steps",
     "add": "Add a step",
-    "edit": "Edit step (E)",
     "remove": "Delete step (Delete)",
     "removed": "Step removed.",
     "limit": "This note has more than 100 steps. Remove some to add more."

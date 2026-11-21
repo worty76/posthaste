@@ -72,22 +72,25 @@ describe("steps", () => {
       (c) => c.length === 1,
       "row created on the first keystroke",
     );
-    await text(w.page.getByRole("checkbox", { name: "first step" }), "first step");
     await input.fill("first step, longer");
     await eventually(
       () => w.calls("step_set_text").then((c) => c.length),
       (c) => c === 1,
       "typing writes",
     );
+    // While still typing in the add line, the step is not duplicated as a separate checkbox row above it.
+    assert.equal(await w.page.getByRole("checkbox").count(), 0);
 
-    // Enter opens the add line again for the next step.
+    // Enter commits the step into the list and opens the add line again for the next step.
     await w.page.keyboard.press("Enter");
+    await text(w.page.getByRole("checkbox", { name: "first step, longer" }), "first step, longer");
     await input.fill("second step");
     await eventually(
       () => w.calls("steps_add").then((c) => c.length),
       (c) => c === 2,
       "second row",
     );
+    await w.page.keyboard.press("Escape");
 
     // Space ticks the selected step.
     const row = w.page.getByRole("checkbox", { name: "second step" });
@@ -179,15 +182,16 @@ describe("steps", () => {
     assert.equal((await w.calls("step_set_text")).at(-1).args.text, "buy milk");
     assert.equal((await w.calls("step_set_done")).length, 0);
     await text(w.page.locator(".details__saved"), "Saved");
+    await w.page.keyboard.press("Escape");
     await text(w.page.getByRole("checkbox", { name: "buy milk" }), "buy milk");
     await w.close();
   });
 
-  it("edits and deletes steps by mouse buttons and focuses the editor on E", async () => {
+  it("edits a step inline by clicking its text and deletes with the remove button or E key", async () => {
     const w = await details({ steps: [step("first"), step("second")] });
 
-    // Clicking the Edit button on a step row opens the inline editor and focuses it.
-    await w.page.getByRole("button", { name: "Edit step (E)" }).first().click();
+    // Clicking the step text opens the inline editor in place and focuses it.
+    await w.page.locator(".step__text", { hasText: "first" }).click();
     const input = w.page.getByRole("textbox", { name: "Steps" });
     await eventually(
       () => input.evaluate((el) => el === document.activeElement),

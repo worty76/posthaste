@@ -348,15 +348,40 @@ html.is-linux.is-details .details__panel {
 .step[data-selected="true"] {
   background: var(--hover);
 }
-.step__actions {
-  display: flex;
+.step--editing {
+  background: var(--hover);
+  cursor: text;
+}
+.step__text {
+  flex: 1;
+  min-width: 0;
+  cursor: text;
+}
+.step__input {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+  outline: none;
+  caret-color: var(--accent-ink);
+}
+.step__input::placeholder {
+  color: var(--text-faint);
+}
+.step__remove {
   flex: none;
-  gap: 2px;
+  width: 22px;
+  height: 22px;
   opacity: 0;
   transition: opacity var(--fast) var(--ease);
 }
-.steps__item:hover .step__actions,
-.steps__item:focus-within .step__actions {
+.steps__item:hover .step__remove,
+.step__remove:focus-visible {
   opacity: 1;
 }
 .step__mark {
@@ -376,12 +401,6 @@ html.is-linux.is-details .details__panel {
 }
 .step[aria-checked="true"] .step__text {
   color: var(--text-muted);
-}
-.details__step-input,
-.details__steps-input {
-  width: 100%;
-  height: 28px;
-  font-size: var(--t-sm);
 }
 .details__steps-add {
   display: inline-flex;

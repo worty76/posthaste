@@ -580,10 +580,15 @@ impl Details {
     /// Enter in the editor: save, then make room for the next step.
     fn step_enter(self) {
         let epoch = self.next_step_epoch();
-        let was_add_line = self
-            .step_editor
-            .get_untracked()
-            .is_some_and(|e| e.is_add_line);
+        let current = self.step_editor.get_untracked();
+        let was_add_line = current.as_ref().is_some_and(|e| e.is_add_line);
+        let empty = self.step_text.with_untracked(|t| t.trim().is_empty());
+        if !was_add_line && empty {
+            if let Some(id) = current.and_then(|e| e.id) {
+                self.remove_step(id);
+            }
+            return;
+        }
         spawn_local(async move {
             self.flush().await;
             if self.step_epoch.get_value() != epoch {
@@ -609,18 +614,20 @@ impl Details {
         });
     }
 
-    /// Esc, or Enter on an empty line: leave, keeping what was saved.
+    /// Esc, or Enter/blur on an empty line: leave, keeping what was saved.
     fn step_leave(self) {
-        if self.step_editor.get_untracked().is_none() {
+        let Some(current) = self.step_editor.get_untracked() else {
             return;
-        }
+        };
         let epoch = self.next_step_epoch();
-        let was_add_line = self
-            .step_editor
-            .get_untracked()
-            .is_some_and(|e| e.is_add_line);
+        let was_add_line = current.is_add_line;
+        let empty = self.step_text.with_untracked(|t| t.trim().is_empty());
+        let empty_add_id = (was_add_line && empty).then_some(current.id).flatten();
         spawn_local(async move {
             self.flush().await;
+            if let Some(id) = empty_add_id {
+                let _ = api::step_remove(&id).await;
+            }
             if self.step_epoch.get_value() != epoch {
                 return;
             }
@@ -1146,10 +1153,27 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
 /// section; the window's own keys keep working around it.
 #[component]
 fn StepsSection(details: Details, i18n: I18n, os: Os) -> impl IntoView {
+    // While a new step is still being typed in the add line, it is drawn
+    // inside AddLine itself, never duplicated as a separate row above it.
+    let add_target_id = Memo::new(move |_| {
+        details.step_editor.with(|e| {
+            e.as_ref()
+                .and_then(|e| e.is_add_line.then(|| e.id.clone()).flatten())
+        })
+    });
     let steps = Memo::new(move |_| {
-        details
-            .detail
-            .with(|d| d.as_ref().map(|d| d.steps.clone()).unwrap_or_default())
+        let adding_id = add_target_id.get();
+        details.detail.with(|d| {
+            d.as_ref()
+                .map(|d| {
+                    d.steps
+                        .iter()
+                        .filter(|s| adding_id.as_deref() != Some(s.id.as_str()))
+                        .cloned()
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        })
     });
     let any = move || steps.with(|s| !s.is_empty());
     let badge = Memo::new(move |_| {
@@ -1210,12 +1234,6 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                 .is_some_and(|e| !e.is_add_line && e.id.as_deref() == Some(id.get_value().as_str()))
         })
     });
-    let is_add_target = Memo::new(move |_| {
-        details.step_editor.with(|e| {
-            e.as_ref()
-                .is_some_and(|e| e.is_add_line && e.id.as_deref() == Some(id.get_value().as_str()))
-        })
-    });
     let any_editor = Memo::new(move |_| details.step_editor.with(Option::is_some));
     // Focus follows the selection when no step input is open, so typing in
     // the add line never loses focus when its row mounts.
@@ -1226,23 +1244,17 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
             }
         }
     });
-    // Focus the step input as soon as edit mode opens.
+    // Put the caret at the end of the step text as soon as edit mode opens.
     Effect::new(move |_| {
         if editor.get() {
             if let Some(field) = edit_field.get() {
-                let _ = field.focus();
+                browser::focus_input_end(&field);
             }
         }
     });
-    // The row reads its current text and state from the note, or live from
-    // the add line while this step is still being typed.
+    // The row reads its current text and state from the note, so a save
+    // updates it in place.
     let text = Memo::new(move |_| {
-        if is_add_target.get() {
-            let live = details.step_text.get();
-            if !live.trim().is_empty() {
-                return live;
-            }
-        }
         details.detail.with(|d| {
             d.as_ref()
                 .and_then(|d| d.steps.iter().find(|s| s.id == id.get_value()))
@@ -1292,50 +1304,72 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
             {move || {
                 if editor.get() {
                     view! {
-                        <input
-                            node_ref=edit_field
-                            class="field details__step-input"
-                            aria-label=i18n.text(key::DETAILS_STEPS_TITLE)
-                            maxlength=MAX_STEP_CHARS.to_string()
-                            spellcheck="false"
-                            use:bind_text=Signal::derive(move || details.step_text.get())
-                            on:input=move |event| details.edit_step_text(event_target_value(&event))
-                            on:blur=move |_| {
-                                if editor.get_untracked() {
-                                    details.step_leave();
+                        <div class="step step--editing" aria-checked=move || done.get().to_string()>
+                            <span
+                                class="step__mark"
+                                aria-hidden="true"
+                                on:mousedown=move |event| event.prevent_default()
+                                on:click=move |_| {
+                                    details.toggle_step(id.get_value(), !done.get_untracked());
                                 }
-                            }
-                            on:keydown=move |event| {
-                                if event.is_composing() {
-                                    return;
+                            >
+                                {(done.get()).then(|| view! { <Icon name=IconName::Check size=12 /> })}
+                            </span>
+                            <input
+                                node_ref=edit_field
+                                class="step__input"
+                                aria-label=i18n.text(key::DETAILS_STEPS_TITLE)
+                                maxlength=MAX_STEP_CHARS.to_string()
+                                spellcheck="false"
+                                use:bind_text=Signal::derive(move || details.step_text.get())
+                                on:input=move |event| details.edit_step_text(event_target_value(&event))
+                                on:blur=move |_| {
+                                    if editor.get_untracked() {
+                                        if details.step_text.with_untracked(|t| t.trim().is_empty()) {
+                                            details.remove_step(id.get_value());
+                                        } else {
+                                            details.step_leave();
+                                        }
+                                    }
                                 }
-                                let press = KeyPress {
-                                    key: &event.key(),
-                                    primary: has_mod(event.meta_key(), event.ctrl_key(), os),
-                                    shift: event.shift_key(),
-                                    alt: event.alt_key(),
-                                    composing: event.is_composing(),
-                                };
-                                // Mod+Enter and Mod+O stay with the window.
-                                if press.primary {
-                                    return;
-                                }
-                                let empty = details.step_text.with(|t| t.trim().is_empty());
-                                match step_key_action(press, true, empty) {
-                                    Some(StepKey::Enter) => {
+                                on:keydown=move |event| {
+                                    if event.is_composing() {
+                                        return;
+                                    }
+                                    let press = KeyPress {
+                                        key: &event.key(),
+                                        primary: has_mod(event.meta_key(), event.ctrl_key(), os),
+                                        shift: event.shift_key(),
+                                        alt: event.alt_key(),
+                                        composing: event.is_composing(),
+                                    };
+                                    // Mod+Enter and Mod+O stay with the window.
+                                    if press.primary {
+                                        return;
+                                    }
+                                    let empty = details.step_text.with(|t| t.trim().is_empty());
+                                    if empty && matches!(press.key, "Backspace" | "Delete" | "Enter") {
                                         event.prevent_default();
                                         event.stop_propagation();
-                                        details.step_enter();
+                                        details.remove_step(id.get_value());
+                                        return;
                                     }
-                                    Some(StepKey::Leave) => {
-                                        event.prevent_default();
-                                        event.stop_propagation();
-                                        details.step_leave();
+                                    match step_key_action(press, true, empty) {
+                                        Some(StepKey::Enter) => {
+                                            event.prevent_default();
+                                            event.stop_propagation();
+                                            details.step_enter();
+                                        }
+                                        Some(StepKey::Leave) => {
+                                            event.prevent_default();
+                                            event.stop_propagation();
+                                            details.step_leave();
+                                        }
+                                        _ => {}
                                     }
-                                    _ => {}
                                 }
-                            }
-                        />
+                            />
+                        </div>
                     }
                     .into_any()
                 } else {
@@ -1351,31 +1385,31 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                                 details.select_step(Some(id.get_value()));
                                 details.toggle_step(id.get_value(), !done.get_untracked());
                             }
-                            on:dblclick=move |_| details.edit_step(id.get_value())
                             on:keydown=on_key
                         >
                             <span class="step__mark" aria-hidden="true">
                                 {(done.get()).then(|| view! { <Icon name=IconName::Check size=12 /> })}
                             </span>
-                            <span class="step__text">{text}</span>
+                            <span
+                                class="step__text"
+                                on:click=move |event| {
+                                    event.stop_propagation();
+                                    details.edit_step(id.get_value());
+                                }
+                            >
+                                {text}
+                            </span>
                         </button>
-                        <span class="step__actions">
-                            <IconButton
-                                icon=IconName::Edit
-                                label=i18n.label(key::DETAILS_STEPS_EDIT)
-                                on_click=move |()| details.edit_step(id.get_value())
-                            />
-                            <IconButton
-                                icon=IconName::Trash
-                                label=i18n.label(key::DETAILS_STEPS_REMOVE)
-                                danger=true
-                                on_click=move |()| details.remove_step(id.get_value())
-                            />
-                        </span>
                     }
                     .into_any()
                 }
             }}
+            <IconButton
+                class="step__remove"
+                icon=IconName::Close
+                label=i18n.label(key::DETAILS_STEPS_REMOVE)
+                on_click=move |()| details.remove_step(id.get_value())
+            />
         </li>
     }
 }
@@ -1460,23 +1494,26 @@ fn AddLine(details: Details, i18n: I18n, os: Os) -> impl IntoView {
                 }
             }
         >
-            <input
-                node_ref=field
-                class="field details__steps-input"
-                aria-label=i18n.text(key::DETAILS_STEPS_ADD)
-                placeholder=i18n.text(key::DETAILS_STEPS_ADD)
-                maxlength=MAX_STEP_CHARS.to_string()
-                spellcheck="false"
-                use:bind_text=Signal::derive(move || details.step_text.get())
-                on:input=move |event| details.edit_step_text(event_target_value(&event))
-                on:blur=move |_| {
-                    if open.get_untracked() {
-                        details.step_leave();
+            <div class="step step--editing">
+                <span class="step__mark" aria-hidden="true"></span>
+                <input
+                    node_ref=field
+                    class="step__input"
+                    aria-label=i18n.text(key::DETAILS_STEPS_ADD)
+                    placeholder=i18n.text(key::DETAILS_STEPS_ADD)
+                    maxlength=MAX_STEP_CHARS.to_string()
+                    spellcheck="false"
+                    use:bind_text=Signal::derive(move || details.step_text.get())
+                    on:input=move |event| details.edit_step_text(event_target_value(&event))
+                    on:blur=move |_| {
+                        if open.get_untracked() {
+                            details.step_leave();
+                        }
                     }
-                }
-                on:keydown=on_key
-                on:paste=on_paste
-            />
+                    on:keydown=on_key
+                    on:paste=on_paste
+                />
+            </div>
         </Show>
     }
 }
