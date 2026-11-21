@@ -3,10 +3,10 @@
 //! `src-tauri/src/commands.rs`.
 
 use posthaste_model::{
-    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
-    DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
-    Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
-    Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
+    AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CategoryCount, CommandError, Counts,
+    DataInfo, DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview,
+    LookSummary, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings,
+    SettingsState, Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -41,6 +41,13 @@ pub async fn look_active() -> Response<ResolvedLook> {
 
 pub async fn categories_list() -> Response<Vec<String>> {
     invoke("categories_list", &NoArgs {}).await
+}
+
+/// How many live notes use each category, most used first.
+// Called from the inbox picker, which lands with the next commit.
+#[expect(dead_code)]
+pub async fn categories_counts() -> Response<Vec<CategoryCount>> {
+    invoke("categories_counts", &NoArgs {}).await
 }
 
 #[derive(Serialize)]

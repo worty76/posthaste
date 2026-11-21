@@ -137,6 +137,7 @@ pub fn run() {
             commands::notes_list,
             commands::notes_counts,
             commands::categories_list,
+            commands::categories_counts,
             commands::glance_get,
             commands::notes_day_marks,
             commands::inbox_open_date,

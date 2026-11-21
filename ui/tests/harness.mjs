@@ -222,6 +222,7 @@ export async function open({
         look_asset: ({ id }) =>
           `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#${id}`,
         categories_list: () => ["work", "home"],
+        categories_counts: () => [{ name: "work", count: 3 }, { name: "home", count: 1 }],
         draft_get: () => mock.draft,
         draft_set: ({ content, category }) => {
           mock.draft = { content, category, updated_at: 1 };
