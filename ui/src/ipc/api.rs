@@ -45,6 +45,7 @@ pub async fn categories_list() -> Response<Vec<String>> {
 }
 
 /// How many live notes use each category, most used first.
+#[allow(dead_code)]
 pub async fn categories_counts() -> Response<Vec<CategoryCount>> {
     invoke("categories_counts", &NoArgs {}).await
 }
@@ -58,7 +59,6 @@ struct ProjectsList {
     include_archived: bool,
 }
 
-#[allow(dead_code)]
 pub async fn projects_list(include_archived: bool) -> Response<Vec<Project>> {
     invoke("projects_list", &ProjectsList { include_archived }).await
 }
@@ -115,7 +115,6 @@ struct NoteSetProject<'a> {
     project: Option<&'a str>,
 }
 
-#[allow(dead_code)]
 pub async fn note_set_project(id: &str, project: Option<&str>) -> Response<Note> {
     invoke("note_set_project", &NoteSetProject { id, project }).await
 }

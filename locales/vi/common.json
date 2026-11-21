@@ -39,5 +39,19 @@
     "bottom_left": "Dưới cùng bên trái",
     "bottom": "Dưới cùng ở giữa",
     "bottom_right": "Dưới cùng bên phải"
+  },
+  "project_picker": {
+    "title_set": "Chọn dự án",
+    "title_jump": "Chuyển đến dự án",
+    "placeholder": "Lọc hoặc tạo dự án",
+    "placeholder_jump": "Lọc dự án",
+    "no_project": "Không có dự án",
+    "create": "Tạo “{name}”",
+    "unarchive": "Bỏ lưu trữ và dùng “{name}”",
+    "none": "Không có dự án nào khớp.",
+    "empty_hint": "Nhấn P trên một ghi chú để tạo dự án.",
+    "notes": {
+      "other": "{count} ghi chú"
+    }
   }
 }

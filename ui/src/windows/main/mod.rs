@@ -1,7 +1,6 @@
 //! The main window: the sidebar, a section of notes or the settings, and
 //! the search that looks through every note.
 
-mod category_picker;
 mod date_filter;
 mod help;
 mod notes;
@@ -16,18 +15,19 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key};
-use posthaste_model::{AppInfo, CommandError, Counts, DetailsFrom, Note, Os, Status};
+use posthaste_model::{AppInfo, CommandError, Counts, DetailsFrom, Note, Os, Project, Status};
 use wasm_bindgen::JsCast;
 
 use crate::browser::{self, bind_text};
 use crate::components::{
-    Button, Icon, IconButton, IconName, Kbd, SceneHost, Segmented, Toaster, Toasts,
+    Button, Icon, IconButton, IconName, Kbd, ProjectPicker, SceneHost, Segmented, Toaster, Toasts,
 };
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{
     build_query, key_action, Filters, KeyAction, KeyContext, KeyPress, StatusFilter, View,
 };
+use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
 use crate::logic::selection::neighbour;
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
@@ -77,8 +77,9 @@ struct Main {
     view: RwSignal<View>,
     filters: RwSignal<Filters>,
     filters_open: RwSignal<bool>,
-    /// The category picker, opened with `#`.
-    picker_open: RwSignal<bool>,
+    /// The project picker, opened with `P` (SetNote) or `#` (Jump).
+    picker: RwSignal<Option<PickerMode>>,
+    picker_projects: RwSignal<Vec<Project>>,
     /// What the last query answered: up to one more than `limit`, which is
     /// how the list knows there are older notes.
     notes: RwSignal<Vec<Note>>,
@@ -109,7 +110,8 @@ impl Main {
             view: RwSignal::new(View::Inbox),
             filters: RwSignal::new(Filters::default()),
             filters_open: RwSignal::new(false),
-            picker_open: RwSignal::new(false),
+            picker: RwSignal::new(None),
+            picker_projects: RwSignal::new(Vec::new()),
             notes: RwSignal::new(Vec::new()),
             loaded: RwSignal::new(false),
             limit: RwSignal::new(PAGE),
@@ -156,7 +158,7 @@ impl Main {
                 ..Filters::default()
             };
         });
-        self.picker_open.set(false);
+        self.picker.set(None);
         self.filters_open.set(false);
         self.limit.set(PAGE);
         self.editing.set(None);
@@ -178,9 +180,28 @@ impl Main {
     /// Filters the list by one category, from the picker or a row.
     fn set_category(self, name: String) {
         self.limit.set(PAGE);
-        self.picker_open.set(false);
+        self.picker.set(None);
         self.selected.set(None);
         self.filters.update(|filters| filters.category = Some(name));
+    }
+
+    fn open_picker(self, mode: PickerMode) {
+        self.picker.set(Some(mode));
+        spawn_local(async move {
+            match api::projects_list(true).await {
+                Ok(projects) => self.picker_projects.set(projects),
+                Err(error) => self.fail(error),
+            }
+        });
+    }
+
+    fn set_note_project(self, note_id: String, project: Option<String>) {
+        self.picker.set(None);
+        spawn_local(async move {
+            if let Err(error) = api::note_set_project(&note_id, project.as_deref()).await {
+                self.fail(error);
+            }
+        });
     }
 
     /// Takes the category filter off.
@@ -554,7 +575,8 @@ impl Main {
             }
             (KeyAction::ClearSearch, _) => self.clear_search(),
             (KeyAction::ClearCategory, _) => self.clear_category(),
-            (KeyAction::PickCategory, _) => self.picker_open.set(true),
+            (KeyAction::PickCategory, _) => self.open_picker(PickerMode::Jump),
+            (KeyAction::SetProject, Some(_)) => self.open_picker(PickerMode::SetNote),
             (KeyAction::ClearSelection, _) => self.selected.set(None),
             (KeyAction::Edit, Some(note)) => self.start_edit(&note.id),
             (KeyAction::ToggleComplete, Some(note)) => self.toggle_complete(&note),
@@ -573,6 +595,7 @@ impl Main {
                 | KeyAction::ToggleLater
                 | KeyAction::Copy
                 | KeyAction::OpenDetails
+                | KeyAction::SetProject
                 | KeyAction::Delete,
                 None,
             ) => {}
@@ -623,7 +646,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     // the look at the list it belonged to: take it off when the window goes.
     let hidden = window_event_listener(leptos::ev::visibilitychange, move |_| {
         if document().visibility_state() == web_sys::VisibilityState::Hidden {
-            main.picker_open.set(false);
+            main.picker.set(None);
             main.filters.update(|filters| filters.category = None);
         }
     });
@@ -865,9 +888,33 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                             })
                         }}
                         <div class="cat-anchor">
-                            <Show when=move || main.picker_open.get()>
-                                <category_picker::CategoryPicker main=main />
-                            </Show>
+                            {move || main.picker.get().map(|mode| view! {
+                                <ProjectPicker
+                                    i18n=i18n
+                                    mode=mode
+                                    projects=Signal::derive(move || main.picker_projects.get())
+                                    on_pick=move |row| match (mode, row) {
+                                        (PickerMode::Jump, PickerRow::Project { name, .. }) => {
+                                            main.set_category(name);
+                                        }
+                                        (PickerMode::SetNote, row) => {
+                                            if let Some(note) = main.selected_note() {
+                                                let project = match row {
+                                                    PickerRow::NoProject => None,
+                                                    PickerRow::Project { name, .. }
+                                                    | PickerRow::Create(name)
+                                                    | PickerRow::Unarchive(name) => Some(name),
+                                                };
+                                                main.set_note_project(note.id, project);
+                                            } else {
+                                                main.picker.set(None);
+                                            }
+                                        }
+                                        _ => main.picker.set(None),
+                                    }
+                                    on_close=move |()| main.picker.set(None)
+                                />
+                            })}
                         </div>
                         {move || match pane.get() {
                             Pane::LoadingSettings => ().into_any(),

@@ -40,5 +40,20 @@
     "bottom_left": "Bottom left",
     "bottom": "Bottom center",
     "bottom_right": "Bottom right"
+  },
+  "project_picker": {
+    "title_set": "Set project",
+    "title_jump": "Jump to project",
+    "placeholder": "Filter or create project",
+    "placeholder_jump": "Filter projects",
+    "no_project": "No project",
+    "create": "Create “{name}”",
+    "unarchive": "Unarchive and use “{name}”",
+    "none": "No projects match.",
+    "empty_hint": "Press P on a note to create a project.",
+    "notes": {
+      "one": "{count} note",
+      "other": "{count} notes"
+    }
   }
 }

@@ -8,6 +8,7 @@ pub mod details;
 pub mod inbox;
 pub mod look;
 pub mod position;
+pub mod project_picker;
 pub mod sections;
 pub mod selection;
 pub mod shortcut;

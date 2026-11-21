@@ -9,6 +9,7 @@ mod empty_state;
 mod icon;
 mod kbd;
 mod position_picker;
+mod project_picker;
 mod scene;
 mod toasts;
 
@@ -20,5 +21,6 @@ pub use empty_state::EmptyState;
 pub use icon::{Icon, IconName};
 pub use kbd::{caps, Kbd};
 pub use position_picker::PositionPicker;
+pub use project_picker::ProjectPicker;
 pub use scene::SceneHost;
 pub use toasts::{Toaster, Toasts};

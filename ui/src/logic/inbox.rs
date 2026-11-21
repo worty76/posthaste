@@ -201,8 +201,10 @@ pub enum KeyAction {
     ClearSearch,
     /// Esc on a filtered list: take the category filter off.
     ClearCategory,
-    /// `#`: open the category picker.
+    /// `#`: open the project picker in jump mode.
     PickCategory,
+    /// `P`: set the selected note's project.
+    SetProject,
     ClearSelection,
     Edit,
     ToggleComplete,
@@ -325,6 +327,7 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<Keyed> {
         ),
         "c" => plain(KeyAction::Copy),
         "o" => plain(KeyAction::OpenDetails),
+        "p" | "P" => plain(KeyAction::SetProject),
         "Delete" | "Backspace" => keyed(KeyAction::Delete, true),
         _ => None,
     }

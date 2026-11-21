@@ -342,12 +342,12 @@ describe("inbox", () => {
 
   it("pressing # and enter filters the inbox by category", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", [
-      { name: "health", count: 1 },
-      { name: "work", count: 2 },
+    await w.mock.answer("projects_list", [
+      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
+      { name: "work", archived: false, open: 2, total: 2, last_at: 50 },
     ]);
     await w.key("#");
-    const picker = w.page.locator(".cat-picker");
+    const picker = w.page.locator(".proj-picker");
     await text(picker, "health");
     await w.key("Enter");
     await eventually(w.contents, (c) => c.join() === "book dentist", "filtered");
@@ -358,9 +358,11 @@ describe("inbox", () => {
 
   it("the filter line clears with escape", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", [{ name: "work", count: 2 }]);
+    await w.mock.answer("projects_list", [
+      { name: "work", archived: false, open: 2, total: 2, last_at: 50 },
+    ]);
     await w.key("#");
-    await text(w.page.locator(".cat-picker"), "work");
+    await text(w.page.locator(".proj-picker"), "work");
     await w.key("Enter");
     await text(w.page.locator(".empty"), "No notes in this category here.");
     await w.key("Escape");
@@ -376,9 +378,11 @@ describe("inbox", () => {
 
   it("the filter line clears with its × and the picker is gone", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", [{ name: "health", count: 1 }]);
+    await w.mock.answer("projects_list", [
+      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
+    ]);
     await w.key("#");
-    await text(w.page.locator(".cat-picker"), "health");
+    await text(w.page.locator(".proj-picker"), "health");
     await w.key("Enter");
     await eventually(w.contents, (c) => c.length === 1, "filtered");
     await w.page.getByRole("button", { name: "Clear the category filter" }).click();
@@ -396,9 +400,11 @@ describe("inbox", () => {
 
   it("the filter stays when switching views", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", [{ name: "health", count: 1 }]);
+    await w.mock.answer("projects_list", [
+      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
+    ]);
     await w.key("#");
-    await text(w.page.locator(".cat-picker"), "health");
+    await text(w.page.locator(".proj-picker"), "health");
     await w.key("Enter");
     await eventually(w.contents, (c) => c.length === 1, "filtered");
     await w.key("3");
@@ -412,18 +418,18 @@ describe("inbox", () => {
 
   it("the picker narrows as you type and shows counts", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", [
-      { name: "health", count: 1 },
-      { name: "work", count: 2 },
-      { name: "home", count: 3 },
+    await w.mock.answer("projects_list", [
+      { name: "health", archived: false, open: 1, total: 1, last_at: 100 },
+      { name: "work", archived: false, open: 2, total: 2, last_at: 90 },
+      { name: "home", archived: false, open: 3, total: 3, last_at: 80 },
     ]);
     await w.key("#");
-    const picker = w.page.locator(".cat-picker");
+    const picker = w.page.locator(".proj-picker");
     await text(picker, "health");
     await text(picker, "3");
     await w.page.keyboard.type("ho");
     await text(picker, "home");
-    assert.equal(await picker.locator(".cat-picker__item").count(), 1);
+    assert.equal(await picker.locator(".proj-picker__item").count(), 1);
     await w.key("Escape");
     await eventually(
       () => picker.count(),
@@ -435,9 +441,9 @@ describe("inbox", () => {
 
   it("the picker says so when no category is in use", async () => {
     const w = await main();
-    await w.mock.answer("categories_counts", []);
+    await w.mock.answer("projects_list", []);
     await w.key("#");
-    await text(w.page.locator(".cat-picker"), "Add one with # when you capture a note.");
+    await text(w.page.locator(".proj-picker"), "Press P on a note to create a project.");
     await w.close();
   });
 
@@ -553,6 +559,110 @@ describe("inbox", () => {
     });
     await eventually(w.contents, (c) => c.length === 2, "two notes");
     assert.equal(await w.page.locator(".proj-section__header").count(), 0);
+    await w.close();
+  });
+
+  it("P sets the selected note's project", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+          note("call mum", { created_at: at("2026-11-15T08:00:00") }),
+        ],
+        projects: [{ name: "health", archived: false }],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    // Select "call mum" (second row).
+    await w.key("ArrowDown");
+    await w.key("ArrowDown");
+    await text(w.selected, "call mum");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "health");
+    await w.key("ArrowDown");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "note_set_project called",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, "health");
+    await text(w.page.locator(".proj-section__header").first(), "2");
+    await w.close();
+  });
+
+  it("P can create a project from the picker", async () => {
+    const w = await main({
+      store: {
+        notes: [note("file return", { created_at: at("2026-11-15T09:00:00") })],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await w.page.keyboard.type("taxes");
+    await text(picker, "Create “taxes”");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "created and set",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, "taxes");
+    await text(w.page.locator(".proj-section__header").first(), "taxes");
+    await w.close();
+  });
+
+  it("P with No project clears it", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "No project");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "cleared",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, null);
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 0,
+      "header gone",
+    );
+    await w.close();
+  });
+
+  it("escape leaves the project unchanged", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "No project");
+    await w.key("Escape");
+    await eventually(
+      () => picker.count(),
+      (n) => n === 0,
+      "picker closed",
+    );
+    assert.equal((await w.calls("note_set_project")).length, 0);
     await w.close();
   });
 
