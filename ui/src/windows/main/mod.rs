@@ -308,10 +308,15 @@ impl Main {
     fn load_projects(self) {
         self.revision.with(|_| ());
         spawn_local(async move {
-            if let Ok(projects) = api::projects_list(false).await {
+            if let Ok(projects) = api::projects_list(true).await {
                 self.projects.set(projects);
             }
         });
+    }
+
+    fn project_color(self, name: &str) -> Option<String> {
+        self.projects
+            .with(|list| list.iter().find(|p| p.name == name)?.color.clone())
     }
 
     fn is_section_collapsed(self, project: &str) -> bool {
@@ -850,14 +855,22 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                     <div class="sidebar__group-label">{i18n.text(key::INBOX_NAV_PROJECTS)}</div>
                     <nav class="nav sidebar__projects" aria-label=i18n.text(key::INBOX_NAV_PROJECTS)>
                         <For
-                            each=move || main.projects.get()
-                            key=|p| (p.name.clone(), p.total)
+                            each=move || {
+                                main.projects.with(|list| {
+                                    list.iter()
+                                        .filter(|p| !p.archived)
+                                        .cloned()
+                                        .collect::<Vec<_>>()
+                                })
+                            }
+                            key=|p| (p.name.clone(), p.color.clone(), p.total)
                             let:project
                         >
                             {
                                 let name = project.name.clone();
                                 let name_cur = name.clone();
                                 let name_click = name.clone();
+                                let color = project.color.clone();
                                 let total = project.total;
                                 let current = move || {
                                     let here = main.view.with(|v| {
@@ -872,6 +885,9 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                         aria-current=current
                                         on:click=move |_| main.go(View::Project(name_click.clone()))
                                     >
+                                        {color.map(|c| view! {
+                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                        })}
                                         <span class="nav__label">{name}</span>
                                         {(total > 0).then(|| view! {
                                             <span class="nav__count">{total}</span>

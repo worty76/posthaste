@@ -1120,3 +1120,14 @@
 .manage-projects__archived {
   margin-top: var(--s-5);
 }
+
+.manage-projects__new {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+.manage-projects__new .field {
+  flex: 1 1 180px;
+}

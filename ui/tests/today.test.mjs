@@ -613,4 +613,22 @@ describe("language", () => {
     );
     await w.close();
   });
+
+  it("today tints a project's section rail and dot with its color", async () => {
+    const a = note("draft spec", { created_at: at("2026-11-15T09:00:00"), category: "work" });
+    const w = await today({
+      store: {
+        notes: [a],
+        projects: [{ name: "work", archived: false, color: "4" }],
+      },
+      glance: glance({ today: [a], done: 0, total: 1 }),
+    });
+    await eventually(
+      () => w.page.locator('.today__section-header .proj-dot[data-color="4"]').count(),
+      (n) => n === 1,
+      "dot colored",
+    );
+    assert.equal(await w.page.locator('.today__rows--project[data-color="4"]').count(), 1);
+    await w.close();
+  });
 });

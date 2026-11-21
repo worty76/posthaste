@@ -793,6 +793,40 @@ describe("inbox", () => {
     await w.close();
   });
 
+  it("manage projects creates a project and sets its color", async () => {
+    const w = await main({ store: { notes: [] } });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    const input = w.page.getByLabel("New project");
+    await input.fill("fitness");
+    await w.page.locator(".manage-projects__new").getByRole("button", { name: "Sage" }).click();
+    await input.press("Enter");
+    await eventually(
+      () => w.calls("project_create"),
+      (c) => c.length === 1 && c[0].args.name === "fitness",
+      "created",
+    );
+    await eventually(
+      () => w.calls("project_set_color"),
+      (c) => c.length === 1 && c[0].args.name === "fitness" && c[0].args.color === "3",
+      "color set on create",
+    );
+    await text(w.page.locator(".sidebar__projects"), "fitness");
+    assert.equal(await w.page.locator('.sidebar__projects .proj-dot[data-color="3"]').count(), 1);
+    // Change color on the row to Sky ("4").
+    await w.page
+      .locator(".manage-projects__row")
+      .first()
+      .getByRole("button", { name: "Sky" })
+      .click();
+    await eventually(
+      () => w.calls("project_set_color"),
+      (c) => c.length === 2 && c[1].args.color === "4",
+      "color updated",
+    );
+    assert.equal(await w.page.locator('.sidebar__projects .proj-dot[data-color="4"]').count(), 1);
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");

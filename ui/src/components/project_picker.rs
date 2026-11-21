@@ -144,6 +144,10 @@ pub fn ProjectPicker(
                                     .translator()
                                     .format(key::COMMON_PROJECT_PICKER_UNARCHIVE, &[("name", name)]),
                             };
+                            let color = match &row {
+                                PickerRow::Project { color, .. } => color.clone(),
+                                _ => None,
+                            };
                             let count = match &row {
                                 PickerRow::Project { count, .. } => Some(
                                     i18n.translator().plural(
@@ -171,6 +175,9 @@ pub fn ProjectPicker(
                                             }
                                         }
                                     >
+                                        {color.map(|c| view! {
+                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                        })}
                                         <span class="proj-picker__name">{label}</span>
                                         {count.map(|c| view! {
                                             <span class="proj-picker__count">{c}</span>

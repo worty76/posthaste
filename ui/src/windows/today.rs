@@ -124,6 +124,11 @@ impl Today {
         self.set_section_collapsed(project, !collapsed);
     }
 
+    fn project_color(self, name: &str) -> Option<String> {
+        self.picker_projects
+            .with(|list| list.iter().find(|p| p.name == name)?.color.clone())
+    }
+
     fn open_picker(self) {
         self.picker_open.set(true);
         spawn_local(async move {
@@ -190,6 +195,11 @@ impl Today {
         let answer = api::glance_get(from, to).await;
         if self.request.get_value() != request {
             return;
+        }
+        if let Ok(projects) = api::projects_list(true).await {
+            if self.request.get_value() == request {
+                self.picker_projects.set(projects);
+            }
         }
         match answer {
             Ok(glance) => {
@@ -766,13 +776,19 @@ fn Group(
                                         <span class="proj-section__chevron">
                                             <Icon name=IconName::Next size=12 />
                                         </span>
+                                        {move || project.with_value(|name| today.project_color(name)).map(|c| view! {
+                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                        })}
                                         <span class="proj-section__name">{project.get_value()}</span>
                                         <span class="proj-section__count">
                                             {move || project.with_value(|name| notes_of(Some(name)).len())}
                                         </span>
                                     </button>
                                     <Show when=expanded>
-                                        <ul class="today__rows today__rows--project">
+                                        <ul
+                                            class="today__rows today__rows--project"
+                                            data-color=move || project.with_value(|name| today.project_color(name))
+                                        >
                                             <For
                                                 each=move || project.with_value(|name| notes_of(Some(name)))
                                                 key=row_key

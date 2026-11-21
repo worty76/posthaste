@@ -59,7 +59,6 @@ struct ProjectByName<'a> {
     name: &'a str,
 }
 
-#[allow(dead_code)]
 pub async fn project_create(name: &str) -> Response<Project> {
     invoke("project_create", &ProjectByName { name }).await
 }
@@ -89,6 +88,16 @@ pub async fn project_set_archived(name: &str, archived: bool) -> Response<()> {
         &ProjectSetArchived { name, archived },
     )
     .await
+}
+
+#[derive(Serialize)]
+struct ProjectSetColor<'a> {
+    name: &'a str,
+    color: Option<&'a str>,
+}
+
+pub async fn project_set_color(name: &str, color: Option<&str>) -> Response<()> {
+    invoke("project_set_color", &ProjectSetColor { name, color }).await
 }
 
 pub async fn project_clear(name: &str) -> Response<u32> {

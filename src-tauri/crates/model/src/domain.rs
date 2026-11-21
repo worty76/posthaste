@@ -158,6 +158,8 @@ pub struct CategoryCount {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
     pub archived: bool,
     pub open: u32,
     pub total: u32,

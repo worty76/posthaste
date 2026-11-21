@@ -128,6 +128,9 @@ pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl Into
                                                 <span class="proj-section__chevron">
                                                     <Icon name=IconName::Next size=12 />
                                                 </span>
+                                                {move || project.with_value(|name| main.project_color(name)).map(|c| view! {
+                                                    <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                                })}
                                                 <span class="proj-section__name">{project.get_value()}</span>
                                                 <span class="proj-section__count">
                                                     {move || project.with_value(|name| notes_of(Some(name)).len())}

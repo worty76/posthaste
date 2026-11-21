@@ -240,9 +240,9 @@ export async function open({
               message: "A project with that name already exists.",
             });
           }
-          store.projects.push({ name: cleaned, archived: false });
+          store.projects.push({ name: cleaned, archived: false, color: null });
           changed();
-          return { name: cleaned, archived: false, open: 0, total: 0, last_at: 0 };
+          return { name: cleaned, color: null, archived: false, open: 0, total: 0, last_at: 0 };
         },
         project_rename: ({ from, to, merge }) => {
           const src = cleanProject(from);
@@ -274,7 +274,11 @@ export async function open({
           const oldRow = store.projects.find((p) => p.name === src);
           store.projects = store.projects.filter((p) => p.name !== src);
           if (!store.projects.some((p) => p.name === dst)) {
-            store.projects.push({ name: dst, archived: Boolean(oldRow?.archived) });
+            store.projects.push({
+              name: dst,
+              archived: Boolean(oldRow?.archived),
+              color: oldRow?.color ?? null,
+            });
           }
           changed();
           return moved;
@@ -283,7 +287,16 @@ export async function open({
           const cleaned = cleanProject(name);
           const existing = store.projects.find((p) => p.name === cleaned);
           if (existing) existing.archived = Boolean(archived);
-          else if (cleaned) store.projects.push({ name: cleaned, archived: Boolean(archived) });
+          else if (cleaned)
+            store.projects.push({ name: cleaned, archived: Boolean(archived), color: null });
+          return changed();
+        },
+        project_set_color: ({ name, color }) => {
+          const cleaned = cleanProject(name);
+          const existing = store.projects.find((p) => p.name === cleaned);
+          if (existing) existing.color = color ?? null;
+          else if (cleaned)
+            store.projects.push({ name: cleaned, archived: false, color: color ?? null });
           return changed();
         },
         project_clear: ({ name }) => {
@@ -667,7 +680,7 @@ export async function open({
           const open = live.filter((n) => n.status === "inbox").length;
           const total = live.length;
           const last_at = live.reduce((m, n) => Math.max(m, n.created_at ?? 0), 0);
-          out.push({ name, archived, open, total, last_at });
+          out.push({ name, color: row?.color ?? null, archived, open, total, last_at });
         }
         out.sort(
           (a, b) => b.last_at - a.last_at || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),

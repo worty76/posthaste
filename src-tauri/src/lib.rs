@@ -140,6 +140,7 @@ pub fn run() {
             commands::project_create,
             commands::project_rename,
             commands::project_set_archived,
+            commands::project_set_color,
             commands::project_clear,
             commands::note_set_project,
             commands::steps_add,

@@ -6,7 +6,7 @@ use leptos::ev::KeyboardEvent;
 use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::key;
+use posthaste_i18n::{key, Key};
 use posthaste_model::Project;
 
 use super::Main;
@@ -15,8 +15,65 @@ use crate::components::{Button, Dialog, EmptyState, Icon, IconName, Variant};
 use crate::ipc::api;
 use crate::logic::inbox::View;
 use crate::logic::project_picker::{rename_decision, RenameDecision};
+use crate::state::I18n;
 
 const MAX_PROJECT_CHARS: &str = "40";
+
+const COLORS: [(&str, Key); 6] = [
+    ("1", key::INBOX_MANAGE_PROJECTS_COLOR_1),
+    ("2", key::INBOX_MANAGE_PROJECTS_COLOR_2),
+    ("3", key::INBOX_MANAGE_PROJECTS_COLOR_3),
+    ("4", key::INBOX_MANAGE_PROJECTS_COLOR_4),
+    ("5", key::INBOX_MANAGE_PROJECTS_COLOR_5),
+    ("6", key::INBOX_MANAGE_PROJECTS_COLOR_6),
+];
+
+/// Inline swatch row for picking or clearing a project's palette color.
+#[component]
+fn ColorSwatches(
+    i18n: I18n,
+    current: Signal<Option<String>>,
+    #[prop(into)] on_pick: Callback<Option<String>>,
+) -> impl IntoView {
+    view! {
+        <div
+            class="proj-swatches"
+            role="group"
+            aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_GROUP)
+            on:click=move |event| event.stop_propagation()
+        >
+            <button
+                type="button"
+                class="proj-swatch"
+                aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_NONE)
+                title=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_NONE)
+                aria-pressed=move || current.with(Option::is_none).to_string()
+                on:click=move |_| on_pick.run(None)
+            >
+                <span class="proj-swatch__none" aria-hidden="true"></span>
+            </button>
+            {COLORS
+                .into_iter()
+                .map(|(code, label)| {
+                    view! {
+                        <button
+                            type="button"
+                            class="proj-swatch"
+                            aria-label=i18n.text(label)
+                            title=i18n.text(label)
+                            aria-pressed=move || {
+                                current.with(|c| c.as_deref() == Some(code)).to_string()
+                            }
+                            on:click=move |_| on_pick.run(Some(code.to_owned()))
+                        >
+                            <span class="proj-dot" data-color=code aria-hidden="true"></span>
+                        </button>
+                    }
+                })
+                .collect_view()}
+        </div>
+    }
+}
 
 #[component]
 pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
@@ -30,6 +87,9 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
     let rename_field = NodeRef::<html::Input>::new();
     let confirm_merge = RwSignal::new(Option::<(String, String, u32)>::None);
     let confirm_remove = RwSignal::new(Option::<(String, u32)>::None);
+    let new_name = RwSignal::new(String::new());
+    let new_color = RwSignal::new(Option::<String>::None);
+    let creating = RwSignal::new(false);
     let container = NodeRef::<html::Div>::new();
 
     Effect::new(move |_| {
@@ -121,6 +181,44 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
         spawn_local(async move {
             if let Err(error) = api::project_set_archived(&name, arch).await {
                 main.fail(error);
+            }
+        });
+    };
+
+    let set_color = move |name: String, color: Option<String>| {
+        spawn_local(async move {
+            if let Err(error) = api::project_set_color(&name, color.as_deref()).await {
+                main.fail(error);
+            }
+        });
+    };
+
+    let create_project = move || {
+        let name = new_name.get_untracked();
+        if name.trim().is_empty() || creating.get_untracked() {
+            return;
+        }
+        let picked_color = new_color.get_untracked();
+        creating.set(true);
+        spawn_local(async move {
+            match api::project_create(&name).await {
+                Ok(created) => {
+                    if let Some(color) = picked_color {
+                        if let Err(error) =
+                            api::project_set_color(&created.name, Some(&color)).await
+                        {
+                            main.fail(error);
+                        }
+                    }
+                    new_name.set(String::new());
+                    new_color.set(None);
+                    selected.set(Some(created.name));
+                    creating.set(false);
+                }
+                Err(error) => {
+                    creating.set(false);
+                    main.fail(error);
+                }
             }
         });
     };
@@ -239,6 +337,7 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
 
     let render_row = move |project: Project| {
         let name = StoredValue::new(project.name);
+        let color = StoredValue::new(project.color);
         let total = project.total;
         let is_archived = project.archived;
         let is_selected = Memo::new(move |_| {
@@ -305,9 +404,17 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                                 }
                                 on:dblclick=move |_| main.go(View::Project(name.get_value()))
                             >
+                                {color.get_value().map(|c| view! {
+                                    <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                })}
                                 <span class="manage-projects__title">{name.get_value()}</span>
                                 <span class="manage-projects__count">{total}</span>
                             </button>
+                            <ColorSwatches
+                                i18n=i18n
+                                current=Signal::derive(move || color.get_value())
+                                on_pick=move |next| set_color(name.get_value(), next)
+                            />
                             <div class="manage-projects__actions">
                                 <Button
                                     variant=Variant::Quiet
@@ -359,6 +466,40 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
 
     view! {
         <div node_ref=container class="manage-projects" tabindex="-1">
+            <div class="manage-projects__new">
+                <input
+                    class="field"
+                    type="text"
+                    maxlength=MAX_PROJECT_CHARS
+                    aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_NEW_LABEL)
+                    placeholder=i18n.text(key::INBOX_MANAGE_PROJECTS_NEW_PLACEHOLDER)
+                    use:bind_text=Signal::derive(move || new_name.get())
+                    on:input=move |event| new_name.set(event_target_value(&event))
+                    on:keydown=move |event| {
+                        if event.is_composing() {
+                            return;
+                        }
+                        if event.key() == "Enter" {
+                            event.prevent_default();
+                            event.stop_propagation();
+                            create_project();
+                        }
+                    }
+                />
+                <ColorSwatches
+                    i18n=i18n
+                    current=Signal::derive(move || new_color.get())
+                    on_pick=move |next| new_color.set(next)
+                />
+                <Button
+                    variant=Variant::Primary
+                    busy=creating
+                    disabled=Signal::derive(move || new_name.with(|n| n.trim().is_empty()))
+                    on_click=move |()| create_project()
+                >
+                    {i18n.text(key::INBOX_MANAGE_PROJECTS_ADD)}
+                </Button>
+            </div>
             <Show when=move || loaded.get()>
                 <Show
                     when=move || all.with(|list| !list.is_empty())
@@ -367,7 +508,7 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                     <ul class="manage-projects__list">
                         <For
                             each=move || active.get()
-                            key=|p| (p.name.clone(), p.total)
+                            key=|p| (p.name.clone(), p.color.clone(), p.total)
                             let:project
                         >
                             {render_row(project)}
@@ -399,7 +540,7 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                                 <ul class="manage-projects__list">
                                     <For
                                         each=move || archived.get()
-                                        key=|p| (p.name.clone(), p.total)
+                                        key=|p| (p.name.clone(), p.color.clone(), p.total)
                                         let:project
                                     >
                                         {render_row(project)}

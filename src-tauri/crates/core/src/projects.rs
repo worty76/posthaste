@@ -13,6 +13,17 @@ fn clean_project_name(name: &str) -> Result<String> {
     clean_category(Some(name)).ok_or(CoreError::ProjectInvalid)
 }
 
+fn clean_project_color(color: Option<&str>) -> Result<Option<String>> {
+    let Some(raw) = color.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    if matches!(raw, "1" | "2" | "3" | "4" | "5" | "6") {
+        Ok(Some(raw.to_owned()))
+    } else {
+        Err(CoreError::ProjectInvalid)
+    }
+}
+
 fn project_exists(tx: &Transaction<'_>, name: &str) -> Result<bool> {
     let exists: bool = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM projects WHERE name = ?1)
@@ -36,6 +47,7 @@ impl Db {
              )
              SELECT
                  n.name,
+                 p.color,
                  COALESCE(p.archived_at IS NOT NULL, 0) AS archived,
                  COUNT(notes.id) FILTER (WHERE notes.status = 'inbox') AS open_count,
                  COUNT(notes.id) AS total_count,
@@ -50,10 +62,11 @@ impl Db {
         let rows = stmt.query_map([include_archived], |r| {
             Ok(Project {
                 name: r.get(0)?,
-                archived: r.get::<_, i64>(1)? != 0,
-                open: r.get::<_, i64>(2)?.max(0) as u32,
-                total: r.get::<_, i64>(3)?.max(0) as u32,
-                last_at: r.get(4)?,
+                color: r.get(1)?,
+                archived: r.get::<_, i64>(2)? != 0,
+                open: r.get::<_, i64>(3)?.max(0) as u32,
+                total: r.get::<_, i64>(4)?.max(0) as u32,
+                last_at: r.get(5)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -77,6 +90,7 @@ impl Db {
         tx.commit()?;
         Ok(Project {
             name,
+            color: None,
             archived: false,
             open: 0,
             total: 0,
@@ -124,19 +138,19 @@ impl Db {
             sync_record(&tx, id, &[Field::Category], now)?;
         }
 
-        let old_row: Option<(Option<i64>, i64)> = tx
+        let old_row: Option<(Option<i64>, i64, Option<String>)> = tx
             .query_row(
-                "SELECT archived_at, created_at FROM projects WHERE name = ?1",
+                "SELECT archived_at, created_at, color FROM projects WHERE name = ?1",
                 [&from],
-                |r| Ok((r.get(0)?, r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .optional()?;
         tx.execute("DELETE FROM projects WHERE name = ?1", [&from])?;
-        let (archived_at, created_at) = old_row.unwrap_or((None, now));
+        let (archived_at, created_at, color) = old_row.unwrap_or((None, now, None));
         tx.execute(
-            "INSERT OR IGNORE INTO projects (name, archived_at, created_at)
-             VALUES (?1, ?2, ?3)",
-            params![to, archived_at, created_at],
+            "INSERT OR IGNORE INTO projects (name, archived_at, created_at, color)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![to, archived_at, created_at, color],
         )?;
         tx.commit()?;
         Ok(ids.len() as u32)
@@ -144,6 +158,29 @@ impl Db {
 
     pub fn set_project_archived(&mut self, name: &str, archived: bool) -> Result<()> {
         self.set_project_archived_at(name, archived, now_ms())
+    }
+
+    pub fn set_project_color(&mut self, name: &str, color: Option<&str>) -> Result<()> {
+        self.set_project_color_at(name, color, now_ms())
+    }
+
+    /// Sets or clears a project's palette color (`"1"`..=`"6"` or `None`).
+    /// Creates the `projects` row if only notes had the name.
+    pub fn set_project_color_at(
+        &mut self,
+        name: &str,
+        color: Option<&str>,
+        now: i64,
+    ) -> Result<()> {
+        let name = clean_project_name(name)?;
+        let color = clean_project_color(color)?;
+        self.conn_mut().execute(
+            "INSERT INTO projects (name, archived_at, created_at, color)
+             VALUES (?1, NULL, ?2, ?3)
+             ON CONFLICT(name) DO UPDATE SET color = excluded.color",
+            params![name, now, color],
+        )?;
+        Ok(())
     }
 
     /// Marks a project archived or active, creating its `projects` row if
@@ -291,6 +328,7 @@ mod tests {
             vec![
                 Project {
                     name: "taxes".into(),
+                    color: None,
                     archived: false,
                     open: 1,
                     total: 2,
@@ -298,6 +336,7 @@ mod tests {
                 },
                 Project {
                     name: "camping".into(),
+                    color: None,
                     archived: false,
                     open: 1,
                     total: 1,
@@ -315,6 +354,7 @@ mod tests {
             created,
             Project {
                 name: "empty".into(),
+                color: None,
                 archived: false,
                 open: 0,
                 total: 0,
@@ -552,5 +592,44 @@ mod tests {
             Some("taxes")
         );
         assert_eq!(a.note_detail(&n.id).unwrap().details, "bring receipt");
+    }
+
+    #[test]
+    fn setting_and_clearing_a_project_color() {
+        let mut db = db();
+        db.create_project_at("work", 1_000).unwrap();
+        assert_eq!(db.projects(false).unwrap()[0].color, None);
+
+        db.set_project_color_at("work", Some("3"), 2_000).unwrap();
+        assert_eq!(db.projects(false).unwrap()[0].color.as_deref(), Some("3"));
+
+        db.set_project_color_at("work", None, 3_000).unwrap();
+        assert_eq!(db.projects(false).unwrap()[0].color, None);
+    }
+
+    #[test]
+    fn invalid_project_color_is_refused() {
+        let mut db = db();
+        db.create_project_at("work", 1_000).unwrap();
+        assert!(matches!(
+            db.set_project_color_at("work", Some("#ff0000"), 2_000),
+            Err(crate::CoreError::ProjectInvalid)
+        ));
+        assert!(matches!(
+            db.set_project_color_at("work", Some("9"), 2_000),
+            Err(crate::CoreError::ProjectInvalid)
+        ));
+    }
+
+    #[test]
+    fn renaming_a_project_keeps_its_color() {
+        let mut db = db();
+        db.create_project_at("work", 1_000).unwrap();
+        db.set_project_color_at("work", Some("5"), 2_000).unwrap();
+        db.rename_project_at("work", "office", false, 3_000)
+            .unwrap();
+        let list = db.projects(false).unwrap();
+        assert_eq!(list[0].name, "office");
+        assert_eq!(list[0].color.as_deref(), Some("5"));
     }
 }

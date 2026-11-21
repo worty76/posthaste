@@ -774,3 +774,56 @@
   color: var(--text-faint);
   font-size: var(--t-sm);
 }
+
+/* ---- Project color dot and swatches ---- */
+.proj-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.proj-dot[data-color="1"] {
+  background: var(--proj-1);
+}
+.proj-dot[data-color="2"] {
+  background: var(--proj-2);
+}
+.proj-dot[data-color="3"] {
+  background: var(--proj-3);
+}
+.proj-dot[data-color="4"] {
+  background: var(--proj-4);
+}
+.proj-dot[data-color="5"] {
+  background: var(--proj-5);
+}
+.proj-dot[data-color="6"] {
+  background: var(--proj-6);
+}
+
+.proj-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+.proj-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.proj-swatch[aria-pressed="true"] {
+  border-color: var(--accent-ink);
+}
+.proj-swatch__none {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-faint);
+}

@@ -18,7 +18,11 @@ pub enum PickerMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PickerRow {
     NoProject,
-    Project { name: String, count: u32 },
+    Project {
+        name: String,
+        color: Option<String>,
+        count: u32,
+    },
     Create(String),
     Unarchive(String),
 }
@@ -39,6 +43,7 @@ pub fn rows(projects: &[Project], typed: &str, mode: PickerMode) -> Vec<PickerRo
         for project in active {
             out.push(PickerRow::Project {
                 name: project.name.clone(),
+                color: project.color.clone(),
                 count: project.total,
             });
         }
@@ -56,6 +61,7 @@ pub fn rows(projects: &[Project], typed: &str, mode: PickerMode) -> Vec<PickerRo
         for project in prefix.into_iter().chain(substring) {
             out.push(PickerRow::Project {
                 name: project.name.clone(),
+                color: project.color.clone(),
                 count: project.total,
             });
         }
@@ -117,10 +123,19 @@ mod tests {
     fn project(name: &str, archived: bool, total: u32) -> Project {
         Project {
             name: name.into(),
+            color: None,
             archived,
             open: total,
             total,
             last_at: 100,
+        }
+    }
+
+    fn row(name: &str, count: u32) -> PickerRow {
+        PickerRow::Project {
+            name: name.into(),
+            color: None,
+            count,
         }
     }
 
@@ -130,17 +145,7 @@ mod tests {
         let got = rows(&list, "", PickerMode::SetNote);
         assert_eq!(
             got,
-            vec![
-                PickerRow::NoProject,
-                PickerRow::Project {
-                    name: "work".into(),
-                    count: 2,
-                },
-                PickerRow::Project {
-                    name: "home".into(),
-                    count: 1,
-                },
-            ]
+            vec![PickerRow::NoProject, row("work", 2), row("home", 1)]
         );
     }
 
@@ -155,19 +160,7 @@ mod tests {
     fn an_exact_match_hides_create() {
         let list = vec![project("work", false, 2), project("workshop", false, 1)];
         let got = rows(&list, "work", PickerMode::SetNote);
-        assert_eq!(
-            got,
-            vec![
-                PickerRow::Project {
-                    name: "work".into(),
-                    count: 2,
-                },
-                PickerRow::Project {
-                    name: "workshop".into(),
-                    count: 1,
-                },
-            ]
-        );
+        assert_eq!(got, vec![row("work", 2), row("workshop", 1)]);
     }
 
     #[test]
@@ -185,19 +178,7 @@ mod tests {
             project("home", false, 1),
         ];
         let got = rows(&list, "", PickerMode::Jump);
-        assert_eq!(
-            got,
-            vec![
-                PickerRow::Project {
-                    name: "work".into(),
-                    count: 2,
-                },
-                PickerRow::Project {
-                    name: "home".into(),
-                    count: 1,
-                },
-            ]
-        );
+        assert_eq!(got, vec![row("work", 2), row("home", 1)]);
         assert_eq!(rows(&list, "newname", PickerMode::Jump), vec![]);
     }
 
@@ -213,22 +194,10 @@ mod tests {
         assert_eq!(
             got,
             vec![
-                PickerRow::Project {
-                    name: "work".into(),
-                    count: 2,
-                },
-                PickerRow::Project {
-                    name: "workshop".into(),
-                    count: 4,
-                },
-                PickerRow::Project {
-                    name: "homework".into(),
-                    count: 1,
-                },
-                PickerRow::Project {
-                    name: "rework".into(),
-                    count: 3,
-                },
+                row("work", 2),
+                row("workshop", 4),
+                row("homework", 1),
+                row("rework", 3),
             ]
         );
     }

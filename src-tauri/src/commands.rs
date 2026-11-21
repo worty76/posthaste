@@ -242,6 +242,18 @@ pub fn project_set_archived(
 }
 
 #[tauri::command]
+pub fn project_set_color(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+    color: Option<String>,
+) -> AppResult<()> {
+    state.with_db(|db| db.set_project_color(&name, color.as_deref()))?;
+    notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn project_clear(app: AppHandle, state: State<'_, AppState>, name: String) -> AppResult<u32> {
     let cleared = state.with_db(|db| db.clear_project(&name))?;
     notes_changed(&app);
