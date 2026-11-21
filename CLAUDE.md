@@ -28,7 +28,10 @@ A global shortcut opens a small window, you type, Enter saves, the window
 disappears, and focus returns to what you were doing. Later the note is in the
 inbox. A second glance shortcut opens a small Today window: what is on today's
 plate and how much of it is done, gone with Esc. Enter on a note there opens
-Note details: a description and attached files for that one note. L parks a
+Note details: a description and attached files for that one note. A note can
+hold Steps: an ordered list of plain one-line items ticked with Space in Note
+details. Steps are not sub-notes, never complete their note, and never count
+in Today. L parks a
 note in Later, out of Today and the inbox; it has no date and never comes back
 by itself (that would be a reminder). ← and → in Today show earlier days,
 read-only and rebuilt from timestamps; there are no future days, because notes
