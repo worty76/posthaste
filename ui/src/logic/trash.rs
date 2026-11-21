@@ -94,6 +94,8 @@ mod tests {
             archived_at: None,
             has_details: false,
             attachment_count: 0,
+            step_total: 0,
+            step_done: 0,
             later_at,
         }
     }

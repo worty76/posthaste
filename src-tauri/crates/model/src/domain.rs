@@ -49,6 +49,13 @@ pub struct Note {
     /// How many files are attached. Lists never carry the files themselves.
     #[serde(default)]
     pub attachment_count: u32,
+    /// How many steps the note holds, and how many of them are ticked.
+    /// Tombstoned steps are in neither count. Lists never carry the steps
+    /// themselves; those come from `Db::list_steps`.
+    #[serde(default)]
+    pub step_total: u32,
+    #[serde(default)]
+    pub step_done: u32,
     /// When the note was parked in Later. `None` means it is not parked.
     /// Only an open (inbox) note can be parked.
     #[serde(default)]
@@ -61,6 +68,11 @@ pub const MAX_ATTACHMENT_BYTES: usize = 15 * 1024 * 1024;
 pub const MAX_ATTACHMENTS_PER_NOTE: usize = 20;
 /// Longest description a note can have, in characters.
 pub const MAX_DETAILS_CHARS: usize = 100_000;
+/// Most steps one note can hold when a person adds them on one device.
+/// Steps that arrive by sync are never discarded, so a note can hold more.
+pub const MAX_STEPS_PER_NOTE: usize = 100;
+/// Longest step text, in characters.
+pub const MAX_STEP_CHARS: usize = 500;
 
 /// A file attached to a note. The bytes live in the same database and are
 /// read only on request, never with the note.
@@ -74,12 +86,34 @@ pub struct Attachment {
     pub created_at: i64,
 }
 
+/// One step of a note's ordered list. `rank` is a base-62 fraction; the
+/// display order is `rank`, then `id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Step {
+    pub id: String,
+    pub note_id: String,
+    pub text: String,
+    pub done: bool,
+    pub rank: String,
+}
+
+/// A step to add. The id and rank are chosen when it is stored.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct NewStep {
+    pub text: String,
+    #[serde(default)]
+    pub done: bool,
+}
+
 /// Everything the Note details window shows for one note.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoteDetail {
     pub note: Note,
     pub details: String,
     pub attachments: Vec<Attachment>,
+    /// The note's live steps, in display order.
+    #[serde(default)]
+    pub steps: Vec<Step>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

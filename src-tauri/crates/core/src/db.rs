@@ -16,11 +16,16 @@ pub(crate) const SETTINGS_KEY: &str = "settings";
 const DEFAULT_LIMIT: u32 = 200;
 const MAX_LIMIT: u32 = 1000;
 const MAX_CATEGORY_CHARS: usize = 40;
-/// Every query that reads notes selects these, from `notes`. The last two are
-/// computed so lists say whether a note has more inside without loading it.
+/// Every query that reads notes selects these, from `notes`. The last four are
+/// computed so lists say whether a note has more inside without loading it,
+/// and how much of it is ticked. The step counts are correlated subqueries
+/// over the `(note_id, rank, id)` index, over live steps only.
 pub(crate) const NOTE_COLUMNS: &str =
     "id, content, status, category, source, created_at, updated_at, completed_at, archived_at, \
-     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id), later_at";
+     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id), later_at, \
+     (SELECT COUNT(*) FROM note_steps s WHERE s.note_id = notes.id AND s.deleted_at IS NULL), \
+     (SELECT COUNT(*) FROM note_steps s WHERE s.note_id = notes.id AND s.deleted_at IS NULL \
+        AND s.done = 1)";
 
 pub fn now_ms() -> i64 {
     SystemTime::now()
@@ -265,7 +270,7 @@ impl Db {
         let rows = stmt.query_map([now - TRASH_RETENTION_MS], |r| {
             Ok(TrashedNote {
                 note: note_from_row(r)?,
-                deleted_at: r.get(12)?,
+                deleted_at: r.get(14)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -762,6 +767,8 @@ fn insert_note(conn: &Connection, new: NewNote, now: i64) -> Result<Note> {
         archived_at: None,
         has_details: false,
         attachment_count: 0,
+        step_total: 0,
+        step_done: 0,
         later_at: None,
     };
     conn.execute(
@@ -787,6 +794,8 @@ pub(crate) fn note_from_row(r: &Row<'_>) -> rusqlite::Result<Note> {
         has_details: r.get(9)?,
         attachment_count: r.get(10)?,
         later_at: r.get(11)?,
+        step_total: r.get::<_, i64>(12)?.max(0) as u32,
+        step_done: r.get::<_, i64>(13)?.max(0) as u32,
     })
 }
 

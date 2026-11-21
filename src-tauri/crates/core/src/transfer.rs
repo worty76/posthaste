@@ -86,7 +86,7 @@ impl Db {
              FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq"
         ))?;
         let notes = stmt
-            .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(12)?)))?
+            .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(14)?)))?
             .map(|n| {
                 n.map(|(n, details)| ExportNote {
                     id: Some(n.id),

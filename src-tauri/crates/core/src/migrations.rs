@@ -45,6 +45,10 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 7,
         sql: include_str!("../migrations/0007_sync.sql"),
     },
+    Migration {
+        version: 8,
+        sql: include_str!("../migrations/0008_steps.sql"),
+    },
 ];
 
 pub fn schema_version(conn: &Connection) -> Result<i64> {

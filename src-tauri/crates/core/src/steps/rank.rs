@@ -7,14 +7,10 @@
 
 /// The digit alphabet, lowest first: ASCII order, so byte order and digit
 /// order agree.
-// Task 2's step writes take this module into use; until then clippy sees
-// nothing but the tests calling it.
-#[expect(dead_code)]
 const DIGITS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 /// Where a digit sits in [`DIGITS`]. `before`/`after` never carry anything
 /// else, but a bad stored rank must not panic the writer.
-#[expect(dead_code)]
 fn digit_value(d: u8) -> u8 {
     match d {
         b'0'..=b'9' => d - b'0',
@@ -33,8 +29,6 @@ fn digit_value(d: u8) -> u8 {
 /// The ranks are read as fractions after the point: walking both, missing
 /// `before` digits are the lowest digit and missing `after` digits are past
 /// the highest, so the walk always ends at a gap of two or more.
-// Task 2's step writes take this into use.
-#[expect(dead_code)]
 pub(crate) fn rank_between(before: Option<&str>, after: Option<&str>) -> String {
     let low = before.unwrap_or("");
     let high = after.unwrap_or("");
