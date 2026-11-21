@@ -61,6 +61,8 @@ you turn on AI polish or experimental device sync yourself.
   Space ticks, Enter edits, Mod+↑ Mod+↓ reorder, Backspace removes (with Undo).
   Ticking every step never completes the note, and steps never count in Today.
   Steps sync to your other computers once they run this version or later
+- **Categories** — a label, not a folder: set one in capture (`# category`) or
+  Note details, then filter the inbox by it with `#`. There is no project view
 - **Trash** — deleting a note moves it to Trash, where it waits 30 days. Restore
   it exactly as it was, or erase it for good
 - **Earlier days** — ← and → in Today step back through earlier days, as they

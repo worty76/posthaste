@@ -224,6 +224,10 @@ export async function open({
         look_asset: ({ id }) =>
           `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#${id}`,
         categories_list: () => ["work", "home"],
+        categories_counts: () => [
+          { name: "work", count: 3 },
+          { name: "home", count: 1 },
+        ],
         draft_get: () => mock.draft,
         draft_set: ({ content, category }) => {
           mock.draft = { content, category, updated_at: 1 };
@@ -254,6 +258,7 @@ export async function open({
         notes_list: ({ query }) => {
           const within = (n) =>
             (!query.text || n.content.toLowerCase().includes(query.text.toLowerCase())) &&
+            (!query.category || n.category === query.category) &&
             (!query.statuses?.length || query.statuses.includes(n.status)) &&
             (query.created_from == null || n.created_at >= query.created_from) &&
             (query.created_to == null || n.created_at < query.created_to) &&

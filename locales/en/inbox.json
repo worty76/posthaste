@@ -36,6 +36,18 @@
     "count_more": {
       "one": "{count}+ note",
       "other": "{count}+ notes"
+    },
+    "category_line": "Category: {name}",
+    "category_clear": "Clear the category filter"
+  },
+  "cat_picker": {
+    "title": "Pick a category",
+    "placeholder": "Filter categories",
+    "none": "No categories match.",
+    "empty_hint": "Add one with # when you capture a note.",
+    "notes": {
+      "one": "{count} note",
+      "other": "{count} notes"
     }
   },
   "banner": {
@@ -51,6 +63,8 @@
     "search_text": "Nothing contains “{text}”. Search looks through every note, including the archive.",
     "search_text_filtered": "Nothing contains “{text}” with these filters. Search looks through every note, including the archive.",
     "search_date": "Nothing was captured on that date.",
+    "category_title": "No notes in this category here.",
+    "category_text": "The category is a label; these notes may be in another section.",
     "today_title": "Nothing captured today",
     "today_text": "Notes you capture today show up here.",
     "later_title": "Nothing parked",
@@ -67,6 +81,7 @@
     "show_more": "Show more",
     "show_less": "Show less",
     "from": "from {source}",
+    "category_tip": "Filter by {name}",
     "later": "Later",
     "archived": "Archived",
     "completed": "Completed",
@@ -108,6 +123,7 @@
     "copy": "Copy",
     "delete": "Delete",
     "search": "Search",
+    "category": "Filter by category",
     "sections": "Inbox, Today, Later, Archive, Trash",
     "trash_restore": "Restore (in Trash)",
     "trash_delete": "Delete forever (in Trash)",

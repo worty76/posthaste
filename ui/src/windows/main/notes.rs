@@ -118,6 +118,7 @@ fn Nothing(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
     let title = Signal::derive(move || {
         let key = match reason.get() {
             Empty::NoMatch { .. } | Empty::NothingThatDay => key::INBOX_EMPTY_SEARCH_TITLE,
+            Empty::NoCategory => key::INBOX_EMPTY_CATEGORY_TITLE,
             Empty::Today => key::INBOX_EMPTY_TODAY_TITLE,
             Empty::Later => key::INBOX_EMPTY_LATER_TITLE,
             Empty::Archive => key::INBOX_EMPTY_ARCHIVE_TITLE,
@@ -139,6 +140,13 @@ fn Nothing(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
                         let text = main.filters.with(|filters| filters.text.trim().to_owned());
                         t.format(key, &[("text", &text)]).into_any()
                     }
+                    Empty::NoCategory => view! {
+                        <span>{t.text(key::INBOX_EMPTY_CATEGORY_TEXT)}</span>
+                        <Button variant=Variant::Quiet on_click=move |()| main.clear_category()>
+                            {t.text(key::INBOX_FILTER_CATEGORY_CLEAR)}
+                        </Button>
+                    }
+                    .into_any(),
                     Empty::NothingThatDay => t.text(key::INBOX_EMPTY_SEARCH_DATE).into_any(),
                     Empty::Today => t.text(key::INBOX_EMPTY_TODAY_TEXT).into_any(),
                     Empty::Archive => t.text(key::INBOX_EMPTY_ARCHIVE_TEXT).into_any(),
@@ -280,8 +288,26 @@ fn NoteBody(
                 <time datetime=time::iso(created_at)>
                     {move || time::format_time(created_at, &main.locale.get())}
                 </time>
-                {note.with_value(|note| note.category.clone()).map(|category| view! {
-                    <span class="note__category">{category}</span>
+                {note.with_value(|note| note.category.clone()).map(|category| {
+                    let pick = category.clone();
+                    let named = category.clone();
+                    view! {
+                        <button
+                            type="button"
+                            class="note__category"
+                            title=move || {
+                                i18n.translator()
+                                    .format(key::INBOX_NOTE_CATEGORY_TIP, &[("name", &named)])
+                            }
+                            // Its own control: it filters, it does not select the row.
+                            on:click=move |event| {
+                                event.stop_propagation();
+                                main.set_category(pick.clone());
+                            }
+                        >
+                            {category}
+                        </button>
+                    }
                 })}
                 {note.with_value(|note| note.source.clone()).map(|source| view! {
                     <span>

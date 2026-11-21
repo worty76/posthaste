@@ -390,6 +390,95 @@ describe("details window", () => {
     await w.close();
   });
 
+  it("sets a category from suggestions by keyboard", async () => {
+    const w = await details();
+    await w.mock.answer("categories_list", ["money", "health", "work"]);
+    await w.page.getByRole("button", { name: "Add category" }).focus();
+    await w.page.keyboard.press("Enter");
+    const field = w.page.getByLabel("Category");
+    await eventually(
+      () => field.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "field focus",
+    );
+    await field.fill("mo");
+    await text(w.page.locator(".details__suggestions"), "money");
+    assert.equal(await w.page.locator(".details__suggestions button").count(), 1);
+    await w.page.keyboard.press("ArrowDown");
+    assert.equal(await field.inputValue(), "money");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_update"),
+      (c) => c.length === 1,
+      "saved",
+    );
+    assert.deepEqual((await w.calls("note_update"))[0].args, {
+      id: w.n.id,
+      content: "call the bank",
+      category: "money",
+    });
+    await text(w.page.locator(".details__saved"), "Saved");
+    await text(w.page.locator(".details__category"), "money");
+    await w.close();
+  });
+
+  it("an empty category field clears it", async () => {
+    const w = await details({ patch: { category: "money" } });
+    await text(w.page.locator(".details__category"), "money");
+    await w.page.getByRole("button", { name: "money" }).focus();
+    await w.page.keyboard.press("Enter");
+    await w.page.getByLabel("Category").fill("");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_update"),
+      (c) => c.length === 1,
+      "cleared",
+    );
+    assert.equal((await w.calls("note_update"))[0].args.category, null);
+    await eventually(
+      () => w.page.getByRole("button", { name: "Add category" }).count(),
+      (c) => c === 1,
+      "quiet control back",
+    );
+    await w.close();
+  });
+
+  it("escape cancels a category edit", async () => {
+    const w = await details({ patch: { category: "money" } });
+    await w.page.getByRole("button", { name: "money" }).focus();
+    await w.page.keyboard.press("Enter");
+    const field = w.page.getByLabel("Category");
+    await field.fill("bills");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.page.getByLabel("Category").count(),
+      (c) => c === 0,
+      "editor gone",
+    );
+    assert.equal(await w.calls("note_update").then((c) => c.length), 0);
+    await text(w.page.locator(".details__category"), "money");
+    // The window still closes with Esc afterwards.
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.calls("details_dismiss"),
+      (c) => c.length === 1,
+      "dismiss",
+    );
+    await w.close();
+  });
+
+  it("a failed category save keeps the typed text", async () => {
+    const w = await details();
+    await w.mock.fail("note_update", "The disk is full.", "storage");
+    await w.page.getByRole("button", { name: "Add category" }).focus();
+    await w.page.keyboard.press("Enter");
+    await w.page.getByLabel("Category").fill("work");
+    await w.page.keyboard.press("Enter");
+    await text(w.page.getByRole("alert"), "The disk is full.");
+    assert.equal(await w.page.getByLabel("Category").inputValue(), "work");
+    await w.close();
+  });
+
   it("writes unsaved text before closing on Esc", async () => {
     const w = await details();
     await w.field.fill("half a thought");

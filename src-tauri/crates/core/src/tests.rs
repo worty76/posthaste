@@ -286,6 +286,141 @@ fn categories_are_listed_most_used_first() {
     assert_eq!(db.categories().unwrap(), ["work", "ideas"]);
 }
 
+// ---- category filter ---------------------------------------------------------
+
+fn by_category(db: &Db, category: &str) -> Vec<Note> {
+    db.list_notes(&NoteQuery {
+        category: Some(category.into()),
+        ..Default::default()
+    })
+    .unwrap()
+}
+
+#[test]
+fn filtering_by_category_returns_only_that_categorys_live_notes() {
+    let mut db = db();
+    let work = db
+        .create_note(NewNote {
+            content: "work note".into(),
+            category: Some("work".into()),
+            source: None,
+        })
+        .unwrap();
+    db.create_note(NewNote {
+        content: "idea note".into(),
+        category: Some("ideas".into()),
+        source: None,
+    })
+    .unwrap();
+    db.create_note(note("uncategorised")).unwrap();
+    db.trash_note(&work.id).unwrap();
+
+    assert_eq!(contents(&by_category(&db, "work")), [] as [&str; 0]);
+    assert_eq!(contents(&by_category(&db, "ideas")), ["idea note"]);
+}
+
+#[test]
+fn category_filter_combines_with_status_later_and_text() {
+    let mut db = db();
+    let work_open = db
+        .create_note(NewNote {
+            content: "work to do".into(),
+            category: Some("work".into()),
+            source: None,
+        })
+        .unwrap();
+    db.create_note(NewNote {
+        content: "work to read".into(),
+        category: Some("work".into()),
+        source: None,
+    })
+    .unwrap();
+    db.set_status(&work_open.id, Status::Completed).unwrap();
+
+    let both = db
+        .list_notes(&NoteQuery {
+            category: Some("work".into()),
+            statuses: vec![Status::Completed],
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(contents(&both), ["work to do"]);
+
+    let with_text = db
+        .list_notes(&NoteQuery {
+            category: Some("work".into()),
+            text: "read".into(),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(contents(&with_text), ["work to read"]);
+}
+
+#[test]
+fn a_category_filter_is_cleaned_like_a_saved_category() {
+    let mut db = db();
+    db.create_note(NewNote {
+        content: "launch steps".into(),
+        category: Some("Posthaste launch".into()),
+        source: None,
+    })
+    .unwrap();
+    assert_eq!(
+        contents(&by_category(&db, "  #Posthaste launch ")),
+        ["launch steps"]
+    );
+}
+
+#[test]
+fn category_counts_order_by_use_and_skip_trashed() {
+    let mut db = db();
+    let mut make = |category: &str| {
+        db.create_note(NewNote {
+            content: "x".into(),
+            category: Some(category.into()),
+            source: None,
+        })
+        .unwrap()
+    };
+    let work = make("work");
+    make("ideas");
+    make("ideas");
+    make("later");
+    // Parked notes are still live, so they count too.
+    let parked = make("later");
+    db.set_later(&parked.id, true).unwrap();
+    db.trash_note(&work.id).unwrap();
+
+    assert_eq!(
+        db.category_counts().unwrap(),
+        [
+            CategoryCount {
+                name: "ideas".into(),
+                count: 2
+            },
+            CategoryCount {
+                name: "later".into(),
+                count: 2
+            },
+        ]
+    );
+}
+
+#[test]
+fn a_category_whose_notes_are_all_trashed_is_not_counted() {
+    let mut db = db();
+    let note = db
+        .create_note(NewNote {
+            content: "x".into(),
+            category: Some("gone".into()),
+            source: None,
+        })
+        .unwrap();
+    assert_eq!(db.category_counts().unwrap().len(), 1);
+    db.trash_note(&note.id).unwrap();
+    assert!(db.category_counts().unwrap().is_empty());
+}
+
 // ---- search ----------------------------------------------------------------
 
 #[test]

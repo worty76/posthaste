@@ -351,6 +351,11 @@ impl Db {
         let mut sql = format!("SELECT {NOTE_COLUMNS} FROM notes WHERE deleted_at IS NULL");
         let mut args: Vec<Value> = Vec::new();
 
+        // Cleaned like a saved category, so "  #Work " matches what capture stored.
+        if let Some(category) = clean_category(q.category.as_deref()) {
+            sql.push_str(" AND category = ?");
+            args.push(Value::Text(category));
+        }
         let text = q.text.trim();
         if !text.is_empty() {
             match fts_query(text) {
@@ -439,6 +444,23 @@ impl Db {
              GROUP BY category ORDER BY COUNT(*) DESC, category LIMIT 50",
         )?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// How many live notes use each category, most used first, then name.
+    /// The same rules as [`Db::categories`].
+    pub fn category_counts(&self) -> Result<Vec<CategoryCount>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT category, COUNT(*) FROM notes
+             WHERE deleted_at IS NULL AND category IS NOT NULL
+             GROUP BY category ORDER BY COUNT(*) DESC, category LIMIT 50",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(CategoryCount {
+                name: r.get(0)?,
+                count: r.get::<_, i64>(1)? as u32,
+            })
+        })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 

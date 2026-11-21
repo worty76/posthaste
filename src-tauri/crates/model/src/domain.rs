@@ -131,6 +131,8 @@ pub struct NewNote {
 pub struct NoteQuery {
     /// Free-text search over content and category. Empty means no text filter.
     pub text: String,
+    /// Only notes with this category. The value is cleaned like a saved one.
+    pub category: Option<String>,
     /// Statuses to include. Empty means all.
     pub statuses: Vec<Status>,
     /// Inclusive lower bound on `created_at`.
@@ -142,6 +144,13 @@ pub struct NoteQuery {
     pub later: Option<bool>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+}
+
+/// How many live notes use one category.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategoryCount {
+    pub name: String,
+    pub count: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

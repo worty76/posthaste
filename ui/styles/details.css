@@ -421,3 +421,55 @@ html.is-linux.is-details .details__panel {
   color: var(--text-faint);
   font-size: var(--t-sm);
 }
+.details__category {
+  max-width: 140px;
+  padding: 1px 7px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.details__category[data-empty] {
+  background: none;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-faint);
+}
+.details__cat-editor {
+  position: relative;
+  display: inline-flex;
+}
+.details__cat-editor .field {
+  width: 160px;
+  height: 26px;
+}
+.details__suggestions {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  left: 0;
+  z-index: 10;
+  list-style: none;
+  margin: 0;
+  padding: var(--s-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+}
+.details__suggestions button {
+  display: block;
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.details__suggestions button:hover {
+  background: var(--hover);
+}
