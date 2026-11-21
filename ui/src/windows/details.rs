@@ -87,6 +87,12 @@ struct Details {
     /// A step row is being created (the write is in flight): keystrokes
     /// that land meanwhile wait for it instead of making another row.
     step_creating: StoredValue<bool, LocalStorage>,
+    /// Counts step editor sessions so an in-flight `steps_add` knows
+    /// whether the user is still typing that same step or already pressed
+    /// Enter / Esc.
+    step_epoch: StoredValue<u32>,
+    /// Latest text typed for the step whose `steps_add` is in flight.
+    creating_text: StoredValue<String>,
     toaster: Toaster,
     /// The note being shown. Answers for any other note are dropped.
     id: StoredValue<Option<String>>,
@@ -118,6 +124,8 @@ impl Details {
             step_text: RwSignal::new(String::new()),
             step_sync: StoredValue::new_local(None),
             step_creating: StoredValue::new_local(false),
+            step_epoch: StoredValue::new(0),
+            creating_text: StoredValue::new(String::new()),
             toaster: Toaster::new(),
             id: StoredValue::new(None),
             stored_text: StoredValue::new(String::new()),
@@ -241,6 +249,9 @@ impl Details {
         self.step_editor.set(None);
         self.step_sync.set_value(None);
         self.step_creating.set_value(false);
+        self.step_epoch
+            .update_value(|epoch| *epoch = epoch.wrapping_add(1));
+        self.creating_text.set_value(String::new());
 
         let note = id.clone();
         self.text_sync.set_value(Some(DraftSync::with_delay(
@@ -370,15 +381,16 @@ impl Details {
             .set(Some(steps[next as usize].id.clone()));
     }
 
-    fn step_write(&self, id: String) -> DraftSync {
+    fn step_write(&self, note_id: String, id: String) -> DraftSync {
         let details = *self;
         DraftSync::with_delay(
             SAVE_DELAY_MS,
             move |text, _| {
                 let id = id.clone();
+                let note_id = note_id.clone();
                 async move {
                     api::step_set_text(&id, &text).await?;
-                    if details.shows(&id) {
+                    if details.shows(&note_id) {
                         details.save.set(Save::Saved);
                     }
                     Ok(())
@@ -390,6 +402,9 @@ impl Details {
 
     /// Edits a step's text in place, saving as typing pauses.
     fn edit_step(self, id: String) {
+        let Some(note_id) = self.note_id() else {
+            return;
+        };
         let Some(text) = self.detail.with_untracked(|detail| {
             detail
                 .as_ref()
@@ -399,12 +414,14 @@ impl Details {
         };
         spawn_local(async move {
             self.flush().await;
+            self.step_epoch
+                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
             self.step_text.set(text);
             self.step_editor.set(Some(StepEditor {
                 id: Some(id.clone()),
                 is_add_line: false,
             }));
-            let sync = self.step_write(id.clone());
+            let sync = self.step_write(note_id, id.clone());
             self.step_sync.set_value(Some(StepSync { sync }));
             self.step_selected.set(Some(id));
         });
@@ -417,6 +434,8 @@ impl Details {
         }
         spawn_local(async move {
             self.flush().await;
+            self.step_epoch
+                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
             self.step_sync.set_value(None);
             self.step_text.set(String::new());
             self.step_editor.set(Some(StepEditor {
@@ -444,12 +463,15 @@ impl Details {
                     return;
                 };
                 // One creation in flight: the keystrokes that land while it
-                // runs are already in `step_text` and go out once the row
-                // exists. Another write now would make another row.
+                // runs are recorded in `creating_text` and go out once the
+                // row exists. Another write now would make another row.
                 if self.step_creating.get_value() {
+                    self.creating_text.set_value(text);
                     return;
                 }
                 self.step_creating.set_value(true);
+                self.creating_text.set_value(text.clone());
+                let epoch = self.step_epoch.get_value();
                 let after = self.steps().last().map(|s| s.id.clone());
                 spawn_local(async move {
                     let created = api::steps_add(
@@ -466,20 +488,23 @@ impl Details {
                             };
                             self.save.set(Save::Saved);
                             self.step_selected.set(Some(step.id.clone()));
-                            // The editor may have closed (Esc, Enter) while
-                            // the row was being made: never reopen it here.
-                            let add_line_open = self.step_editor.with_untracked(|editor| {
-                                editor
-                                    .as_ref()
-                                    .is_some_and(|e| e.is_add_line && e.id.is_none())
-                            });
+                            let same_epoch = self.step_epoch.get_value() == epoch;
+                            // The editor may have closed (Esc) or moved on to
+                            // the next step (Enter) while the row was being
+                            // made: never attach this row to a newer add line.
+                            let add_line_open = same_epoch
+                                && self.step_editor.with_untracked(|editor| {
+                                    editor
+                                        .as_ref()
+                                        .is_some_and(|e| e.is_add_line && e.id.is_none())
+                                });
                             if add_line_open {
                                 self.step_editor.update(|editor| {
                                     if let Some(editor) = editor {
                                         editor.id = Some(step.id.clone());
                                     }
                                 });
-                                let sync = self.step_write(step.id.clone());
+                                let sync = self.step_write(note_id, step.id.clone());
                                 // What was typed while the write ran goes out
                                 // once the row exists.
                                 let typed = self.step_text.get_untracked();
@@ -488,6 +513,27 @@ impl Details {
                                     sync.schedule(typed, None);
                                 }
                                 self.step_sync.set_value(Some(StepSync { sync }));
+                            } else {
+                                let final_text = self.creating_text.get_value();
+                                if final_text != step.text && !final_text.trim().is_empty() {
+                                    if let Err(error) =
+                                        api::step_set_text(&step.id, &final_text).await
+                                    {
+                                        self.fail(error);
+                                    }
+                                }
+                                // If the user already pressed Enter and began
+                                // typing the next step while this one was being
+                                // created, start creating that next step now.
+                                let next_waiting = self.step_editor.with_untracked(|editor| {
+                                    editor
+                                        .as_ref()
+                                        .is_some_and(|e| e.is_add_line && e.id.is_none())
+                                });
+                                let next_text = self.step_text.get_untracked();
+                                if next_waiting && !next_text.trim().is_empty() {
+                                    self.edit_step_text(next_text);
+                                }
                             }
                         }
                         Err(error) => self.fail(error),
@@ -528,9 +574,13 @@ impl Details {
             .is_some_and(|e| e.is_add_line);
         spawn_local(async move {
             self.flush().await;
+            self.step_epoch
+                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
             self.step_sync.set_value(None);
             self.step_text.set(String::new());
-            if was_add_line {
+            if self.step_limit_reached() {
+                self.step_editor.set(None);
+            } else if was_add_line {
                 // Ready for the next step; its row appears on the first key.
                 self.step_editor.update(|editor| {
                     if let Some(editor) = editor {
@@ -554,6 +604,8 @@ impl Details {
             .is_some_and(|e| e.is_add_line);
         spawn_local(async move {
             self.flush().await;
+            self.step_epoch
+                .update_value(|epoch| *epoch = epoch.wrapping_add(1));
             self.step_editor.set(None);
             self.step_sync.set_value(None);
             if was_add_line {
@@ -1074,7 +1126,17 @@ fn StepsSection(details: Details, i18n: I18n, os: Os) -> impl IntoView {
                 .and_then(|d| badge_text(d.note.step_done, d.note.step_total))
         })
     });
-    let at_limit = move || details.step_limit_reached();
+    let at_limit = Memo::new(move |_| {
+        let adding = details
+            .step_editor
+            .with(|e| e.as_ref().is_some_and(|e| e.is_add_line));
+        !adding
+            && details.detail.with(|detail| {
+                detail
+                    .as_ref()
+                    .is_some_and(|d| d.note.step_total as usize >= MAX_STEPS_PER_NOTE)
+            })
+    });
 
     view! {
         <section class="details__steps" aria-label=i18n.text(key::DETAILS_STEPS_TITLE)>
@@ -1092,7 +1154,7 @@ fn StepsSection(details: Details, i18n: I18n, os: Os) -> impl IntoView {
                 </ul>
             </Show>
             <Show
-                when=move || !at_limit()
+                when=move || !at_limit.get()
                 fallback=move || {
                     view! { <p class="details__steps-limit">{i18n.text(key::DETAILS_STEPS_LIMIT)}</p> }
                 }
@@ -1115,17 +1177,31 @@ fn StepRow(details: Details, i18n: I18n, os: Os, step: Step) -> impl IntoView {
                 .is_some_and(|e| !e.is_add_line && e.id.as_deref() == Some(id.get_value().as_str()))
         })
     });
-    // Focus follows the selection, so the keys stay on the list.
+    let is_add_target = Memo::new(move |_| {
+        details.step_editor.with(|e| {
+            e.as_ref()
+                .is_some_and(|e| e.is_add_line && e.id.as_deref() == Some(id.get_value().as_str()))
+        })
+    });
+    let any_editor = Memo::new(move |_| details.step_editor.with(Option::is_some));
+    // Focus follows the selection when no step input is open, so typing in
+    // the add line never loses focus when its row mounts.
     Effect::new(move |_| {
-        if selected.get() && !editor.get() {
+        if selected.get() && !any_editor.get() {
             if let Some(row) = row.get() {
                 let _ = row.focus();
             }
         }
     });
-    // The row reads its current text and state from the note, so a save
-    // updates it in place.
+    // The row reads its current text and state from the note, or live from
+    // the add line while this step is still being typed.
     let text = Memo::new(move |_| {
+        if is_add_target.get() {
+            let live = details.step_text.get();
+            if !live.trim().is_empty() {
+                return live;
+            }
+        }
         details.detail.with(|d| {
             d.as_ref()
                 .and_then(|d| d.steps.iter().find(|s| s.id == id.get_value()))

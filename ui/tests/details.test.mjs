@@ -152,6 +152,37 @@ describe("steps", () => {
     await w.close();
   });
 
+  it("keeps focus in the add line while typing character by character", async () => {
+    const w = await details();
+    await w.page.getByRole("button", { name: "Add a step" }).click();
+    const input = w.page.getByRole("textbox", { name: "Add a step" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "add line focus",
+    );
+    // Type the first character so steps_add creates the row and mounts StepRow,
+    // then type the rest (including spaces) without re-focusing the input.
+    await w.page.keyboard.type("b");
+    await eventually(
+      () => w.calls("steps_add").then((c) => c.length),
+      (c) => c === 1,
+      "row created on first character",
+    );
+    await w.page.keyboard.type("uy milk");
+    assert.equal(await input.inputValue(), "buy milk");
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c >= 1,
+      "subsequent characters saved to the same step",
+    );
+    assert.equal((await w.calls("step_set_text")).at(-1).args.text, "buy milk");
+    assert.equal((await w.calls("step_set_done")).length, 0);
+    await text(w.page.locator(".details__saved"), "Saved");
+    await text(w.page.getByRole("checkbox", { name: "buy milk" }), "buy milk");
+    await w.close();
+  });
+
   it("undo restores a removed step", async () => {
     const w = await details({ steps: [step("only step")] });
     const row = w.page.getByRole("checkbox", { name: "only step" });
