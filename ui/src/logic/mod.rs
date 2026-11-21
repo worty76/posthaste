@@ -10,6 +10,7 @@ pub mod look;
 pub mod position;
 pub mod selection;
 pub mod shortcut;
+pub mod steps;
 pub mod theme;
 pub mod today;
 pub mod trash;

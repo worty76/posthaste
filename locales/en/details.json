@@ -62,5 +62,11 @@
     "close": "close",
     "done": "done",
     "add_file": "add file"
+  },
+  "steps": {
+    "title": "Steps",
+    "add": "Add a step",
+    "removed": "Step removed.",
+    "limit": "This note has more than 100 steps. Remove some to add more."
   }
 }

@@ -12,8 +12,8 @@ use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdi
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
-    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
-    Settings, SettingsState, Status, TrashedNote, MAX_ATTACHMENT_BYTES,
+    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, NewStep, Note, NoteDetail,
+    NoteQuery, Os, Settings, SettingsState, Status, Step, TrashedNote, MAX_ATTACHMENT_BYTES,
 };
 use posthaste_i18n::key;
 use tauri::ipc::{InvokeBody, Request, Response};
@@ -132,6 +132,71 @@ pub fn notes_counts(
 #[tauri::command]
 pub fn categories_list(state: State<'_, AppState>) -> AppResult<Vec<String>> {
     state.with_db(|db| db.categories())
+}
+
+// ---- steps -------------------------------------------------------------------
+
+#[tauri::command]
+pub fn steps_add(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    note_id: String,
+    after: Option<String>,
+    lines: Vec<NewStep>,
+) -> AppResult<Vec<Step>> {
+    let steps = state.with_db(|db| db.add_steps(&note_id, after.as_deref(), &lines))?;
+    notes_changed(&app);
+    Ok(steps)
+}
+
+#[tauri::command]
+pub fn step_set_text(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    text: String,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.set_step_text(&id, &text))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_set_done(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    done: bool,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.set_step_done(&id, done))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_move(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    after: Option<String>,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.move_step(&id, after.as_deref()))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_remove(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.with_db(|db| db.remove_step(&id))?;
+    notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn step_restore(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<Step> {
+    let step = state.with_db(|db| db.restore_step(&id))?;
+    notes_changed(&app);
+    Ok(step)
 }
 
 // ---- today --------------------------------------------------------------------

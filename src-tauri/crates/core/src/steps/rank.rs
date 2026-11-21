@@ -53,5 +53,6 @@ pub(crate) fn rank_between(before: Option<&str>, after: Option<&str>) -> String 
         // looking, there is always a wider gap one position further in.
         out.push(DIGITS[lo as usize]);
     }
-    String::from_utf8(out).expect("ranks are ASCII")
+    // Every byte comes from DIGITS, so the string is always ASCII.
+    String::from_utf8_lossy(&out).into_owned()
 }

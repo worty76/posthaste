@@ -59,6 +59,27 @@ describe("today window", () => {
     await w.close();
   });
 
+  it("a note with steps shows done of total", async () => {
+    const f = three();
+    const withSteps = note("pack the bags", {
+      created_at: at("2026-11-15T09:30:00"),
+      step_total: 5,
+      step_done: 2,
+    });
+    const w = await today({
+      glance: glance({ today: [withSteps], done: 0, total: 1 }),
+    });
+    const row = w.page.locator(".today__row", { hasText: "pack the bags" });
+    await text(row, "2/5");
+    const badge = row.locator(".badges");
+    await eventually(
+      () => badge.getAttribute("aria-label"),
+      (v) => v === "2 of 5 steps done",
+      "accessible label",
+    );
+    await w.close();
+  });
+
   it("recomputes the day bounds when shown again on a later day", async () => {
     const w = await today();
     await w.mock.setNow("2026-11-16T08:00:00+07:00");

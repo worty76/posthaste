@@ -5,7 +5,8 @@
     "files": {
       "one": "{count} file",
       "other": "{count} files"
-    }
+    },
+    "steps": "{done} of {total} steps done"
   },
   "calendar": {
     "choose_day": "Choose a day",

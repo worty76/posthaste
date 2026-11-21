@@ -4,7 +4,8 @@
     "has_details": "có mô tả",
     "files": {
       "other": "{count} tệp"
-    }
+    },
+    "steps": "đã xong {done} trên {total} bước"
   },
   "calendar": {
     "choose_day": "Chọn ngày",

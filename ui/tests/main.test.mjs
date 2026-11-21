@@ -316,6 +316,30 @@ describe("inbox", () => {
     await mac.close();
   });
 
+  it("a note with steps shows done of total", async () => {
+    const w = await main({
+      store: {
+        notes: notes().concat([
+          note("with steps", {
+            created_at: at("2026-11-15T10:00:00"),
+            step_total: 5,
+            step_done: 2,
+          }),
+        ]),
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    const row = w.page.locator(".note").first();
+    await text(row, "2/5");
+    const badge = row.locator(".badges");
+    await eventually(
+      () => badge.getAttribute("aria-label"),
+      (v) => v === "2 of 5 steps done",
+      "accessible label",
+    );
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");

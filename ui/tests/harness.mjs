@@ -54,6 +54,8 @@ export function emptyStore() {
     details: {},
     /** Attachments by note id. */
     attachments: {},
+    /** Steps by note id, in storage order. */
+    steps: {},
     /** The note the details window opens on. */
     target: null,
     /** What the file dialog answers: an attach report, or null for cancel. */
@@ -301,6 +303,9 @@ export async function open({
             note: found,
             details: store.details[id] ?? "",
             attachments: store.attachments[id] ?? [],
+            steps: (store.steps[id] ?? [])
+              .filter((st) => st.deleted_at == null)
+              .sort((x, y) => (x.rank < y.rank ? -1 : x.rank > y.rank ? 1 : 0)),
           };
         },
         note_details_set: ({ id, details }) => {
@@ -459,6 +464,75 @@ export async function open({
           mock.emit("sync-changed");
           return null;
         },
+        steps_add: ({ noteId, after, lines }) => {
+          const list = (store.steps[noteId] ??= []);
+          let rank = after ? (list.find((st) => st.id === after)?.rank ?? "") : "";
+          const last = list[list.length - 1];
+          if (after == null && last) rank = last.rank;
+          const added = lines.map((line) => {
+            const step = {
+              id: `s${++nextStep}`,
+              note_id: noteId,
+              text: line.text,
+              done: line.done,
+              rank: rankBetween(rank, null),
+              deleted_at: null,
+            };
+            list.push(step);
+            rank = step.rank;
+            return { ...step };
+          });
+          refreshCounts(noteId);
+          changed();
+          return added;
+        },
+        step_set_text: ({ id, text }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.text = text;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_set_done: ({ id, done }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.done = done;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_move: ({ id, after }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          const list = store.steps[found.note_id];
+          const live = list.filter((st) => st.deleted_at == null);
+          const before = after ? live.find((st) => st.id === after) : null;
+          const lower = before ? before.rank : "";
+          const upper = before
+            ? (live.find((st) => st.rank > before.rank)?.rank ?? null)
+            : (live[0]?.rank ?? null);
+          found.rank = rankBetween(lower, upper);
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_remove: ({ id }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.deleted_at = Date.now();
+          refreshCounts(found.note_id);
+          changed();
+          return null;
+        },
+        step_restore: ({ id }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.deleted_at = null;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
         capture_save: ({ content, category }) => ({
           id: "n1",
           content,
@@ -475,6 +549,23 @@ export async function open({
         }),
       };
       const note = (id) => store.notes.find((n) => n.id === id);
+      let nextStep = 0;
+      const step = (id) =>
+        Object.values(store.steps)
+          .flat()
+          .find((st) => st.id === id);
+      const rankBetween = (low, high) => {
+        // A rank strictly between, in the same spirit as the real one.
+        if (high != null && low.length < high.length) return low + "m";
+        return low + "n";
+      };
+      const refreshCounts = (noteId) => {
+        const live = (store.steps[noteId] ?? []).filter((st) => st.deleted_at == null);
+        const found = note(noteId);
+        if (!found) return;
+        found.step_total = live.length;
+        found.step_done = live.filter((st) => st.done).length;
+      };
       const changed = () => (mock.emit("notes-changed"), null);
       const summary = (id, name, base) => ({
         id,
@@ -590,6 +681,8 @@ export function note(content, patch = {}) {
     archived_at: null,
     has_details: false,
     attachment_count: 0,
+    step_total: 0,
+    step_done: 0,
     later_at: null,
     ...patch,
   };

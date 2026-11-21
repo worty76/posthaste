@@ -300,3 +300,88 @@ html.is-linux.is-details .details__panel {
   align-items: center;
   gap: 2px;
 }
+
+.details__steps {
+  padding: var(--s-1) var(--s-4) 0;
+}
+.details__steps-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-1);
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+  font-weight: 500;
+}
+.steps {
+  list-style: none;
+  margin: 0 0 var(--s-1);
+  padding: 0;
+}
+.steps__item + .steps__item {
+  border-top: 1px solid var(--border);
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  font-size: var(--t-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.step:hover {
+  background: var(--hover);
+}
+.step[data-selected="true"] {
+  background: var(--hover);
+}
+.step__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.step[aria-checked="true"] .step__mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.step[aria-checked="true"] .step__text {
+  color: var(--text-muted);
+}
+.details__step-input,
+.details__steps-input {
+  width: 100%;
+  height: 28px;
+  font-size: var(--t-sm);
+}
+.details__steps-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.details__steps-add:hover {
+  color: var(--text);
+}
+.details__steps-limit {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--t-sm);
+}

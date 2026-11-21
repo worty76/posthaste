@@ -98,7 +98,7 @@ pub struct Step {
 }
 
 /// A step to add. The id and rank are chosen when it is stored.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewStep {
     pub text: String,
     #[serde(default)]

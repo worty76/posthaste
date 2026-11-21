@@ -5,8 +5,8 @@
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
-    Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
-    Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
+    NewStep, Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings,
+    SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -218,6 +218,77 @@ pub async fn note_update(id: &str, content: &str, category: Option<&str>) -> Res
     invoke::<_, IgnoredAny>("note_update", &args)
         .await
         .map(drop)
+}
+
+// ---- steps ------------------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepsAdd<'a> {
+    note_id: &'a str,
+    after: Option<&'a str>,
+    lines: &'a [NewStep],
+}
+
+/// Adds steps after `after` (`None` means first), all or nothing.
+pub async fn steps_add(
+    note_id: &str,
+    after: Option<&str>,
+    lines: &[NewStep],
+) -> Response<Vec<Step>> {
+    invoke(
+        "steps_add",
+        &StepsAdd {
+            note_id,
+            after,
+            lines,
+        },
+    )
+    .await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepSetText<'a> {
+    id: &'a str,
+    text: &'a str,
+}
+
+pub async fn step_set_text(id: &str, text: &str) -> Response<Step> {
+    invoke("step_set_text", &StepSetText { id, text }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepSetDone<'a> {
+    id: &'a str,
+    done: bool,
+}
+
+pub async fn step_set_done(id: &str, done: bool) -> Response<Step> {
+    invoke("step_set_done", &StepSetDone { id, done }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepMove<'a> {
+    id: &'a str,
+    after: Option<&'a str>,
+}
+
+/// Moves a step to sit directly after `after` (`None` means first).
+pub async fn step_move(id: &str, after: Option<&str>) -> Response<Step> {
+    invoke("step_move", &StepMove { id, after }).await
+}
+
+pub async fn step_remove(id: &str) -> Response<()> {
+    invoke::<_, IgnoredAny>("step_remove", &ById { id })
+        .await
+        .map(drop)
+}
+
+pub async fn step_restore(id: &str) -> Response<Step> {
+    invoke("step_restore", &ById { id }).await
 }
 
 // ---- attachments -----------------------------------------------------------

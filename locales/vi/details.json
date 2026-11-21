@@ -59,5 +59,11 @@
     "close": "đóng",
     "done": "xong",
     "add_file": "thêm tệp"
+  },
+  "steps": {
+    "title": "Bước thực hiện",
+    "add": "Thêm một bước",
+    "removed": "Đã xóa bước.",
+    "limit": "Ghi chú này có hơn 100 bước. Hãy gỡ bớt để thêm bước mới."
   }
 }
