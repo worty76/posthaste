@@ -84,6 +84,9 @@ struct Details {
     step_text: RwSignal<String>,
     /// The open editor's debounced write, once its row exists.
     step_sync: StoredValue<Option<StepSync>, LocalStorage>,
+    /// A step row is being created (the write is in flight): keystrokes
+    /// that land meanwhile wait for it instead of making another row.
+    step_creating: StoredValue<bool, LocalStorage>,
     toaster: Toaster,
     /// The note being shown. Answers for any other note are dropped.
     id: StoredValue<Option<String>>,
@@ -114,6 +117,7 @@ impl Details {
             step_editor: RwSignal::new(None),
             step_text: RwSignal::new(String::new()),
             step_sync: StoredValue::new_local(None),
+            step_creating: StoredValue::new_local(false),
             toaster: Toaster::new(),
             id: StoredValue::new(None),
             stored_text: StoredValue::new(String::new()),
@@ -236,6 +240,7 @@ impl Details {
         self.step_selected.set(None);
         self.step_editor.set(None);
         self.step_sync.set_value(None);
+        self.step_creating.set_value(false);
 
         let note = id.clone();
         self.text_sync.set_value(Some(DraftSync::with_delay(
@@ -438,28 +443,52 @@ impl Details {
                 let Some(note_id) = self.note_id() else {
                     return;
                 };
+                // One creation in flight: the keystrokes that land while it
+                // runs are already in `step_text` and go out once the row
+                // exists. Another write now would make another row.
+                if self.step_creating.get_value() {
+                    return;
+                }
+                self.step_creating.set_value(true);
                 let after = self.steps().last().map(|s| s.id.clone());
                 spawn_local(async move {
-                    match api::steps_add(
+                    let created = api::steps_add(
                         &note_id,
                         after.as_deref(),
                         &[NewStep { text, done: false }],
                     )
-                    .await
-                    {
+                    .await;
+                    self.step_creating.set_value(false);
+                    match created {
                         Ok(created) => {
                             let Some(step) = created.first() else {
                                 return;
                             };
                             self.save.set(Save::Saved);
                             self.step_selected.set(Some(step.id.clone()));
-                            self.step_editor.update(|editor| {
-                                if let Some(editor) = editor {
-                                    editor.id = Some(step.id.clone());
-                                }
+                            // The editor may have closed (Esc, Enter) while
+                            // the row was being made: never reopen it here.
+                            let add_line_open = self.step_editor.with_untracked(|editor| {
+                                editor
+                                    .as_ref()
+                                    .is_some_and(|e| e.is_add_line && e.id.is_none())
                             });
-                            let sync = self.step_write(step.id.clone());
-                            self.step_sync.set_value(Some(StepSync { sync }));
+                            if add_line_open {
+                                self.step_editor.update(|editor| {
+                                    if let Some(editor) = editor {
+                                        editor.id = Some(step.id.clone());
+                                    }
+                                });
+                                let sync = self.step_write(step.id.clone());
+                                // What was typed while the write ran goes out
+                                // once the row exists.
+                                let typed = self.step_text.get_untracked();
+                                if typed != step.text && !typed.trim().is_empty() {
+                                    self.save.set(Save::Saving);
+                                    sync.schedule(typed, None);
+                                }
+                                self.step_sync.set_value(Some(StepSync { sync }));
+                            }
                         }
                         Err(error) => self.fail(error),
                     }

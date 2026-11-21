@@ -120,6 +120,38 @@ describe("steps", () => {
     await w.close();
   });
 
+  it("one step is created while the user is still typing", async () => {
+    const w = await details();
+    // The database write is slow: the answer is held while more keystrokes
+    // land on the add line.
+    await w.mock.hold("steps_add");
+    await w.page.getByRole("button", { name: "Add a step" }).click();
+    const input = w.page.getByRole("textbox", { name: "Add a step" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "add line focus",
+    );
+    await input.type("ab"); // two keystrokes, two input events
+    await eventually(
+      () => w.calls("steps_add").then((c) => c.length),
+      (c) => c === 1,
+      "exactly one creation in flight",
+    );
+
+    // The answer arrives; the text typed while waiting is not lost.
+    await w.mock.release("steps_add", [
+      { id: "s9", note_id: w.n.id, text: "a", done: false, rank: "V" },
+    ]);
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c === 1,
+      "the newer keystrokes are written once the row exists",
+    );
+    assert.equal((await w.calls("step_set_text"))[0].args.text, "ab");
+    await w.close();
+  });
+
   it("undo restores a removed step", async () => {
     const w = await details({ steps: [step("only step")] });
     const row = w.page.getByRole("checkbox", { name: "only step" });
