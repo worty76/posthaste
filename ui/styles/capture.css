@@ -158,8 +158,11 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
 }
 
 .capture__category {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
   flex: none;
-  width: 116px;
+  max-width: 148px;
   /* Its text lines up with the note's text above, padding hangs outside. */
   margin-left: calc(-1 * var(--s-2));
   height: 24px;
@@ -169,17 +172,36 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
   background: transparent;
   color: var(--text-muted);
   font-size: var(--t-xs);
+  cursor: pointer;
 }
-.capture__category::placeholder {
+.capture__category-placeholder {
   color: var(--text-faint);
+}
+.capture__category-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .capture__category:hover {
   border-color: var(--border);
+  color: var(--text);
 }
 .capture__category:focus-visible {
   outline: none;
   border-color: var(--accent-ink);
   color: var(--text);
+}
+.capture__picker {
+  position: relative;
+}
+.capture__picker .proj-picker {
+  top: auto;
+  bottom: var(--s-1);
+  left: var(--s-3);
+}
+.capture__picker .proj-picker__list {
+  max-height: 120px;
 }
 
 /* A message outranks the hints people learn first: they step aside for it. */

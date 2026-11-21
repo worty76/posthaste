@@ -51,6 +51,8 @@ pub enum KeyAction {
     Dismiss,
     /// Rewrite the note with AI.
     Polish,
+    /// Open the project picker.
+    PickProject,
     /// Save the note; `hide` closes the window afterwards.
     Save { hide: bool },
 }
@@ -66,6 +68,9 @@ pub fn key_action(press: KeyPress<'_>, rules: KeyRules) -> Option<KeyAction> {
     }
     if press.primary && press.key.eq_ignore_ascii_case("i") {
         return Some(KeyAction::Polish);
+    }
+    if press.primary && press.key.eq_ignore_ascii_case("p") {
+        return Some(KeyAction::PickProject);
     }
     if press.key != "Enter" {
         return None;
@@ -235,6 +240,18 @@ mod tests {
             assert_eq!(key_action(mod_i, ENTER_SAVES), Some(KeyAction::Polish));
         }
         assert_eq!(key_action(press("i"), ENTER_SAVES), None);
+    }
+
+    #[test]
+    fn mod_p_opens_the_project_picker() {
+        for key in ["p", "P"] {
+            let mod_p = KeyPress {
+                primary: true,
+                ..press(key)
+            };
+            assert_eq!(key_action(mod_p, ENTER_SAVES), Some(KeyAction::PickProject));
+        }
+        assert_eq!(key_action(press("p"), ENTER_SAVES), None);
     }
 
     #[test]

@@ -203,28 +203,50 @@ describe("save states", () => {
     await w.close();
   });
 
-  it("passes the optional category along, trimmed", async () => {
-    const w = await capture();
+  it("picks a project with Ctrl+P, returns focus to the note, and saves it", async () => {
+    const w = await capture({
+      store: {
+        projects: [{ name: "money", archived: false, color: "#3b82f6" }],
+      },
+    });
     await w.note.fill("call the bank");
-    await w.page.getByLabel("Project (optional)").fill(" money ");
+    await w.note.press("Control+p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "money");
+    await w.page.keyboard.type("money");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus returns to note",
+    );
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    assert.equal(await w.saves().then((c) => c.length), 0);
     await w.note.press("Enter");
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
     assert.equal(save.args.category, "money");
     await w.close();
   });
 
-  it("Enter in the category returns to the note without saving", async () => {
-    const w = await capture();
-    const category = w.page.getByLabel("Project (optional)");
-    await w.note.fill("x");
-    await category.fill("work");
-    await category.press("Enter");
-    await eventually(
-      () => w.note.evaluate((el) => el === document.activeElement),
-      Boolean,
-      "focus",
-    );
-    assert.equal((await w.saves()).length, 0);
+  it("keeps the chosen project when saving and staying open with Ctrl+Enter", async () => {
+    const w = await capture({
+      store: {
+        projects: [{ name: "work", archived: false }],
+      },
+    });
+    await w.note.press("Control+p");
+    await w.page.keyboard.type("work");
+    await w.page.keyboard.press("Enter");
+    await w.note.fill("first task");
+    await w.note.press("Control+Enter");
+    await eventually(w.saves, (c) => c.length === 1, "first save");
+    assert.equal(await w.note.inputValue(), "");
+    await text(w.page.getByLabel("Project (optional)"), "work");
+    await w.note.fill("second task");
+    await w.note.press("Enter");
+    const saves = await eventually(w.saves, (c) => c.length === 2, "second save");
+    assert.equal(saves[0].args.category, "work");
+    assert.equal(saves[1].args.category, "work");
     await w.close();
   });
 });
@@ -456,8 +478,7 @@ describe("appearance", () => {
 
   it("capture labels the field Project", async () => {
     const w = await capture();
-    const field = w.page.getByLabel("Project (optional)");
-    assert.equal(await field.getAttribute("placeholder"), "# project");
+    await text(w.page.getByRole("button", { name: "Project (optional)" }), "# project");
     await w.close();
   });
 });
