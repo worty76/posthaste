@@ -355,9 +355,15 @@ impl Db {
         if !text.is_empty() {
             match fts_query(text) {
                 Some(m) => {
-                    sql.push_str(
-                        " AND seq IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)",
-                    );
+                    // One MATCH covers the note's own text and its steps':
+                    // the placeholder index is shared by both subqueries.
+                    let at = args.len() + 1;
+                    sql.push_str(&format!(
+                        " AND (seq IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?{at}) \
+                         OR id IN (SELECT note_id FROM note_steps \
+                             WHERE deleted_at IS NULL \
+                               AND seq IN (SELECT rowid FROM steps_fts WHERE steps_fts MATCH ?{at})))"
+                    ));
                     args.push(Value::Text(m));
                 }
                 // Nothing indexable (only punctuation): fall back to a

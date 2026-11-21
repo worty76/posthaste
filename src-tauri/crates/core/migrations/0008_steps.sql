@@ -30,3 +30,33 @@ CREATE TABLE sync_held_steps (
 -- Lowest seq of step changes withheld from a peer without the steps
 -- capability, so they can all be resent once it upgrades.
 ALTER TABLE sync_peers ADD COLUMN steps_resend_from INTEGER;
+
+-- Step text joins the full-text index, the way 0004 added descriptions:
+-- external-content table, triggers keep it in step with `note_steps`.
+CREATE VIRTUAL TABLE steps_fts USING fts5(
+    text,
+    content = 'note_steps',
+    content_rowid = 'seq',
+    tokenize = 'unicode61 remove_diacritics 2',
+    prefix = '2 3'
+);
+
+INSERT INTO steps_fts (rowid, text)
+SELECT seq, text FROM note_steps;
+
+CREATE TRIGGER steps_fts_insert AFTER INSERT ON note_steps BEGIN
+    INSERT INTO steps_fts (rowid, text)
+    VALUES (new.seq, new.text);
+END;
+
+CREATE TRIGGER steps_fts_delete AFTER DELETE ON note_steps BEGIN
+    INSERT INTO steps_fts (steps_fts, rowid, text)
+    VALUES ('delete', old.seq, old.text);
+END;
+
+CREATE TRIGGER steps_fts_update AFTER UPDATE OF text ON note_steps BEGIN
+    INSERT INTO steps_fts (steps_fts, rowid, text)
+    VALUES ('delete', old.seq, old.text);
+    INSERT INTO steps_fts (rowid, text)
+    VALUES (new.seq, new.text);
+END;

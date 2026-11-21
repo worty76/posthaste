@@ -906,6 +906,33 @@ fn importing_a_note_twice_does_not_duplicate_its_steps() {
 }
 
 #[test]
+fn searching_finds_a_note_by_one_of_its_steps() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["update the website screenshots", "unrelated"], 0);
+    db.create_note(note("a note without steps")).unwrap();
+    assert_eq!(search(&db, "screenshots"), [db.get_note(&n.id).unwrap()]);
+    assert_eq!(search(&db, "unrelated").len(), 1);
+}
+
+#[test]
+fn a_deleted_step_no_longer_matches_search() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["buy stamps"], 0);
+    let step = db.list_steps(&n.id).unwrap().remove(0);
+    assert_eq!(search(&db, "stamps").len(), 1);
+    db.remove_step(&step.id).unwrap();
+    assert!(search(&db, "stamps").is_empty());
+}
+
+#[test]
+fn searching_a_step_word_with_diacritics_removed_still_matches() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["uộn cho bài học"], 0);
+    assert_eq!(search(&db, "uon").len(), 1);
+    assert_eq!(search(&db, "hoc").len(), 1);
+}
+
+#[test]
 fn a_backup_keeps_steps_order_done_state_and_deletions() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("posthaste.db");
