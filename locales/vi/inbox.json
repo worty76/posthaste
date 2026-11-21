@@ -34,6 +34,17 @@
     },
     "count_more": {
       "other": "{count}+ ghi chú"
+    },
+    "category_line": "Danh mục: {name}",
+    "category_clear": "Xóa bộ lọc danh mục"
+  },
+  "cat_picker": {
+    "title": "Chọn danh mục",
+    "placeholder": "Lọc danh mục",
+    "none": "Không có danh mục nào khớp.",
+    "empty_hint": "Thêm bằng # khi bạn ghi chú.",
+    "notes": {
+      "other": "{count} ghi chú"
     }
   },
   "banner": {
@@ -49,6 +60,8 @@
     "search_text": "Không có ghi chú nào chứa “{text}”. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
     "search_text_filtered": "Không có ghi chú nào chứa “{text}” với các bộ lọc này. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
     "search_date": "Không có ghi chú nào được ghi vào ngày đó.",
+    "category_title": "Không có ghi chú nào trong danh mục này.",
+    "category_text": "Danh mục chỉ là nhãn; các ghi chú này có thể đang ở mục khác.",
     "today_title": "Hôm nay chưa ghi gì",
     "today_text": "Ghi chú bạn ghi hôm nay sẽ hiện ở đây.",
     "later_title": "Chưa để gì lại sau",
@@ -65,6 +78,7 @@
     "show_more": "Xem thêm",
     "show_less": "Thu gọn",
     "from": "từ {source}",
+    "category_tip": "Lọc theo {name}",
     "later": "Để sau",
     "archived": "Đã lưu trữ",
     "completed": "Đã xong",
@@ -106,6 +120,7 @@
     "copy": "Sao chép",
     "delete": "Xóa",
     "search": "Tìm kiếm",
+    "category": "Lọc theo danh mục",
     "sections": "Hộp thư, Hôm nay, Để sau, Lưu trữ, Thùng rác",
     "trash_restore": "Khôi phục (trong Thùng rác)",
     "trash_delete": "Xóa vĩnh viễn (trong Thùng rác)",

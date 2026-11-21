@@ -58,11 +58,13 @@ pub struct Filters {
     pub status: StatusFilter,
     /// The day notes were captured on, when one is picked.
     pub date: Option<Day>,
+    /// Only notes with this category, when one is picked.
+    pub category: Option<String>,
 }
 
 impl Filters {
-    /// A search is on when there is text or a day. The status alone narrows
-    /// a search; it does not start one.
+    /// A search is on when there is text or a day. The status or a category
+    /// alone narrows; neither starts a search.
     pub fn is_searching(&self) -> bool {
         !self.text.trim().is_empty() || self.date.is_some()
     }
@@ -70,6 +72,7 @@ impl Filters {
 
 /// What to ask the database for. Outside a search each section has a fixed
 /// scope; a search looks across every note, narrowed by the filters.
+/// The category sits on top of every view and of a search.
 /// `today` and `date` are the `[from, to)` instants of those days.
 pub fn build_query(
     view: View,
@@ -86,6 +89,7 @@ pub fn build_query(
         };
         return NoteQuery {
             text: filters.text.trim().to_owned(),
+            category: filters.category.clone(),
             statuses,
             created_from: date.map(|(from, _)| from),
             created_to: date.map(|(_, to)| to),
@@ -97,20 +101,24 @@ pub fn build_query(
             created_from: Some(today.0),
             created_to: Some(today.1),
             later: Some(false),
+            category: filters.category.clone(),
             ..NoteQuery::default()
         },
         View::Later => NoteQuery {
             statuses: vec![Status::Inbox],
             later: Some(true),
+            category: filters.category.clone(),
             ..NoteQuery::default()
         },
         View::Archive => NoteQuery {
             statuses: vec![Status::Completed, Status::Archived],
+            category: filters.category.clone(),
             ..NoteQuery::default()
         },
         View::Inbox | View::Trash | View::Settings => NoteQuery {
             statuses: vec![Status::Inbox],
             later: Some(false),
+            category: filters.category.clone(),
             ..NoteQuery::default()
         },
     }
@@ -149,6 +157,8 @@ pub enum Empty {
     },
     /// No note was captured on the picked day.
     NothingThatDay,
+    /// No live note carries the picked category.
+    NoCategory,
     Today,
     Later,
     Archive,
@@ -164,6 +174,9 @@ pub fn empty_reason(view: View, filters: &Filters) -> Empty {
                 filtered: filters.date.is_some() || filters.status != StatusFilter::All,
             }
         };
+    }
+    if filters.category.is_some() {
+        return Empty::NoCategory;
     }
     match view {
         View::Today => Empty::Today,
@@ -186,6 +199,10 @@ pub enum KeyAction {
     SearchToList,
     Move(isize),
     ClearSearch,
+    /// Esc on a filtered list: take the category filter off.
+    ClearCategory,
+    /// `#`: open the category picker.
+    PickCategory,
     ClearSelection,
     Edit,
     ToggleComplete,
@@ -226,6 +243,8 @@ pub struct KeyContext {
     /// Focus is on a button or link, which handles its own Enter and Space.
     pub on_control: bool,
     pub has_rows: bool,
+    /// A category filter is on.
+    pub has_category: bool,
     /// The status of the selected note, when one is selected.
     pub selected: Option<Status>,
 }
@@ -282,7 +301,10 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<Keyed> {
     match press.key {
         "ArrowDown" | "j" => return plain(KeyAction::Move(1)),
         "ArrowUp" | "k" => return plain(KeyAction::Move(-1)),
+        "#" => return plain(KeyAction::PickCategory),
+        // Search first, then the category, then the selection.
         "Escape" if context.searching => return plain(KeyAction::ClearSearch),
+        "Escape" if context.has_category => return plain(KeyAction::ClearCategory),
         "Escape" => return plain(KeyAction::ClearSelection),
         _ => {}
     }
@@ -438,6 +460,7 @@ mod tests {
             in_search: false,
             on_control: false,
             has_rows: true,
+            has_category: false,
             selected,
         }
     }
@@ -617,6 +640,99 @@ mod tests {
         };
         assert_eq!(action(press("x"), dialog), None);
         assert_eq!(action(press("1"), dialog), None);
+    }
+
+    #[test]
+    fn hash_opens_the_category_picker() {
+        assert_eq!(
+            action(press("#"), on(View::Inbox, None)),
+            Some(KeyAction::PickCategory)
+        );
+        assert_eq!(
+            action(press("#"), on(View::Later, None)),
+            Some(KeyAction::PickCategory)
+        );
+        // The filter sits on top of a search too.
+        let searching = KeyContext {
+            searching: true,
+            ..on(View::Inbox, None)
+        };
+        assert_eq!(action(press("#"), searching), Some(KeyAction::PickCategory));
+        // Settings has no list to filter.
+        assert_eq!(action(press("#"), on(View::Settings, None)), None);
+    }
+
+    #[test]
+    fn hash_while_typing_in_a_field_is_left_to_the_field() {
+        let field = KeyContext {
+            typing: true,
+            ..on(View::Inbox, None)
+        };
+        assert_eq!(action(press("#"), field), None);
+    }
+
+    #[test]
+    fn escape_clears_search_then_category_then_selection() {
+        let everything = KeyContext {
+            searching: true,
+            has_category: true,
+            ..on(View::Inbox, None)
+        };
+        assert_eq!(
+            action(press("Escape"), everything),
+            Some(KeyAction::ClearSearch)
+        );
+        let categorised = KeyContext {
+            has_category: true,
+            ..on(View::Inbox, None)
+        };
+        assert_eq!(
+            action(press("Escape"), categorised),
+            Some(KeyAction::ClearCategory)
+        );
+        assert_eq!(
+            action(press("Escape"), on(View::Inbox, None)),
+            Some(KeyAction::ClearSelection)
+        );
+    }
+
+    #[test]
+    fn build_query_carries_the_category_in_views_and_search() {
+        let filters = Filters {
+            category: Some("work".into()),
+            ..Filters::default()
+        };
+        assert_eq!(
+            build_query(View::Inbox, &filters, TODAY, None)
+                .category
+                .as_deref(),
+            Some("work")
+        );
+        assert_eq!(
+            build_query(View::Later, &filters, TODAY, None)
+                .category
+                .as_deref(),
+            Some("work")
+        );
+        let searching = Filters {
+            text: "milk".into(),
+            ..filters
+        };
+        assert_eq!(
+            build_query(View::Archive, &searching, TODAY, None)
+                .category
+                .as_deref(),
+            Some("work")
+        );
+    }
+
+    #[test]
+    fn a_category_alone_does_not_start_a_search() {
+        let only = Filters {
+            category: Some("work".into()),
+            ..Filters::default()
+        };
+        assert!(!only.is_searching());
     }
 
     #[test]

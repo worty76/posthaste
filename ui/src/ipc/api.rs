@@ -44,8 +44,6 @@ pub async fn categories_list() -> Response<Vec<String>> {
 }
 
 /// How many live notes use each category, most used first.
-// Called from the inbox picker, which lands with the next commit.
-#[expect(dead_code)]
 pub async fn categories_counts() -> Response<Vec<CategoryCount>> {
     invoke("categories_counts", &NoArgs {}).await
 }

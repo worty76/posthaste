@@ -316,6 +316,107 @@ describe("inbox", () => {
     await mac.close();
   });
 
+  it("pressing # and enter filters the inbox by category", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", [
+      { name: "health", count: 1 },
+      { name: "work", count: 2 },
+    ]);
+    await w.key("#");
+    const picker = w.page.locator(".cat-picker");
+    await text(picker, "health");
+    await w.key("Enter");
+    await eventually(w.contents, (c) => c.join() === "book dentist", "filtered");
+    await text(w.page.locator(".catfilter"), "health");
+    assert.equal((await w.calls("notes_list")).at(-1).args.query.category, "health");
+    await w.close();
+  });
+
+  it("the filter line clears with escape", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", [{ name: "work", count: 2 }]);
+    await w.key("#");
+    await text(w.page.locator(".cat-picker"), "work");
+    await w.key("Enter");
+    await text(w.page.locator(".empty"), "No notes in this category here.");
+    await w.key("Escape");
+    await eventually(w.contents, (c) => c.length === 3, "filter cleared");
+    await w.key("Escape");
+    await eventually(
+      () => w.selected.count(),
+      (c) => c === 0,
+      "selection cleared next",
+    );
+    await w.close();
+  });
+
+  it("the filter line clears with its × and the picker is gone", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", [{ name: "health", count: 1 }]);
+    await w.key("#");
+    await text(w.page.locator(".cat-picker"), "health");
+    await w.key("Enter");
+    await eventually(w.contents, (c) => c.length === 1, "filtered");
+    await w.page.getByRole("button", { name: "Clear the category filter" }).click();
+    await eventually(w.contents, (c) => c.length === 3, "filter cleared");
+    await w.close();
+  });
+
+  it("clicking a row's category filters by it", async () => {
+    const w = await main();
+    await w.rows.first().locator(".note__category").click();
+    await eventually(w.contents, (c) => c.join() === "book dentist", "only that category");
+    await text(w.page.locator(".catfilter"), "health");
+    await w.close();
+  });
+
+  it("the filter stays when switching views", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", [{ name: "health", count: 1 }]);
+    await w.key("#");
+    await text(w.page.locator(".cat-picker"), "health");
+    await w.key("Enter");
+    await eventually(w.contents, (c) => c.length === 1, "filtered");
+    await w.key("3");
+    await text(w.page.locator(".catfilter"), "health");
+    const query = (await w.calls("notes_list")).at(-1).args.query;
+    assert.equal(query.category, "health");
+    await w.key("Escape");
+    await eventually(w.contents, (c) => c.join() === "someday trip", "later again");
+    await w.close();
+  });
+
+  it("the picker narrows as you type and shows counts", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", [
+      { name: "health", count: 1 },
+      { name: "work", count: 2 },
+      { name: "home", count: 3 },
+    ]);
+    await w.key("#");
+    const picker = w.page.locator(".cat-picker");
+    await text(picker, "health");
+    await text(picker, "3");
+    await w.page.keyboard.type("ho");
+    await text(picker, "home");
+    assert.equal(await picker.locator(".cat-picker__item").count(), 1);
+    await w.key("Escape");
+    await eventually(
+      () => picker.count(),
+      (c) => c === 0,
+      "picker closed",
+    );
+    await w.close();
+  });
+
+  it("the picker says so when no category is in use", async () => {
+    const w = await main();
+    await w.mock.answer("categories_counts", []);
+    await w.key("#");
+    await text(w.page.locator(".cat-picker"), "Add one with # when you capture a note.");
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");

@@ -1,6 +1,7 @@
 //! The main window: the sidebar, a section of notes or the settings, and
 //! the search that looks through every note.
 
+mod category_picker;
 mod date_filter;
 mod help;
 mod notes;
@@ -74,6 +75,8 @@ struct Main {
     view: RwSignal<View>,
     filters: RwSignal<Filters>,
     filters_open: RwSignal<bool>,
+    /// The category picker, opened with `#`.
+    picker_open: RwSignal<bool>,
     /// What the last query answered: up to one more than `limit`, which is
     /// how the list knows there are older notes.
     notes: RwSignal<Vec<Note>>,
@@ -102,6 +105,7 @@ impl Main {
             view: RwSignal::new(View::Inbox),
             filters: RwSignal::new(Filters::default()),
             filters_open: RwSignal::new(false),
+            picker_open: RwSignal::new(false),
             notes: RwSignal::new(Vec::new()),
             loaded: RwSignal::new(false),
             limit: RwSignal::new(PAGE),
@@ -136,7 +140,18 @@ impl Main {
     fn go(self, next: View) {
         let switching = self.view.get_untracked() != next;
         self.view.set(next);
-        self.filters.set(Filters::default());
+        // The category sits on top of the note views and follows them; a
+        // view that cannot show it (Trash, Settings) takes it off too, so
+        // nothing filters a list the user cannot see the reason for.
+        let keep_category = !matches!(next, View::Trash | View::Settings);
+        self.filters.update(|filters| {
+            let category = keep_category.then(|| filters.category.clone()).flatten();
+            *filters = Filters {
+                category,
+                ..Filters::default()
+            };
+        });
+        self.picker_open.set(false);
         self.filters_open.set(false);
         self.limit.set(PAGE);
         self.editing.set(None);
@@ -146,8 +161,28 @@ impl Main {
         }
     }
 
+    /// Ends the search, keeping the category filter.
     fn clear_search(self) {
-        self.filters.set(Filters::default());
+        self.filters.update(|filters| {
+            filters.text = String::new();
+            filters.status = StatusFilter::default();
+            filters.date = None;
+        });
+    }
+
+    /// Filters the list by one category, from the picker or a row.
+    fn set_category(self, name: String) {
+        self.limit.set(PAGE);
+        self.picker_open.set(false);
+        self.selected.set(None);
+        self.filters.update(|filters| filters.category = Some(name));
+    }
+
+    /// Takes the category filter off.
+    fn clear_category(self) {
+        self.limit.set(PAGE);
+        self.selected.set(None);
+        self.filters.update(|filters| filters.category = None);
     }
 
     fn set_search_text(self, text: String) {
@@ -421,6 +456,7 @@ impl Main {
             in_search,
             on_control: browser::is_within(&event, "button, a, [role=radio]"),
             has_rows: self.with_visible_ids(|ids| !ids.is_empty()),
+            has_category: self.filters.with_untracked(|f| f.category.is_some()),
             selected: selected.as_ref().map(|note| note.status),
         };
         let Some(keyed) = key_action(press, context) else {
@@ -456,6 +492,8 @@ impl Main {
                 }
             }
             (KeyAction::ClearSearch, _) => self.clear_search(),
+            (KeyAction::ClearCategory, _) => self.clear_category(),
+            (KeyAction::PickCategory, _) => self.picker_open.set(true),
             (KeyAction::ClearSelection, _) => self.selected.set(None),
             (KeyAction::Edit, Some(note)) => self.start_edit(&note.id),
             (KeyAction::ToggleComplete, Some(note)) => self.toggle_complete(&note),
@@ -737,6 +775,30 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
                 <div class="content__scroll">
                     <div class="content__column">
+                        {move || {
+                            let named = main.filters.with(|f| f.category.clone());
+                            (pane.get() == Pane::Notes && named.is_some()).then(|| {
+                                let t = i18n.translator();
+                                let name = t
+                                    .format(key::INBOX_FILTER_CATEGORY_LINE, &[("name", &named.unwrap_or_default())]);
+                                view! {
+                                    <div class="catfilter">
+                                        <span class="catfilter__name">{name}</span>
+                                        <IconButton
+                                            icon=IconName::Close
+                                            label=i18n.label(key::INBOX_FILTER_CATEGORY_CLEAR)
+                                            on_click=move |()| main.clear_category()
+                                        />
+                                    </div>
+                                }
+                                .into_any()
+                            })
+                        }}
+                        <div class="cat-anchor">
+                            <Show when=move || main.picker_open.get()>
+                                <category_picker::CategoryPicker main=main />
+                            </Show>
+                        </div>
                         {move || match pane.get() {
                             Pane::LoadingSettings => ().into_any(),
                             Pane::Settings => view! {
