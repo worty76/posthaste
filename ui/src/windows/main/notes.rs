@@ -11,7 +11,8 @@ use super::Main;
 use crate::browser::{self, bind_text};
 use crate::components::{caps, Button, EmptyState, Icon, IconButton, IconName, Kbd, Variant};
 use crate::logic::dates::Day;
-use crate::logic::inbox::{empty_reason, group_runs, is_long, Empty};
+use crate::logic::inbox::{empty_reason, is_long, Empty};
+use crate::logic::sections;
 use crate::time::{self, DateStyle, Width};
 use crate::windows::note_badges::NoteBadges;
 
@@ -39,22 +40,38 @@ pub(super) fn day_label(day: Day, today: Day, locale: &str, t: Translator) -> St
 #[component]
 pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl IntoView {
     let i18n = main.i18n;
-    // The notes on screen, a day at a time. Notes arrive newest first.
-    let groups = Memo::new(move |_| {
+    let visible = Memo::new(move |_| {
         let limit = main.limit.get();
-        main.notes.with(|notes| {
-            group_runs(notes.iter().take(limit).cloned(), |note| {
-                time::day_of(note.created_at)
-            })
+        main.notes
+            .with(|notes| notes.iter().take(limit).cloned().collect::<Vec<_>>())
+    });
+    let grouped = Memo::new(move |_| {
+        visible.with(|notes| {
+            sections::group(notes)
+                .into_iter()
+                .map(|section| {
+                    (
+                        section.project.map(str::to_owned),
+                        section.notes.into_iter().cloned().collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
         })
     });
     let has_more = move || main.notes.with(|notes| notes.len() > main.limit.get());
-    let days = move || groups.with(|groups| groups.iter().map(|(day, _)| *day).collect::<Vec<_>>());
-    let notes_of = move |day: Day| {
-        groups.with(|groups| {
+    let keys = move || {
+        grouped.with(|groups| {
             groups
                 .iter()
-                .find(|(group, _)| *group == day)
+                .map(|(project, _)| project.clone())
+                .collect::<Vec<_>>()
+        })
+    };
+    let notes_of = move |project: Option<&str>| {
+        grouped.with(|groups| {
+            groups
+                .iter()
+                .find(|(name, _)| name.as_deref() == project)
                 .map(|(_, notes)| notes.clone())
                 .unwrap_or_default()
         })
@@ -63,27 +80,94 @@ pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl Into
     view! {
         <Show when=move || main.loaded.get()>
             <Show
-                when=move || groups.with(|groups| !groups.is_empty())
+                when=move || visible.with(|notes| !notes.is_empty())
                 fallback=move || view! { <Nothing main=main capture_keys=capture_keys /> }
             >
-                <For each=days key=|day| *day let:day>
-                    {
-                        let label = move || day_label(day, time::today(), &main.locale.get(), i18n.translator());
-                        view! {
-                            <section class="day" aria-label=label>
-                                <h2 class="day__label">
-                                    {label}
-                                    <span class="day__count">{move || notes_of(day).len()}</span>
-                                </h2>
-                                <ul class="notes">
-                                    <For each=move || notes_of(day) key=row_key let:note>
-                                        <NoteCard main=main note=note />
-                                    </For>
-                                </ul>
-                            </section>
-                        }
+                <Show
+                    when=move || main.searching()
+                    fallback=move || view! {
+                        <For each=keys key=|project| project.clone() let:project>
+                            {match project {
+                                Some(name) => {
+                                    let project = StoredValue::new(name);
+                                    let expanded = move || {
+                                        project.with_value(|name| !main.is_section_collapsed(name))
+                                    };
+                                    view! {
+                                        <section class="proj-section" aria-label=project.get_value()>
+                                            <button
+                                                type="button"
+                                                class="proj-section__header"
+                                                aria-expanded=move || expanded().to_string()
+                                                on:click=move |_| {
+                                                    project.with_value(|name| main.toggle_section(name));
+                                                }
+                                                on:keydown=move |event| {
+                                                    if event.is_composing() {
+                                                        return;
+                                                    }
+                                                    match event.key().as_str() {
+                                                        "ArrowLeft" => {
+                                                            event.prevent_default();
+                                                            event.stop_propagation();
+                                                            project.with_value(|name| {
+                                                                main.set_section_collapsed(name, true);
+                                                            });
+                                                        }
+                                                        "ArrowRight" => {
+                                                            event.prevent_default();
+                                                            event.stop_propagation();
+                                                            project.with_value(|name| {
+                                                                main.set_section_collapsed(name, false);
+                                                            });
+                                                        }
+                                                        _ => {}
+                                                    }
+                                                }
+                                            >
+                                                <span class="proj-section__chevron">
+                                                    <Icon name=IconName::Next size=12 />
+                                                </span>
+                                                <span class="proj-section__name">{project.get_value()}</span>
+                                                <span class="proj-section__count">
+                                                    {move || project.with_value(|name| notes_of(Some(name)).len())}
+                                                </span>
+                                            </button>
+                                            <Show when=expanded>
+                                                <ul class="notes">
+                                                    <For
+                                                        each=move || project.with_value(|name| notes_of(Some(name)))
+                                                        key=row_key
+                                                        let:note
+                                                    >
+                                                        <NoteCard main=main note=note />
+                                                    </For>
+                                                </ul>
+                                            </Show>
+                                        </section>
+                                    }
+                                    .into_any()
+                                }
+                                None => view! {
+                                    <section class="proj-section proj-section--plain">
+                                        <ul class="notes">
+                                            <For each=move || notes_of(None) key=row_key let:note>
+                                                <NoteCard main=main note=note />
+                                            </For>
+                                        </ul>
+                                    </section>
+                                }
+                                .into_any(),
+                            }}
+                        </For>
                     }
-                </For>
+                >
+                    <ul class="notes">
+                        <For each=move || visible.get() key=row_key let:note>
+                            <NoteCard main=main note=note />
+                        </For>
+                    </ul>
+                </Show>
                 <Show when=has_more>
                     <Button class="more" on_click=move |()| main.limit.update(|limit| *limit += super::PAGE)>
                         {i18n.text(key::INBOX_MORE)}

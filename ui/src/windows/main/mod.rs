@@ -8,6 +8,7 @@ mod notes;
 mod settings;
 mod trash;
 
+use std::collections::HashSet;
 use std::time::Duration;
 
 use leptos::ev::KeyboardEvent;
@@ -27,7 +28,8 @@ use crate::logic::dates::Day;
 use crate::logic::inbox::{
     build_query, key_action, Filters, KeyAction, KeyContext, KeyPress, StatusFilter, View,
 };
-use crate::logic::selection::{moved_from_none, neighbour};
+use crate::logic::sections;
+use crate::logic::selection::neighbour;
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
 use crate::state::{
     use_appearance, use_i18n, use_settings, use_updates, I18n, Message, SettingsHandle,
@@ -86,6 +88,8 @@ struct Main {
     counts: RwSignal<Option<Counts>>,
     selected: RwSignal<Option<String>>,
     editing: RwSignal<Option<String>>,
+    /// Project sections collapsed in this window while the app runs.
+    collapsed_sections: RwSignal<HashSet<String>>,
     help_open: RwSignal<bool>,
     /// Bumped to run the list query again: data changed, or a new day began.
     revision: RwSignal<u32>,
@@ -112,6 +116,7 @@ impl Main {
             counts: RwSignal::new(None),
             selected: RwSignal::new(None),
             editing: RwSignal::new(None),
+            collapsed_sections: RwSignal::new(HashSet::new()),
             help_open: RwSignal::new(false),
             revision: RwSignal::new(0),
             request: StoredValue::new(0),
@@ -293,12 +298,66 @@ impl Main {
         });
     }
 
-    /// The ids of the notes on screen, in order.
+    fn is_section_collapsed(self, project: &str) -> bool {
+        self.collapsed_sections.with(|set| set.contains(project))
+    }
+
+    fn set_section_collapsed(self, project: &str, collapse: bool) {
+        if collapse {
+            let current = self.selected.get_untracked();
+            if current.is_some() {
+                let limit = self.limit.get_untracked();
+                let next = self.notes.with_untracked(|notes| {
+                    let slice = &notes[..notes.len().min(limit)];
+                    let grouped = sections::group(slice);
+                    self.collapsed_sections.with_untracked(|collapsed| {
+                        sections::selection_after_collapse(
+                            &grouped,
+                            collapsed,
+                            project,
+                            current.as_deref(),
+                        )
+                    })
+                });
+                if next != current {
+                    self.selected.set(next);
+                }
+            }
+            self.collapsed_sections.update(|set| {
+                set.insert(project.to_owned());
+            });
+        } else {
+            self.collapsed_sections.update(|set| {
+                set.remove(project);
+            });
+        }
+    }
+
+    fn toggle_section(self, project: &str) {
+        let collapsed = self
+            .collapsed_sections
+            .with_untracked(|set| set.contains(project));
+        self.set_section_collapsed(project, !collapsed);
+    }
+
+    /// The ids of the notes on screen, in display order, skipping collapsed
+    /// project sections.
     fn with_visible_ids<T>(self, read: impl FnOnce(&[&str]) -> T) -> T {
         let limit = self.limit.get_untracked();
+        let searching = self.filters.with_untracked(Filters::is_searching);
         self.notes.with_untracked(|notes| {
-            let ids: Vec<&str> = notes.iter().take(limit).map(|n| n.id.as_str()).collect();
-            read(&ids)
+            let slice = &notes[..notes.len().min(limit)];
+            if searching {
+                let ids: Vec<&str> = slice.iter().map(|n| n.id.as_str()).collect();
+                read(&ids)
+            } else {
+                let grouped = sections::group(slice);
+                let order = self
+                    .collapsed_sections
+                    .with_untracked(|collapsed| sections::visible_order(&grouped, collapsed));
+                let refs: Vec<&str> = order.iter().map(String::as_str).collect();
+                read(&refs)
+            }
         })
     }
 
@@ -485,8 +544,10 @@ impl Main {
             }
             (KeyAction::Move(delta), _) => {
                 let current = self.selected.get_untracked();
-                let moved =
-                    self.with_visible_ids(|ids| moved_from_none(ids, current.as_deref(), delta));
+                let moved = self.with_visible_ids(|ids| {
+                    let owned: Vec<String> = ids.iter().map(|id| (*id).to_owned()).collect();
+                    sections::move_selection(&owned, current.as_deref(), delta as i32)
+                });
                 if moved.is_some() {
                     self.selected.set(moved);
                 }

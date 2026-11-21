@@ -48,12 +48,12 @@ async function main({ store = {}, ...options } = {}) {
 }
 
 describe("inbox", () => {
-  it("lists open notes by day, newest first, with counts in the sidebar", async () => {
+  it("lists open notes by project section, newest first, with counts in the sidebar", async () => {
     const w = await main();
     await eventually(w.contents, (c) => c.length === 3, "three notes");
     assert.deepEqual(await w.contents(), ["book dentist", "call mum", "pay rent"]);
-    await text(w.page.getByRole("region", { name: "Today" }), "2");
-    await text(w.page.getByRole("region", { name: "Thursday 12 November" }), "pay rent");
+    await text(w.page.locator(".proj-section__header").first(), "health");
+    await text(w.page.locator(".proj-section__header").first(), "1");
     await text(w.page.locator(".nav__item").nth(0), "3");
     await text(w.page.locator(".nav__item").nth(2), "1");
     await text(w.rows.first(), "health");
@@ -329,7 +329,7 @@ describe("inbox", () => {
       },
     });
     await eventually(w.contents, (c) => c.length === 4, "four notes");
-    const row = w.page.locator(".note").first();
+    const row = w.page.locator(".note", { hasText: "with steps" });
     await text(row, "2/5");
     const badge = row.locator(".badges");
     await eventually(
@@ -441,11 +441,126 @@ describe("inbox", () => {
     await w.close();
   });
 
+  it("the inbox shows project sections with counts", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("fix sink", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+          note("call mum", { created_at: at("2026-11-15T11:00:00") }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    // Sections ordered by newest note; no-project group last.
+    assert.deepEqual(await w.contents(), ["buy milk", "fix sink", "draft spec", "call mum"]);
+    const headers = w.page.locator(".proj-section__header");
+    assert.equal(await headers.count(), 2);
+    await text(headers.nth(0), "home");
+    await text(headers.nth(0), "2");
+    await text(headers.nth(1), "work");
+    await text(headers.nth(1), "1");
+    await w.close();
+  });
+
+  it("a header collapses and expands by keyboard", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    const header = w.page.locator(".proj-section__header").first();
+    assert.equal(await header.getAttribute("aria-expanded"), "true");
+    await header.focus();
+    await w.key("ArrowLeft");
+    assert.equal(await header.getAttribute("aria-expanded"), "false");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "collapsed");
+    await w.key("ArrowRight");
+    assert.equal(await header.getAttribute("aria-expanded"), "true");
+    await eventually(w.contents, (c) => c.length === 2, "expanded");
+    await w.key("Enter");
+    assert.equal(await header.getAttribute("aria-expanded"), "false");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "toggled with enter");
+    await w.close();
+  });
+
+  it("arrow keys skip a collapsed section", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("alpha one", { created_at: at("2026-11-15T10:00:00"), category: "alpha" }),
+          note("beta one", { created_at: at("2026-11-15T09:00:00"), category: "beta" }),
+          note("beta two", { created_at: at("2026-11-15T08:30:00"), category: "beta" }),
+          note("gamma one", { created_at: at("2026-11-15T08:00:00"), category: "gamma" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    // Select beta one, then collapse beta: selection moves to gamma one.
+    await w.key("ArrowDown");
+    await w.key("ArrowDown");
+    await text(w.selected, "beta one");
+    await w.page.locator(".proj-section__header").nth(1).click();
+    await eventually(w.contents, (c) => c.join() === "alpha one,gamma one", "beta collapsed");
+    await text(w.selected, "gamma one");
+    // Moving up skips collapsed beta and lands on alpha one.
+    await w.key("ArrowUp");
+    await text(w.selected, "alpha one");
+    // Moving down skips collapsed beta and lands on gamma one.
+    await w.key("ArrowDown");
+    await text(w.selected, "gamma one");
+    await w.close();
+  });
+
+  it("search results are not sectioned", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy apples", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("buy paper", { created_at: at("2026-11-15T09:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 2,
+      "sectioned in inbox",
+    );
+    await w.search();
+    await w.page.keyboard.type("buy");
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 0,
+      "no section headers in search",
+    );
+    await eventually(w.contents, (c) => c.length === 2, "both search hits shown");
+    await w.close();
+  });
+
+  it("notes without a project have no header", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("plain one", { created_at: at("2026-11-15T10:00:00") }),
+          note("plain two", { created_at: at("2026-11-15T09:00:00") }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    assert.equal(await w.page.locator(".proj-section__header").count(), 0);
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");
+    await text(w.page.locator(".nav"), "Hôm nay");
     await text(w.page.locator(".nav"), "Thùng rác");
-    await text(w.page.locator(".day__label").first(), "Hôm nay");
     await w.close();
   });
 
