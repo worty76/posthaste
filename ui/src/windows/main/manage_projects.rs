@@ -6,71 +6,51 @@ use leptos::ev::KeyboardEvent;
 use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::{key, Key};
+use posthaste_i18n::key;
 use posthaste_model::Project;
 
 use super::Main;
 use crate::browser::{self, bind_text};
-use crate::components::{Button, Dialog, EmptyState, Icon, IconName, Variant};
+use crate::components::{
+    Button, Dialog, EmptyState, Icon, IconButton, IconName, ProjectDot, Variant,
+};
 use crate::ipc::api;
 use crate::logic::inbox::View;
+use crate::logic::look::picker_value;
 use crate::logic::project_picker::{rename_decision, RenameDecision};
 use crate::state::I18n;
 
 const MAX_PROJECT_CHARS: &str = "40";
 
-const COLORS: [(&str, Key); 6] = [
-    ("1", key::INBOX_MANAGE_PROJECTS_COLOR_1),
-    ("2", key::INBOX_MANAGE_PROJECTS_COLOR_2),
-    ("3", key::INBOX_MANAGE_PROJECTS_COLOR_3),
-    ("4", key::INBOX_MANAGE_PROJECTS_COLOR_4),
-    ("5", key::INBOX_MANAGE_PROJECTS_COLOR_5),
-    ("6", key::INBOX_MANAGE_PROJECTS_COLOR_6),
-];
-
-/// Inline swatch row for picking or clearing a project's palette color.
+/// Custom color picker control with a clear button when a color is set.
 #[component]
-fn ColorSwatches(
+fn ColorPickerControl(
     i18n: I18n,
     current: Signal<Option<String>>,
     #[prop(into)] on_pick: Callback<Option<String>>,
 ) -> impl IntoView {
     view! {
         <div
-            class="proj-swatches"
-            role="group"
-            aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_GROUP)
+            class="proj-color-ctrl"
             on:click=move |event| event.stop_propagation()
         >
-            <button
-                type="button"
-                class="proj-swatch"
-                aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_NONE)
-                title=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_NONE)
-                aria-pressed=move || current.with(Option::is_none).to_string()
-                on:click=move |_| on_pick.run(None)
-            >
-                <span class="proj-swatch__none" aria-hidden="true"></span>
-            </button>
-            {COLORS
-                .into_iter()
-                .map(|(code, label)| {
-                    view! {
-                        <button
-                            type="button"
-                            class="proj-swatch"
-                            aria-label=i18n.text(label)
-                            title=i18n.text(label)
-                            aria-pressed=move || {
-                                current.with(|c| c.as_deref() == Some(code)).to_string()
-                            }
-                            on:click=move |_| on_pick.run(Some(code.to_owned()))
-                        >
-                            <span class="proj-dot" data-color=code aria-hidden="true"></span>
-                        </button>
-                    }
-                })
-                .collect_view()}
+            <input
+                type="color"
+                class="proj-color-input"
+                aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
+                title=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
+                prop:value=move || {
+                    current.with(|c| picker_value(c.as_deref().unwrap_or("#64b5f6")))
+                }
+                on:input=move |event| on_pick.run(Some(event_target_value(&event)))
+            />
+            <Show when=move || current.with(Option::is_some)>
+                <IconButton
+                    icon=IconName::Close
+                    label=i18n.label(key::INBOX_MANAGE_PROJECTS_COLOR_CLEAR)
+                    on_click=move |()| on_pick.run(None)
+                />
+            </Show>
         </div>
     }
 }
@@ -404,13 +384,11 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                                 }
                                 on:dblclick=move |_| main.go(View::Project(name.get_value()))
                             >
-                                {color.get_value().map(|c| view! {
-                                    <span class="proj-dot" data-color=c aria-hidden="true"></span>
-                                })}
+                                {color.get_value().map(|c| view! { <ProjectDot color=c /> })}
                                 <span class="manage-projects__title">{name.get_value()}</span>
                                 <span class="manage-projects__count">{total}</span>
                             </button>
-                            <ColorSwatches
+                            <ColorPickerControl
                                 i18n=i18n
                                 current=Signal::derive(move || color.get_value())
                                 on_pick=move |next| set_color(name.get_value(), next)
@@ -486,7 +464,7 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                         }
                     }
                 />
-                <ColorSwatches
+                <ColorPickerControl
                     i18n=i18n
                     current=Signal::derive(move || new_color.get())
                     on_pick=move |next| new_color.set(next)

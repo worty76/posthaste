@@ -15,7 +15,8 @@ use wasm_bindgen::JsCast;
 
 use super::note_badges::NoteBadges;
 use crate::components::{
-    caps, Calendar, DayMarks, EmptyState, Icon, IconButton, IconName, Kbd, ProjectPicker,
+    caps, Calendar, DayMarks, EmptyState, Icon, IconButton, IconName, Kbd, ProjectDot,
+    ProjectPicker,
 };
 use crate::ipc::{self, api, events};
 use crate::logic::dates::Day;
@@ -777,7 +778,7 @@ fn Group(
                                             <Icon name=IconName::Next size=12 />
                                         </span>
                                         {move || project.with_value(|name| today.project_color(name)).map(|c| view! {
-                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                            <ProjectDot color=c />
                                         })}
                                         <span class="proj-section__name">{project.get_value()}</span>
                                         <span class="proj-section__count">
@@ -786,9 +787,26 @@ fn Group(
                                     </button>
                                     <Show when=expanded>
                                         <ul
-                                            class="today__rows today__rows--project"
+                                            class=move || {
+                                                if project.with_value(|name| today.project_color(name)).is_some() {
+                                                    "today__rows today__rows--project today__rows--colored"
+                                                } else {
+                                                    "today__rows today__rows--project"
+                                                }
+                                            }
                                             data-color=move || project.with_value(|name| today.project_color(name))
                                         >
+                                            {move || project.with_value(|name| today.project_color(name)).map(|c| view! {
+                                                <svg
+                                                    class="today__rail"
+                                                    viewBox="0 0 2 10"
+                                                    preserveAspectRatio="none"
+                                                    aria-hidden="true"
+                                                    focusable="false"
+                                                >
+                                                    <rect width="2" height="10" rx="1" fill=c />
+                                                </svg>
+                                            })}
                                             <For
                                                 each=move || project.with_value(|name| notes_of(Some(name)))
                                                 key=row_key

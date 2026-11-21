@@ -158,27 +158,21 @@ html.is-linux.is-today .today__panel {
   font-size: var(--t-xs);
 }
 .today__rows--project {
+  position: relative;
   margin-left: var(--s-3);
   padding-left: var(--s-2);
   border-left: 2px solid var(--border);
 }
-.today__rows--project[data-color="1"] {
-  border-left-color: var(--proj-1);
+.today__rows--colored {
+  border-left-color: transparent;
 }
-.today__rows--project[data-color="2"] {
-  border-left-color: var(--proj-2);
-}
-.today__rows--project[data-color="3"] {
-  border-left-color: var(--proj-3);
-}
-.today__rows--project[data-color="4"] {
-  border-left-color: var(--proj-4);
-}
-.today__rows--project[data-color="5"] {
-  border-left-color: var(--proj-5);
-}
-.today__rows--project[data-color="6"] {
-  border-left-color: var(--proj-6);
+.today__rail {
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  pointer-events: none;
 }
 .today__row {
   display: flex;

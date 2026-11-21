@@ -581,7 +581,13 @@ describe("inbox", () => {
     await text(list, "work");
     await text(list, "1");
     assert.equal(await list.getByRole("button", { name: /taxes/ }).count(), 0);
-    await text(w.page.locator(".sidebar"), "Manage projects");
+    assert.equal(
+      await w.page
+        .locator(".sidebar__group-header")
+        .getByRole("button", { name: "Manage projects" })
+        .count(),
+      1,
+    );
     await w.close();
   });
 
@@ -798,7 +804,7 @@ describe("inbox", () => {
     await w.page.getByRole("button", { name: "Manage projects" }).click();
     const input = w.page.getByLabel("New project");
     await input.fill("fitness");
-    await w.page.locator(".manage-projects__new").getByRole("button", { name: "Sage" }).click();
+    await w.page.locator(".manage-projects__new").getByLabel("Pick color").fill("#3b82f6");
     await input.press("Enter");
     await eventually(
       () => w.calls("project_create"),
@@ -807,23 +813,25 @@ describe("inbox", () => {
     );
     await eventually(
       () => w.calls("project_set_color"),
-      (c) => c.length === 1 && c[0].args.name === "fitness" && c[0].args.color === "3",
+      (c) => c.length === 1 && c[0].args.name === "fitness" && c[0].args.color === "#3b82f6",
       "color set on create",
     );
     await text(w.page.locator(".sidebar__projects"), "fitness");
-    assert.equal(await w.page.locator('.sidebar__projects .proj-dot[data-color="3"]').count(), 1);
-    // Change color on the row to Sky ("4").
-    await w.page
-      .locator(".manage-projects__row")
-      .first()
-      .getByRole("button", { name: "Sky" })
-      .click();
+    assert.equal(
+      await w.page.locator('.sidebar__projects .proj-dot[data-color="#3b82f6"]').count(),
+      1,
+    );
+    // Change color on the row to #e11d48.
+    await w.page.locator(".manage-projects__row").first().getByLabel("Pick color").fill("#e11d48");
     await eventually(
       () => w.calls("project_set_color"),
-      (c) => c.length === 2 && c[1].args.color === "4",
+      (c) => c.length === 2 && c[1].args.color === "#e11d48",
       "color updated",
     );
-    assert.equal(await w.page.locator('.sidebar__projects .proj-dot[data-color="4"]').count(), 1);
+    assert.equal(
+      await w.page.locator('.sidebar__projects .proj-dot[data-color="#e11d48"]').count(),
+      1,
+    );
     await w.close();
   });
 

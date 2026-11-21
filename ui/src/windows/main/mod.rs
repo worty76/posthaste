@@ -22,7 +22,8 @@ use wasm_bindgen::JsCast;
 
 use crate::browser::{self, bind_text};
 use crate::components::{
-    Button, Icon, IconButton, IconName, Kbd, ProjectPicker, SceneHost, Segmented, Toaster, Toasts,
+    Button, Icon, IconButton, IconName, Kbd, ProjectDot, ProjectPicker, SceneHost, Segmented,
+    Toaster, Toasts,
 };
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
@@ -852,7 +853,22 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                     {View::LISTS.into_iter().map(nav_item).collect_view()}
                 </nav>
                 <div class="sidebar__projects-wrap">
-                    <div class="sidebar__group-label">{i18n.text(key::INBOX_NAV_PROJECTS)}</div>
+                    <div class="sidebar__group-header">
+                        <span class="sidebar__group-label">{i18n.text(key::INBOX_NAV_PROJECTS)}</span>
+                        <button
+                            type="button"
+                            class="nav__item sidebar__manage"
+                            aria-label=i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)
+                            title=i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)
+                            aria-current=move || {
+                                (main.view.get() == View::ManageProjects && !main.searching())
+                                    .then_some("page")
+                            }
+                            on:click=move |_| main.go(View::ManageProjects)
+                        >
+                            <Icon name=IconName::Settings size=13 />
+                        </button>
+                    </div>
                     <nav class="nav sidebar__projects" aria-label=i18n.text(key::INBOX_NAV_PROJECTS)>
                         <For
                             each=move || {
@@ -885,9 +901,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                         aria-current=current
                                         on:click=move |_| main.go(View::Project(name_click.clone()))
                                     >
-                                        {color.map(|c| view! {
-                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
-                                        })}
+                                        {color.map(|c| view! { <ProjectDot color=c /> })}
                                         <span class="nav__label">{name}</span>
                                         {(total > 0).then(|| view! {
                                             <span class="nav__count">{total}</span>
@@ -896,17 +910,6 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                                 }
                             }
                         </For>
-                        <button
-                            type="button"
-                            class="nav__item nav__item--quiet"
-                            aria-current=move || {
-                                (main.view.get() == View::ManageProjects && !main.searching())
-                                    .then_some("page")
-                            }
-                            on:click=move |_| main.go(View::ManageProjects)
-                        >
-                            <span class="nav__label">{i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)}</span>
-                        </button>
                     </nav>
                 </div>
                 <div class="sidebar__spacer"></div>

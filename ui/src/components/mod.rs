@@ -21,6 +21,6 @@ pub use empty_state::EmptyState;
 pub use icon::{Icon, IconName};
 pub use kbd::{caps, Kbd};
 pub use position_picker::PositionPicker;
-pub use project_picker::ProjectPicker;
+pub use project_picker::{ProjectDot, ProjectPicker};
 pub use scene::SceneHost;
 pub use toasts::{Toaster, Toasts};

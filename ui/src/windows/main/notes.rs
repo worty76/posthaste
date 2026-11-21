@@ -9,7 +9,9 @@ use posthaste_model::{Note, Status};
 
 use super::Main;
 use crate::browser::{self, bind_text};
-use crate::components::{caps, Button, EmptyState, Icon, IconButton, IconName, Kbd, Variant};
+use crate::components::{
+    caps, Button, EmptyState, Icon, IconButton, IconName, Kbd, ProjectDot, Variant,
+};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{empty_reason, is_long, Empty};
 use crate::logic::sections;
@@ -129,7 +131,7 @@ pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl Into
                                                     <Icon name=IconName::Next size=12 />
                                                 </span>
                                                 {move || project.with_value(|name| main.project_color(name)).map(|c| view! {
-                                                    <span class="proj-dot" data-color=c aria-hidden="true"></span>
+                                                    <ProjectDot color=c />
                                                 })}
                                                 <span class="proj-section__name">{project.get_value()}</span>
                                                 <span class="proj-section__count">

@@ -17,11 +17,25 @@ fn clean_project_color(color: Option<&str>) -> Result<Option<String>> {
     let Some(raw) = color.map(str::trim).filter(|s| !s.is_empty()) else {
         return Ok(None);
     };
-    if matches!(raw, "1" | "2" | "3" | "4" | "5" | "6") {
-        Ok(Some(raw.to_owned()))
-    } else {
-        Err(CoreError::ProjectInvalid)
+    let hex = raw.strip_prefix('#').ok_or(CoreError::ProjectInvalid)?;
+    if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(CoreError::ProjectInvalid);
     }
+    let normalized = match hex.len() {
+        6 => format!("#{}", hex.to_ascii_lowercase()),
+        3 => {
+            let mut out = String::with_capacity(7);
+            out.push('#');
+            for ch in hex.chars() {
+                let c = ch.to_ascii_lowercase();
+                out.push(c);
+                out.push(c);
+            }
+            out
+        }
+        _ => return Err(CoreError::ProjectInvalid),
+    };
+    Ok(Some(normalized))
 }
 
 fn project_exists(tx: &Transaction<'_>, name: &str) -> Result<bool> {
@@ -600,8 +614,19 @@ mod tests {
         db.create_project_at("work", 1_000).unwrap();
         assert_eq!(db.projects(false).unwrap()[0].color, None);
 
-        db.set_project_color_at("work", Some("3"), 2_000).unwrap();
-        assert_eq!(db.projects(false).unwrap()[0].color.as_deref(), Some("3"));
+        db.set_project_color_at("work", Some("#3B82F6"), 2_000)
+            .unwrap();
+        assert_eq!(
+            db.projects(false).unwrap()[0].color.as_deref(),
+            Some("#3b82f6")
+        );
+
+        db.set_project_color_at("work", Some("#f0a"), 2_500)
+            .unwrap();
+        assert_eq!(
+            db.projects(false).unwrap()[0].color.as_deref(),
+            Some("#ff00aa")
+        );
 
         db.set_project_color_at("work", None, 3_000).unwrap();
         assert_eq!(db.projects(false).unwrap()[0].color, None);
@@ -612,11 +637,11 @@ mod tests {
         let mut db = db();
         db.create_project_at("work", 1_000).unwrap();
         assert!(matches!(
-            db.set_project_color_at("work", Some("#ff0000"), 2_000),
+            db.set_project_color_at("work", Some("red"), 2_000),
             Err(crate::CoreError::ProjectInvalid)
         ));
         assert!(matches!(
-            db.set_project_color_at("work", Some("9"), 2_000),
+            db.set_project_color_at("work", Some("#12345"), 2_000),
             Err(crate::CoreError::ProjectInvalid)
         ));
     }
@@ -625,11 +650,12 @@ mod tests {
     fn renaming_a_project_keeps_its_color() {
         let mut db = db();
         db.create_project_at("work", 1_000).unwrap();
-        db.set_project_color_at("work", Some("5"), 2_000).unwrap();
+        db.set_project_color_at("work", Some("#74c28e"), 2_000)
+            .unwrap();
         db.rename_project_at("work", "office", false, 3_000)
             .unwrap();
         let list = db.projects(false).unwrap();
         assert_eq!(list[0].name, "office");
-        assert_eq!(list[0].color.as_deref(), Some("5"));
+        assert_eq!(list[0].color.as_deref(), Some("#74c28e"));
     }
 }

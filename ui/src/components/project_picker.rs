@@ -11,6 +11,26 @@ use crate::browser::bind_text;
 use crate::logic::project_picker::{rows, PickerMode, PickerRow};
 use crate::state::I18n;
 
+/// A small circular color indicator for a project, drawn with SVG `fill` so
+/// user-chosen hex colors never need inline styles.
+#[component]
+pub fn ProjectDot(color: String) -> impl IntoView {
+    let fill = color.clone();
+    view! {
+        <svg
+            class="proj-dot"
+            data-color=color
+            width="8"
+            height="8"
+            viewBox="0 0 8 8"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <circle cx="4" cy="4" r="4" fill=fill />
+        </svg>
+    }
+}
+
 /// Stable key for a picker row in `<For>`.
 fn row_key(row: &PickerRow) -> (u8, String) {
     match row {
@@ -175,9 +195,7 @@ pub fn ProjectPicker(
                                             }
                                         }
                                     >
-                                        {color.map(|c| view! {
-                                            <span class="proj-dot" data-color=c aria-hidden="true"></span>
-                                        })}
+                                        {color.map(|c| view! { <ProjectDot color=c /> })}
                                         <span class="proj-picker__name">{label}</span>
                                         {count.map(|c| view! {
                                             <span class="proj-picker__count">{c}</span>

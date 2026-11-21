@@ -100,7 +100,8 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
   handlers on `div`. Icon-only buttons use `IconButton` with a label.
 - Errors render with `role="alert"`; passive status with `role="status"`.
 - Classes only: no inline styles, no colour or pixel values in Rust. The one
-  exception: a look's preview colours are SVG `fill` attributes.
+  exception: SVG `fill` attributes for user-chosen colours (look previews and
+  project dots/rails).
 - State reaches CSS through ARIA or `data-*` attributes (`aria-checked`,
   `data-selected`), not through extra class toggling.
 
