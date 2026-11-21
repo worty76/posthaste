@@ -305,7 +305,7 @@ fn step_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Step> {
 
 /// Steps are one trimmed line of bounded length; anything else is refused,
 /// never cut, so what the person typed is never quietly changed.
-fn clean_step_text(text: &str) -> Result<String> {
+pub(crate) fn clean_step_text(text: &str) -> Result<String> {
     let text = text.trim();
     if text.is_empty()
         || text.chars().count() > posthaste_model::MAX_STEP_CHARS

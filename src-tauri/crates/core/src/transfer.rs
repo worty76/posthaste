@@ -12,12 +12,13 @@ use crate::db::{clean_category, clean_content, note_from_row, now_ms, Db, NOTE_C
 use crate::details::clean_details;
 use crate::error::{CoreError, Result};
 use crate::markdown;
-use crate::sync::record::record as sync_record;
-use crate::sync::Field;
+use crate::steps::clean_step_text;
+use crate::sync::record::{record as sync_record, record_step_parts};
+use crate::sync::{Field, StepPart};
 use posthaste_model::{ImportReport, Status};
 
 pub const EXPORT_FORMAT: &str = "posthaste-export";
-pub const EXPORT_VERSION: u32 = 1;
+pub const EXPORT_VERSION: u32 = 2;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ExportFile {
@@ -54,6 +55,21 @@ pub(crate) struct ExportNote {
     /// The note's description. Attached files are not exported.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub(crate) details: String,
+    /// The note's steps, tombstones included: JSON keeps what Markdown
+    /// cannot show.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) steps: Vec<ExportStep>,
+}
+
+/// One step in an export file.
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct ExportStep {
+    pub(crate) id: String,
+    pub(crate) text: String,
+    pub(crate) done: bool,
+    pub(crate) rank: String,
+    /// `true` for a removed step kept as a tombstone.
+    pub(crate) deleted: bool,
 }
 
 fn to_rfc3339(ms: i64) -> String {
@@ -85,25 +101,48 @@ impl Db {
             "SELECT {NOTE_COLUMNS}, details
              FROM notes WHERE deleted_at IS NULL ORDER BY created_at, seq"
         ))?;
-        let notes = stmt
+        let rows = stmt
             .query_map([], |r| Ok((note_from_row(r)?, r.get::<_, String>(14)?)))?
-            .map(|n| {
-                n.map(|(n, details)| ExportNote {
-                    id: Some(n.id),
-                    content: n.content,
-                    status: Some(n.status.as_str().to_string()),
-                    category: n.category,
-                    source: n.source,
-                    created_at: Some(to_rfc3339(n.created_at)),
-                    updated_at: Some(to_rfc3339(n.updated_at)),
-                    completed_at: n.completed_at.map(to_rfc3339),
-                    archived_at: n.archived_at.map(to_rfc3339),
-                    later_at: n.later_at.map(to_rfc3339),
-                    details,
-                })
-            })
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(stmt);
+        let mut notes = Vec::with_capacity(rows.len());
+        for (n, details) in rows {
+            notes.push(ExportNote {
+                id: Some(n.id.clone()),
+                content: n.content,
+                status: Some(n.status.as_str().to_string()),
+                category: n.category,
+                source: n.source,
+                created_at: Some(to_rfc3339(n.created_at)),
+                updated_at: Some(to_rfc3339(n.updated_at)),
+                completed_at: n.completed_at.map(to_rfc3339),
+                archived_at: n.archived_at.map(to_rfc3339),
+                later_at: n.later_at.map(to_rfc3339),
+                details,
+                steps: self.export_steps(&n.id)?,
+            });
+        }
         Ok(notes)
+    }
+
+    /// A note's steps for the export file, tombstones included, in display
+    /// order.
+    fn export_steps(&self, note_id: &str) -> Result<Vec<ExportStep>> {
+        let mut stmt = self.conn().prepare_cached(
+            "SELECT id, text, done, rank, deleted_at IS NOT NULL FROM note_steps
+             WHERE note_id = ?1
+             ORDER BY rank, id",
+        )?;
+        let rows = stmt.query_map([note_id], |r| {
+            Ok(ExportStep {
+                id: r.get(0)?,
+                text: r.get(1)?,
+                done: r.get(2)?,
+                rank: r.get(3)?,
+                deleted: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     pub fn export_json(&self) -> Result<String> {
@@ -186,6 +225,7 @@ impl Db {
             imported: 0,
             skipped_existing: 0,
             skipped_invalid: 0,
+            skipped_steps: 0,
         };
         let tx = self.conn_mut().transaction()?;
         {
@@ -255,6 +295,7 @@ impl Db {
                         fields.push(Field::Later);
                     }
                     sync_record(&tx, &id, &fields, updated)?;
+                    report.skipped_steps += import_steps(&tx, &id, &n.steps, updated)?;
                     report.imported += 1;
                 } else {
                     report.skipped_existing += 1;
@@ -264,4 +305,49 @@ impl Db {
         tx.commit()?;
         Ok(report)
     }
+}
+
+/// Writes a note's exported steps into the database, with their ids, ranks
+/// and tombstones. Steps that fail validation are counted and reported,
+/// never dropped silently. Steps follow the note: they are only written
+/// when the note itself was new.
+fn import_steps(
+    tx: &rusqlite::Transaction<'_>,
+    note_id: &str,
+    steps: &[ExportStep],
+    now: i64,
+) -> Result<usize> {
+    let mut skipped = 0;
+    for step in steps {
+        let Ok(text) = clean_step_text(&step.text) else {
+            skipped += 1;
+            continue;
+        };
+        // A hand-typed step has no id: one is made for it here.
+        let id = if step.id.trim().is_empty() {
+            Uuid::now_v7().to_string()
+        } else {
+            step.id.clone()
+        };
+        tx.execute(
+            "INSERT OR IGNORE INTO note_steps
+               (id, note_id, text, done, rank, created_at, updated_at, deleted_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)",
+            params![
+                id,
+                note_id,
+                text,
+                step.done as i64,
+                step.rank,
+                now,
+                (step.deleted).then_some(now),
+            ],
+        )?;
+        let mut parts = vec![StepPart::Text, StepPart::Done, StepPart::Rank];
+        if step.deleted {
+            parts.push(StepPart::Deleted);
+        }
+        record_step_parts(tx, note_id, &step.id, &parts, now)?;
+    }
+    Ok(skipped)
 }

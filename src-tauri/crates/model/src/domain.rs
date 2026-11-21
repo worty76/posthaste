@@ -430,6 +430,10 @@ pub struct ImportReport {
     pub imported: usize,
     pub skipped_existing: usize,
     pub skipped_invalid: usize,
+    /// Steps in the file that could not be stored, counted so nothing is
+    /// dropped silently.
+    #[serde(default)]
+    pub skipped_steps: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
