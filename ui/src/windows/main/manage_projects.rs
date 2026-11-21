@@ -11,9 +11,7 @@ use posthaste_model::Project;
 
 use super::Main;
 use crate::browser::{self, bind_text};
-use crate::components::{
-    Button, Dialog, EmptyState, Icon, IconButton, IconName, ProjectDot, Variant,
-};
+use crate::components::{Button, Dialog, EmptyState, Icon, IconName, ProjectDot, Variant};
 use crate::ipc::api;
 use crate::logic::inbox::View;
 use crate::logic::look::picker_value;
@@ -22,7 +20,7 @@ use crate::state::I18n;
 
 const MAX_PROJECT_CHARS: &str = "40";
 
-/// Custom color picker control with a clear button when a color is set.
+/// Custom color picker control for a project.
 #[component]
 fn ColorPickerControl(
     i18n: I18n,
@@ -30,28 +28,17 @@ fn ColorPickerControl(
     #[prop(into)] on_pick: Callback<Option<String>>,
 ) -> impl IntoView {
     view! {
-        <div
-            class="proj-color-ctrl"
+        <input
+            type="color"
+            class="proj-color-input"
+            aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
+            title=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
+            prop:value=move || {
+                current.with(|c| picker_value(c.as_deref().unwrap_or("#64b5f6")))
+            }
             on:click=move |event| event.stop_propagation()
-        >
-            <input
-                type="color"
-                class="proj-color-input"
-                aria-label=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
-                title=i18n.text(key::INBOX_MANAGE_PROJECTS_COLOR_PICK)
-                prop:value=move || {
-                    current.with(|c| picker_value(c.as_deref().unwrap_or("#64b5f6")))
-                }
-                on:input=move |event| on_pick.run(Some(event_target_value(&event)))
-            />
-            <Show when=move || current.with(Option::is_some)>
-                <IconButton
-                    icon=IconName::Close
-                    label=i18n.label(key::INBOX_MANAGE_PROJECTS_COLOR_CLEAR)
-                    on_click=move |()| on_pick.run(None)
-                />
-            </Show>
-        </div>
+            on:input=move |event| on_pick.run(Some(event_target_value(&event)))
+        />
     }
 }
 

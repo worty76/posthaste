@@ -780,11 +780,6 @@
   display: inline-block;
   flex: none;
 }
-.proj-color-ctrl {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-}
 .proj-color-input {
   width: 24px;
   height: 24px;
