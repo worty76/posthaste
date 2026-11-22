@@ -422,17 +422,23 @@ html.is-linux.is-details .details__panel {
   font-size: var(--t-sm);
 }
 .details__category {
-  max-width: 140px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 148px;
   padding: 1px 7px;
   border: 0;
   border-radius: 20px;
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-weight: 500;
+  cursor: pointer;
+}
+.details__category-name {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
 .details__category[data-empty] {
   background: none;

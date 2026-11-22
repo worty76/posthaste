@@ -21,7 +21,9 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::browser::{self, bind_text};
-use crate::components::{caps, Icon, IconButton, IconName, Kbd, ProjectPicker, Toaster, Toasts};
+use crate::components::{
+    caps, Icon, IconButton, IconName, Kbd, ProjectDot, ProjectPicker, Toaster, Toasts,
+};
 use crate::draft_sync::DraftSync;
 use crate::ipc::{api, events};
 use crate::logic::attachments::{
@@ -297,6 +299,7 @@ impl Details {
             },
             move |error| self.fail(error),
         )));
+        self.load_projects();
         self.load(id, true).await;
     }
 
@@ -716,16 +719,25 @@ impl Details {
 
     // ---- project ----------------------------------------------------------
 
-    fn open_project_picker(self) {
-        if self.id.with_value(Option::is_none) {
-            return;
-        }
-        self.picker_open.set(true);
+    fn load_projects(self) {
         spawn_local(async move {
             if let Ok(all) = api::projects_list(true).await {
                 self.projects.set(all);
             }
         });
+    }
+
+    fn project_color(self, name: &str) -> Option<String> {
+        self.projects
+            .with(|list| list.iter().find(|p| p.name == name)?.color.clone())
+    }
+
+    fn open_project_picker(self) {
+        if self.id.with_value(Option::is_none) {
+            return;
+        }
+        self.picker_open.set(true);
+        self.load_projects();
     }
 
     fn close_project_picker(self) {
@@ -1578,17 +1590,21 @@ fn CategoryChip(details: Details, i18n: I18n) -> impl IntoView {
     view! {
         <span class="details__cat-editor">
             {move || match current.get() {
-                Some(name) => view! {
-                    <button
-                        type="button"
-                        class="details__category"
-                        title=i18n.text(key::DETAILS_CATEGORY_EDIT)
-                        on:click=open
-                    >
-                        {name}
-                    </button>
+                Some(name) => {
+                    let color = details.project_color(&name);
+                    view! {
+                        <button
+                            type="button"
+                            class="details__category"
+                            title=i18n.text(key::DETAILS_CATEGORY_EDIT)
+                            on:click=open
+                        >
+                            {color.map(|c| view! { <ProjectDot color=c /> })}
+                            <span class="details__category-name">{name}</span>
+                        </button>
+                    }
+                    .into_any()
                 }
-                .into_any(),
                 None => view! {
                     <button
                         type="button"
