@@ -91,6 +91,8 @@ struct Main {
     projects: RwSignal<Vec<Project>>,
     /// Whether the project page's action menu (`M`) is open.
     project_menu_open: RwSignal<bool>,
+    /// Whether the project page's inline rename field is open.
+    project_renaming: RwSignal<bool>,
     /// What the last query answered: up to one more than `limit`, which is
     /// how the list knows there are older notes.
     notes: RwSignal<Vec<Note>>,
@@ -125,6 +127,7 @@ impl Main {
             picker_projects: RwSignal::new(Vec::new()),
             projects: RwSignal::new(Vec::new()),
             project_menu_open: RwSignal::new(false),
+            project_renaming: RwSignal::new(false),
             notes: RwSignal::new(Vec::new()),
             loaded: RwSignal::new(false),
             limit: RwSignal::new(PAGE),
@@ -163,6 +166,7 @@ impl Main {
         self.filters.set(Filters::default());
         self.picker.set(None);
         self.project_menu_open.set(false);
+        self.project_renaming.set(false);
         self.filters_open.set(false);
         self.limit.set(PAGE);
         self.editing.set(None);
@@ -937,7 +941,78 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             <SceneHost window=SceneWindow::Main>
                 <main class="content">
                 <header class="content__header" data-tauri-drag-region=(os == Os::Macos).then_some("")>
-                    <h1 class="content__title">{title}</h1>
+                    <div class="content__heading">
+                        {move || {
+                            if main.searching() {
+                                return None;
+                            }
+                            if let View::Project(name) = main.view.get() {
+                                main.project_color(&name)
+                                    .map(|c| view! { <ProjectDot color=c /> })
+                            } else {
+                                None
+                            }
+                        }}
+                        <h1 class="content__title">{title}</h1>
+                        {move || {
+                            if main.searching() {
+                                return None;
+                            }
+                            let View::Project(name) = main.view.get() else {
+                                return None;
+                            };
+                            let archive_target = StoredValue::new(name);
+                            Some(view! {
+                                <div class="proj-page__menu-wrap">
+                                    <IconButton
+                                        icon=IconName::More
+                                        label=i18n.label(key::INBOX_PROJECT_PAGE_MENU)
+                                        expanded=Signal::derive(move || main.project_menu_open.get())
+                                        on_click=move |()| {
+                                            main.project_menu_open.update(|open| *open = !*open);
+                                        }
+                                    />
+                                    <Show when=move || main.project_menu_open.get()>
+                                        <div class="proj-page__menu" role="menu">
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                class="proj-page__menu-item"
+                                                on:click=move |_| {
+                                                    main.project_menu_open.set(false);
+                                                    main.project_renaming.set(true);
+                                                }
+                                            >
+                                                {i18n.text(key::INBOX_PROJECT_PAGE_RENAME)}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                class="proj-page__menu-item"
+                                                on:click=move |_| {
+                                                    let target = archive_target.get_value();
+                                                    main.project_menu_open.set(false);
+                                                    spawn_local(async move {
+                                                        match api::project_set_archived(&target, true).await {
+                                                            Ok(()) => {
+                                                                main.toaster.info(Message::Plain(
+                                                                    key::INBOX_PROJECT_PAGE_ARCHIVED_TOAST,
+                                                                ));
+                                                                main.go(View::Inbox);
+                                                            }
+                                                            Err(error) => main.fail(error),
+                                                        }
+                                                    });
+                                                }
+                                            >
+                                                {i18n.text(key::INBOX_PROJECT_PAGE_ARCHIVE)}
+                                            </button>
+                                        </div>
+                                    </Show>
+                                </div>
+                            })
+                        }}
+                    </div>
                     <Show when=move || !in_settings()>
                         <div class="search" role="search">
                             <span class="search__icon">

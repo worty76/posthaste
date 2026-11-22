@@ -139,15 +139,39 @@ pub(super) fn NoteList(main: Main, capture_keys: Memo<Vec<String>>) -> impl Into
                                                 </span>
                                             </button>
                                             <Show when=expanded>
-                                                <ul class="notes">
-                                                    <For
-                                                        each=move || project.with_value(|name| notes_of(Some(name)))
-                                                        key=row_key
-                                                        let:note
-                                                    >
-                                                        <NoteCard main=main note=note />
-                                                    </For>
-                                                </ul>
+                                                <div
+                                                    class="proj-section__body"
+                                                    data-colored=move || {
+                                                        project
+                                                            .with_value(|name| main.project_color(name))
+                                                            .is_some()
+                                                            .to_string()
+                                                    }
+                                                >
+                                                    {move || {
+                                                        project.with_value(|name| main.project_color(name)).map(|color| {
+                                                            view! {
+                                                                <svg
+                                                                    class="proj-section__rail"
+                                                                    viewBox="0 0 2 100"
+                                                                    preserveAspectRatio="none"
+                                                                    aria-hidden="true"
+                                                                >
+                                                                    <rect width="2" height="100" fill=color />
+                                                                </svg>
+                                                            }
+                                                        })
+                                                    }}
+                                                    <ul class="notes">
+                                                        <For
+                                                            each=move || project.with_value(|name| notes_of(Some(name)))
+                                                            key=row_key
+                                                            let:note
+                                                        >
+                                                            <NoteCard main=main note=note />
+                                                        </For>
+                                                    </ul>
+                                                </div>
                                             </Show>
                                         </section>
                                     }
@@ -374,6 +398,7 @@ fn NoteBody(
                 {note.with_value(|note| note.category.clone()).map(|category| {
                     let pick = category.clone();
                     let named = category.clone();
+                    let color_key = StoredValue::new(category.clone());
                     view! {
                         <button
                             type="button"
@@ -388,6 +413,11 @@ fn NoteBody(
                                 main.go(crate::logic::inbox::View::Project(pick.clone()));
                             }
                         >
+                            {move || {
+                                color_key
+                                    .with_value(|name| main.project_color(name))
+                                    .map(|c| view! { <ProjectDot color=c /> })
+                            }}
                             {category}
                         </button>
                     }

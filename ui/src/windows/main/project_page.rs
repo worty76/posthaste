@@ -1,6 +1,6 @@
-//! A single project's page: its notes across every status, grouped by day
-//! (open before finished within each day), a header menu for Rename and
-//! Archive, and a quick-add line at the bottom.
+//! A single project's page: quick-add at the top, its notes across every
+//! status grouped by day (open before finished within each day), and inline
+//! rename triggered from the header's project menu (`M`).
 
 use leptos::html;
 use leptos::prelude::*;
@@ -11,10 +11,9 @@ use posthaste_model::Note;
 use super::notes::{day_label, row_key, NoteCard};
 use super::Main;
 use crate::browser::bind_text;
-use crate::components::{Button, EmptyState, Variant};
+use crate::components::{Button, Icon, IconName, Variant};
 use crate::ipc::api;
 use crate::logic::inbox::{group_by_day, DayLabel, View};
-use crate::state::Message;
 use crate::time;
 
 const MAX_PROJECT_CHARS: &str = "40";
@@ -39,14 +38,14 @@ fn day_key(label: &DayLabel) -> (u8, i64) {
 pub(super) fn ProjectPage(main: Main, name: String) -> impl IntoView {
     let i18n = main.i18n;
     let project = StoredValue::new(name);
-    let renaming = RwSignal::new(false);
     let draft_name = RwSignal::new(project.get_value());
     let rename_field = NodeRef::<html::Input>::new();
     let add_text = RwSignal::new(String::new());
     let adding = RwSignal::new(false);
 
     Effect::new(move |_| {
-        if renaming.get() {
+        if main.project_renaming.get() {
+            draft_name.set(project.get_value());
             if let Some(input) = rename_field.get() {
                 let _ = input.focus();
                 input.select();
@@ -89,29 +88,14 @@ pub(super) fn ProjectPage(main: Main, name: String) -> impl IntoView {
         let to = draft_name.get_untracked();
         let to = to.trim().trim_start_matches('#').trim().to_owned();
         if to.is_empty() || to == from {
-            renaming.set(false);
+            main.project_renaming.set(false);
             return;
         }
         spawn_local(async move {
             match api::project_rename(&from, &to, false).await {
                 Ok(_) => {
-                    renaming.set(false);
+                    main.project_renaming.set(false);
                     main.go(View::Project(to));
-                }
-                Err(error) => main.fail(error),
-            }
-        });
-    };
-
-    let archive_project = move || {
-        let target = project.get_value();
-        main.project_menu_open.set(false);
-        spawn_local(async move {
-            match api::project_set_archived(&target, true).await {
-                Ok(()) => {
-                    main.toaster
-                        .info(Message::Plain(key::INBOX_PROJECT_PAGE_ARCHIVED_TOAST));
-                    main.go(View::Inbox);
                 }
                 Err(error) => main.fail(error),
             }
@@ -153,83 +137,75 @@ pub(super) fn ProjectPage(main: Main, name: String) -> impl IntoView {
 
     view! {
         <div class="proj-page">
-            <div class="proj-page__bar">
-                <Show when=move || renaming.get()>
-                    <div class="proj-page__rename">
-                        <input
-                            node_ref=rename_field
-                            class="field"
-                            type="text"
-                            maxlength=MAX_PROJECT_CHARS
-                            aria-label=i18n.text(key::INBOX_PROJECT_PAGE_RENAME_LABEL)
-                            use:bind_text=Signal::derive(move || draft_name.get())
-                            on:input=move |event| draft_name.set(event_target_value(&event))
-                            on:keydown=move |event| {
-                                if event.is_composing() {
-                                    return;
-                                }
-                                match event.key().as_str() {
-                                    "Enter" => {
-                                        event.prevent_default();
-                                        event.stop_propagation();
-                                        submit_rename();
-                                    }
-                                    "Escape" => {
-                                        event.prevent_default();
-                                        event.stop_propagation();
-                                        renaming.set(false);
-                                    }
-                                    _ => {}
-                                }
+            <Show when=move || main.project_renaming.get()>
+                <div class="proj-page__rename">
+                    <input
+                        node_ref=rename_field
+                        class="field"
+                        type="text"
+                        maxlength=MAX_PROJECT_CHARS
+                        aria-label=i18n.text(key::INBOX_PROJECT_PAGE_RENAME_LABEL)
+                        use:bind_text=Signal::derive(move || draft_name.get())
+                        on:input=move |event| draft_name.set(event_target_value(&event))
+                        on:keydown=move |event| {
+                            if event.is_composing() {
+                                return;
                             }
-                        />
-                        <Button variant=Variant::Primary on_click=move |()| submit_rename()>
-                            {i18n.text(key::COMMON_SAVE)}
-                        </Button>
-                        <Button variant=Variant::Quiet on_click=move |()| renaming.set(false)>
-                            {i18n.text(key::COMMON_CANCEL)}
-                        </Button>
-                    </div>
-                </Show>
-                <div class="proj-page__menu-wrap">
-                    <Button
-                        variant=Variant::Quiet
-                        on_click=move |()| main.project_menu_open.update(|open| *open = !*open)
-                    >
-                        {i18n.text(key::INBOX_PROJECT_PAGE_MENU)}
-                    </Button>
-                    <Show when=move || main.project_menu_open.get()>
-                        <div class="proj-page__menu" role="menu">
-                            <button
-                                type="button"
-                                role="menuitem"
-                                class="proj-page__menu-item"
-                                on:click=move |_| {
-                                    main.project_menu_open.set(false);
-                                    draft_name.set(project.get_value());
-                                    renaming.set(true);
+                            match event.key().as_str() {
+                                "Enter" => {
+                                    event.prevent_default();
+                                    event.stop_propagation();
+                                    submit_rename();
                                 }
-                            >
-                                {i18n.text(key::INBOX_PROJECT_PAGE_RENAME)}
-                            </button>
-                            <button
-                                type="button"
-                                role="menuitem"
-                                class="proj-page__menu-item"
-                                on:click=move |_| archive_project()
-                            >
-                                {i18n.text(key::INBOX_PROJECT_PAGE_ARCHIVE)}
-                            </button>
-                        </div>
-                    </Show>
+                                "Escape" => {
+                                    event.prevent_default();
+                                    event.stop_propagation();
+                                    main.project_renaming.set(false);
+                                }
+                                _ => {}
+                            }
+                        }
+                    />
+                    <Button variant=Variant::Primary on_click=move |()| submit_rename()>
+                        {i18n.text(key::COMMON_SAVE)}
+                    </Button>
+                    <Button variant=Variant::Quiet on_click=move |()| main.project_renaming.set(false)>
+                        {i18n.text(key::COMMON_CANCEL)}
+                    </Button>
                 </div>
+            </Show>
+
+            <div class="proj-page__add">
+                <span class="proj-page__add-icon" aria-hidden="true">
+                    <Icon name=IconName::Plus size=14 />
+                </span>
+                <input
+                    class="field"
+                    type="text"
+                    aria-label=add_label
+                    placeholder=add_label
+                    use:bind_text=Signal::derive(move || add_text.get())
+                    on:input=move |event| add_text.set(event_target_value(&event))
+                    on:keydown=move |event| {
+                        if event.is_composing() {
+                            return;
+                        }
+                        if event.key() == "Enter" {
+                            event.prevent_default();
+                            event.stop_propagation();
+                            submit_add();
+                        }
+                    }
+                />
             </div>
 
             <Show when=move || main.loaded.get()>
                 <Show
                     when=move || groups.with(|g| !g.is_empty())
                     fallback=move || view! {
-                        <EmptyState title=empty_title>""</EmptyState>
+                        <div class="empty proj-page__empty">
+                            <div class="empty__title">{empty_title}</div>
+                        </div>
                     }
                 >
                     <For each=labels key=day_key let:label>
@@ -259,27 +235,6 @@ pub(super) fn ProjectPage(main: Main, name: String) -> impl IntoView {
                     </Show>
                 </Show>
             </Show>
-
-            <div class="proj-page__add">
-                <input
-                    class="field"
-                    type="text"
-                    aria-label=add_label
-                    placeholder=add_label
-                    use:bind_text=Signal::derive(move || add_text.get())
-                    on:input=move |event| add_text.set(event_target_value(&event))
-                    on:keydown=move |event| {
-                        if event.is_composing() {
-                            return;
-                        }
-                        if event.key() == "Enter" {
-                            event.prevent_default();
-                            event.stop_propagation();
-                            submit_add();
-                        }
-                    }
-                />
-            </div>
         </div>
     }
 }

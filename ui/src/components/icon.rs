@@ -27,6 +27,7 @@ pub enum IconName {
     Download,
     Sidebar,
     Plus,
+    More,
 }
 
 impl IconName {
@@ -68,6 +69,9 @@ impl IconName {
             IconName::Download => "M8 2.500v8M4.800 7.500 8 10.700l3.200-3.200M3 13.500h10",
             IconName::Sidebar => "M2.500 3.500h11v9h-11zM6 3.500v9",
             IconName::Plus => "M8 3.500v9M3.500 8h9",
+            IconName::More => {
+                "M3.500 8a.6.6 0 1 0 .001 0M8 8a.6.6 0 1 0 .001 0M12.500 8a.6.6 0 1 0 .001 0"
+            }
         }
     }
 }

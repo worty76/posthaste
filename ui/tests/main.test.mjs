@@ -653,6 +653,13 @@ describe("inbox", () => {
       .getByRole("button", { name: /emptyproj/ })
       .click();
     await text(w.page.locator(".content__title"), "emptyproj");
+    assert.equal(
+      await w.page
+        .locator(".content__header")
+        .getByRole("button", { name: "Project actions (M)" })
+        .count(),
+      1,
+    );
     await text(w.page.locator(".empty"), "No notes in this project yet.");
     await w.close();
   });
