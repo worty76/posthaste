@@ -54,6 +54,27 @@ mod mac {
                 .into(),
         );
         panel.set_hides_on_deactivate(false);
+        // Keep the panel's backing surface transparent with no native shadow
+        // frame, so WindowServer never flashes an opaque black rectangle before
+        // WKWebView finishes compositing.
+        panel.set_transparent(true);
+        panel.set_has_shadow(false);
+        panel.set_released_when_closed(false);
+    }
+
+    /// Brings the panel forward with the keyboard, without activating the
+    /// application. Must be called on the main thread when `on_main` is true.
+    /// False when `window` is not a panel.
+    pub fn show_now(app: &AppHandle, window: &WebviewWindow) -> bool {
+        let Ok(panel) = app.get_webview_panel(window.label()) else {
+            return false;
+        };
+        // makeKeyAndOrderFront is the one call that makes a non-activating
+        // panel key while another application is frontmost — makeKeyWindow
+        // alone is ignored until the app is active, which left every opened
+        // window waiting for a click.
+        panel.make_key_and_order_front();
+        true
     }
 
     /// Brings the panel forward with the keyboard, without activating the
@@ -63,10 +84,6 @@ mod mac {
             return false;
         };
         // AppKit calls belong on the main thread; shortcuts arrive elsewhere.
-        // makeKeyAndOrderFront is the one call that makes a non-activating
-        // panel key while another application is frontmost — makeKeyWindow
-        // alone is ignored until the app is active, which left every opened
-        // window waiting for a click.
         let result = app.run_on_main_thread(move || panel.make_key_and_order_front());
         if let Err(e) = result {
             log::error!("could not schedule showing a panel: {e}");
@@ -81,6 +98,19 @@ pub fn adopt(app: &AppHandle, window: &WebviewWindow) {
     mac::adopt(app, window);
     #[cfg(not(target_os = "macos"))]
     let _ = (app, window);
+}
+
+/// Shows a floating window from the main thread without another thread hop.
+/// Returns true when it also has the keyboard already.
+pub fn show_on_main_thread(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<bool> {
+    #[cfg(target_os = "macos")]
+    if mac::show_now(app, window) {
+        return Ok(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    window.show()?;
+    Ok(false)
 }
 
 /// Shows a floating window. Returns true when it also has the keyboard

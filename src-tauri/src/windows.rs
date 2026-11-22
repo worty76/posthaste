@@ -210,39 +210,47 @@ pub fn show_capture(app: &AppHandle) {
     *lock(&state.previous_app) = previous;
 
     let settings = state.settings();
-    let placed = place_capture(
-        app,
-        &window,
-        settings.capture_position,
-        settings.window_size,
-    );
+    let capture_position = settings.capture_position;
+    let window_size = settings.window_size;
     *lock(&state.capture_shown_at) = Some(Instant::now());
 
-    let has_keyboard = match panels::show(app, &window) {
-        Ok(has_keyboard) => has_keyboard,
-        Err(e) => {
-            log::error!("capture window could not be shown: {e}");
-            return;
-        }
-    };
-    // Some Linux/Windows window managers only honour a position once the window
-    // is mapped. On macOS, NSPanel already honours placement before showing,
-    // and re-applying position/level after showing forces a second composite.
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(pos) = placed {
-            let _ = window.set_position(pos);
-        }
-        let _ = window.set_always_on_top(true);
-    }
-    #[cfg(target_os = "macos")]
-    let _ = placed;
-    if !has_keyboard {
-        if let Err(e) = window.set_focus() {
-            log::warn!("capture window could not take focus: {e}");
-        }
-    }
+    // Emit before ordering front so the webview starts focusing and updating
+    // immediately rather than waiting for the panel show round-trip.
     let _ = window.emit("capture-shown", CaptureShown { source });
+
+    // Place and show in one main-thread step so shortcut threads do not pay
+    // multiple sequential dispatch_sync hops before the window appears.
+    let handle = app.clone();
+    let result = app.run_on_main_thread(move || {
+        let placed = place_capture(&handle, &window, capture_position, window_size);
+        let has_keyboard = match panels::show_on_main_thread(&handle, &window) {
+            Ok(has_keyboard) => has_keyboard,
+            Err(e) => {
+                log::error!("capture window could not be shown: {e}");
+                return;
+            }
+        };
+        // Some Linux/Windows window managers only honour a position once the window
+        // is mapped. On macOS, NSPanel already honours placement before showing,
+        // and re-applying position/level after showing forces a second composite.
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(pos) = placed {
+                let _ = window.set_position(pos);
+            }
+            let _ = window.set_always_on_top(true);
+        }
+        #[cfg(target_os = "macos")]
+        let _ = placed;
+        if !has_keyboard {
+            if let Err(e) = window.set_focus() {
+                log::warn!("capture window could not take focus: {e}");
+            }
+        }
+    });
+    if let Err(e) = result {
+        log::error!("could not schedule showing the capture window: {e}");
+    }
 }
 
 /// Hides the capture window. With `restore_focus`, hands focus back to the
@@ -311,40 +319,11 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
     }
 
     let settings = state.settings();
-    let placed = place_panel(
-        app,
-        &window,
-        settings.today_position,
-        // A glance has one size: fixed width, clamped to the display.
-        |_| scaled(TODAY_WIDTH, settings.window_size),
-        scaled(TODAY_HEIGHT, settings.window_size),
-    );
+    let today_position = settings.today_position;
+    let window_size = settings.window_size;
     *lock(&state.today_shown_at) = Some(Instant::now());
 
-    let has_keyboard = match panels::show(app, &window) {
-        Ok(has_keyboard) => has_keyboard,
-        Err(e) => {
-            log::error!("today window could not be shown: {e}");
-            return;
-        }
-    };
-    // Some Linux/Windows window managers only honour a position once the window
-    // is mapped. On macOS, NSPanel already honours placement before showing,
-    // and re-applying position/level after showing forces a second composite.
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(pos) = placed {
-            let _ = window.set_position(pos);
-        }
-        let _ = window.set_always_on_top(true);
-    }
-    #[cfg(target_os = "macos")]
-    let _ = placed;
-    if !has_keyboard {
-        if let Err(e) = window.set_focus() {
-            log::warn!("today window could not take focus: {e}");
-        }
-    }
+    // Emit before ordering front so Today starts loading its list immediately.
     let _ = window.emit(
         if fresh {
             "today-shown"
@@ -353,6 +332,46 @@ fn show_today_with(app: &AppHandle, fresh: bool) {
         },
         (),
     );
+
+    // Place and show in one main-thread step to avoid sequential thread hops.
+    let handle = app.clone();
+    let result = app.run_on_main_thread(move || {
+        let placed = place_panel(
+            &handle,
+            &window,
+            today_position,
+            // A glance has one size: fixed width, clamped to the display.
+            |_| scaled(TODAY_WIDTH, window_size),
+            scaled(TODAY_HEIGHT, window_size),
+        );
+        let has_keyboard = match panels::show_on_main_thread(&handle, &window) {
+            Ok(has_keyboard) => has_keyboard,
+            Err(e) => {
+                log::error!("today window could not be shown: {e}");
+                return;
+            }
+        };
+        // Some Linux/Windows window managers only honour a position once the window
+        // is mapped. On macOS, NSPanel already honours placement before showing,
+        // and re-applying position/level after showing forces a second composite.
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(pos) = placed {
+                let _ = window.set_position(pos);
+            }
+            let _ = window.set_always_on_top(true);
+        }
+        #[cfg(target_os = "macos")]
+        let _ = placed;
+        if !has_keyboard {
+            if let Err(e) = window.set_focus() {
+                log::warn!("today window could not take focus: {e}");
+            }
+        }
+    });
+    if let Err(e) = result {
+        log::error!("could not schedule showing the today window: {e}");
+    }
 }
 
 /// Hides the Today window. With `restore_focus`, hands focus back to the
@@ -650,8 +669,19 @@ fn place_in_area(
             LogicalSize::new(w, h).into(),
         )
     };
-    // Position first so the size is applied at the destination display's scale.
-    let _ = window.set_position(position);
+    // Skip moving when the window is already at the target position, so AppKit
+    // does not trigger a redundant frame/compositor invalidation on re-open.
+    let target_pos_physical = match position {
+        tauri::Position::Physical(p) => p,
+        tauri::Position::Logical(p) => {
+            let scale = window.scale_factor().unwrap_or(area.scale);
+            PhysicalPosition::new((p.x * scale).round() as i32, (p.y * scale).round() as i32)
+        }
+    };
+    if window.outer_position().ok() != Some(target_pos_physical) {
+        // Position first so the size is applied at the destination display's scale.
+        let _ = window.set_position(position);
+    }
     // Skip resizing when the window is already at the target size: redundant
     // set_size calls on a transparent WKWebView invalidate its backing store
     // and flash a dark frame around the shadow margin.

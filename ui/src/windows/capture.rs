@@ -147,7 +147,15 @@ impl Capture {
 
     fn load_projects(self) {
         spawn_local(async move {
-            if let Ok(projects) = api::projects_list(true).await {
+            if let Ok(mut projects) = api::projects_list(true).await {
+                // Keep project slots in a fixed alphabetical order so Mod+1..9
+                // never reshuffle after capturing a note.
+                projects.sort_by(|a, b| {
+                    a.name
+                        .to_lowercase()
+                        .cmp(&b.name.to_lowercase())
+                        .then_with(|| a.name.cmp(&b.name))
+                });
                 self.projects.set(projects);
             }
         });

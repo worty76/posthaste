@@ -290,6 +290,18 @@ describe("save states", () => {
   it("toggles active projects from the keyboard with Ctrl+1..9 without leaving the note", async () => {
     const w = await capture({
       store: {
+        // Give "work" a newer note so recency order would put it first;
+        // capture must keep fixed alphabetical slots (1 = money, 2 = work).
+        notes: [
+          {
+            id: "n-work",
+            content: "recent work",
+            category: "work",
+            status: "inbox",
+            created_at: 2_000_000,
+            updated_at: 2_000_000,
+          },
+        ],
         projects: [
           { name: "work", color: "#5b8def", archived: false },
           { name: "money", archived: false },
@@ -304,7 +316,7 @@ describe("save states", () => {
       "two active chips",
     );
     await w.note.fill("pay electricity");
-    // Projects with equal recency sort alphabetically: 1 = money, 2 = work.
+    // Fixed alphabetical slots regardless of recency: 1 = money, 2 = work.
     await w.note.press("Control+1");
     await text(w.page.getByLabel("Project (optional)"), "money");
     await w.note.press("Control+2");
@@ -488,7 +500,7 @@ describe("language", () => {
     await w.note.fill("đang gõ dở");
     await w.note.press("Shift+Enter");
     await w.mock.changeSettings({ language: "vi" });
-    await text(w.page.locator(".capture__title"), "Ghi nhanh");
+    await text(w.page.locator(".capture__title"), "Posthaste");
     await text(w.page.locator(".capture__hints"), "lưu");
     assert.equal(await w.note.inputValue(), "đang gõ dở\n");
     await w.close();
@@ -501,7 +513,8 @@ describe("language", () => {
       (c) => c.length > 0,
       "settings read",
     );
-    await text(w.page.locator(".capture__title"), "Quick Note");
+    await text(w.page.locator(".capture__title"), "Posthaste");
+    await text(w.page.locator(".capture__hints"), "save");
     await w.close();
   });
 });
