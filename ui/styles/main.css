@@ -1164,8 +1164,15 @@
 .manage-projects__actions {
   display: flex;
   align-items: center;
-  gap: var(--s-1);
+  gap: 2px;
   flex: none;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+}
+.manage-projects__row:hover .manage-projects__actions,
+.manage-projects__row[data-selected="true"] .manage-projects__actions,
+.manage-projects__actions:focus-within {
+  opacity: 1;
 }
 .manage-projects__edit {
   display: flex;

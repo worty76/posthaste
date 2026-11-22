@@ -11,7 +11,9 @@ use posthaste_model::Project;
 
 use super::Main;
 use crate::browser::{self, bind_text};
-use crate::components::{Button, Dialog, EmptyState, Icon, IconName, ProjectDot, Variant};
+use crate::components::{
+    Button, Dialog, EmptyState, Icon, IconButton, IconName, ProjectDot, Variant,
+};
 use crate::ipc::api;
 use crate::logic::inbox::View;
 use crate::logic::look::picker_value;
@@ -380,40 +382,40 @@ pub(super) fn ManageProjectsView(main: Main) -> impl IntoView {
                                 current=Signal::derive(move || color.get_value())
                                 on_pick=move |next| set_color(name.get_value(), next)
                             />
-                            <div class="manage-projects__actions">
-                                <Button
-                                    variant=Variant::Quiet
+                            <div
+                                class="manage-projects__actions"
+                                on:click=move |event| event.stop_propagation()
+                            >
+                                <IconButton
+                                    icon=IconName::Edit
+                                    label=i18n.label(key::INBOX_MANAGE_PROJECTS_RENAME)
                                     on_click=move |()| start_rename(name.get_value())
-                                >
-                                    {i18n.text(key::INBOX_MANAGE_PROJECTS_RENAME)}
-                                </Button>
+                                />
                                 {if is_archived {
                                     view! {
-                                        <Button
-                                            variant=Variant::Quiet
+                                        <IconButton
+                                            icon=IconName::Restore
+                                            label=i18n.label(key::INBOX_MANAGE_PROJECTS_UNARCHIVE)
                                             on_click=move |()| set_archived(name.get_value(), false)
-                                        >
-                                            {i18n.text(key::INBOX_MANAGE_PROJECTS_UNARCHIVE)}
-                                        </Button>
+                                        />
                                     }
                                     .into_any()
                                 } else {
                                     view! {
-                                        <Button
-                                            variant=Variant::Quiet
+                                        <IconButton
+                                            icon=IconName::Archive
+                                            label=i18n.label(key::INBOX_MANAGE_PROJECTS_ARCHIVE)
                                             on_click=move |()| set_archived(name.get_value(), true)
-                                        >
-                                            {i18n.text(key::INBOX_MANAGE_PROJECTS_ARCHIVE)}
-                                        </Button>
+                                        />
                                     }
                                     .into_any()
                                 }}
-                                <Button
-                                    variant=Variant::Quiet
+                                <IconButton
+                                    icon=IconName::Trash
+                                    danger=true
+                                    label=i18n.label(key::INBOX_MANAGE_PROJECTS_REMOVE)
                                     on_click=move |()| confirm_remove.set(Some((name.get_value(), total)))
-                                >
-                                    {i18n.text(key::INBOX_MANAGE_PROJECTS_REMOVE)}
-                                </Button>
+                                />
                             </div>
                         }
                         .into_any()
