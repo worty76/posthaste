@@ -9,13 +9,14 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key, Translator};
-use posthaste_model::{CommandError, Os};
+use posthaste_model::{CommandError, Os, Project};
 
 use crate::browser::bind_text;
-use crate::components::Kbd;
+use crate::components::{Kbd, ProjectDot, ProjectPicker};
 use crate::draft_sync::DraftSync;
 use crate::ipc::{self, api, events};
 use crate::logic::capture::{hints, key_action, HintWeight, KeyAction, KeyPress, KeyRules};
+use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
 use crate::state::{use_appearance, use_i18n, use_settings, I18n};
 
@@ -74,7 +75,8 @@ impl Status {
 struct Capture {
     content: RwSignal<String>,
     category: RwSignal<String>,
-    categories: RwSignal<Vec<String>>,
+    projects: RwSignal<Vec<Project>>,
+    picker_open: RwSignal<bool>,
     status: RwSignal<Status>,
     /// The app the user came from, when the shell knows it.
     source: RwSignal<Option<String>>,
@@ -103,7 +105,8 @@ impl Capture {
         Capture {
             content: RwSignal::new(String::new()),
             category: RwSignal::new(String::new()),
-            categories: RwSignal::new(Vec::new()),
+            projects: RwSignal::new(Vec::new()),
+            picker_open: RwSignal::new(false),
             status,
             source: RwSignal::new(None),
             polishing: RwSignal::new(false),
@@ -140,6 +143,76 @@ impl Capture {
         self.touched.set_value(false);
         self.content.set(String::new());
         self.category.set(String::new());
+    }
+
+    fn load_projects(self) {
+        spawn_local(async move {
+            if let Ok(mut projects) = api::projects_list(true).await {
+                // Keep project slots in a fixed alphabetical order so Mod+1..9
+                // never reshuffle after capturing a note.
+                projects.sort_by(|a, b| {
+                    a.name
+                        .to_lowercase()
+                        .cmp(&b.name.to_lowercase())
+                        .then_with(|| a.name.cmp(&b.name))
+                });
+                self.projects.set(projects);
+            }
+        });
+    }
+
+    fn project_color(self) -> Option<String> {
+        let current = self.category.get();
+        if current.is_empty() {
+            return None;
+        }
+        self.projects
+            .with(|list| list.iter().find(|p| p.name == current)?.color.clone())
+    }
+
+    fn open_picker(self) {
+        self.picker_open.set(true);
+        self.load_projects();
+    }
+
+    fn close_picker(self) {
+        self.picker_open.set(false);
+        self.focus();
+    }
+
+    fn pick_project(self, row: PickerRow) {
+        let next = match row {
+            PickerRow::NoProject => String::new(),
+            PickerRow::Project { name, .. }
+            | PickerRow::Create(name)
+            | PickerRow::Unarchive(name) => name,
+        };
+        self.picker_open.set(false);
+        self.edit(self.content.get_untracked(), next);
+        self.focus();
+    }
+
+    fn toggle_project(self, name: String) {
+        let next = if self.category.get_untracked() == name {
+            String::new()
+        } else {
+            name
+        };
+        self.picker_open.set(false);
+        self.edit(self.content.get_untracked(), next);
+        self.focus();
+    }
+
+    fn toggle_project_index(self, index: usize) {
+        let target = self.projects.with_untracked(|list| {
+            list.iter()
+                .filter(|p| !p.archived)
+                .nth(index)
+                .map(|p| p.name.clone())
+        });
+        if let Some(name) = target {
+            self.toggle_project(name);
+        }
     }
 
     /// Every change to either field goes through here, so it is drafted.
@@ -192,11 +265,16 @@ impl Capture {
         match api::capture_save(&content, category.as_deref(), hide).await {
             Ok(()) => {
                 // Only now, with the note committed, is the text let go.
-                self.clear();
                 if hide {
+                    self.clear();
                     self.status.set(Status::Idle);
                 } else {
+                    // Staying open for another note: clear only the text so
+                    // batch-capturing into the same project needs no re-picking.
+                    self.touched.set_value(false);
+                    self.content.set(String::new());
                     self.status.set(Status::Done(key::CAPTURE_STATUS_SAVED));
+                    self.load_projects();
                     self.focus();
                 }
             }
@@ -252,6 +330,7 @@ impl Capture {
     /// The shell just showed the window: take focus and catch up.
     fn shown(self, source: Option<String>) {
         self.touched.set_value(false);
+        self.picker_open.set(false);
         self.source.set(source);
         if let Some(input) = self.input.get_untracked() {
             let _ = input.focus();
@@ -265,11 +344,7 @@ impl Capture {
             // Text left from last time: say so, and offer the way out.
             self.status.set(Status::Restored);
         }
-        spawn_local(async move {
-            if let Ok(categories) = api::categories_list().await {
-                self.categories.set(categories);
-            }
-        });
+        self.load_projects();
     }
 }
 
@@ -281,6 +356,7 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
     let capture = Capture::new();
 
     spawn_local(capture.restore_draft());
+    capture.load_projects();
     Effect::new(move |_| {
         // Runs once the field exists.
         if capture.input.get().is_some() {
@@ -315,6 +391,9 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
     });
 
     let on_keydown = move |event: KeyboardEvent| {
+        if capture.picker_open.get_untracked() {
+            return;
+        }
         let key = event.key();
         let press = KeyPress {
             key: &key,
@@ -329,6 +408,8 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
         match action {
             KeyAction::Dismiss => spawn_local(capture.dismiss()),
             KeyAction::Polish => spawn_local(capture.polish()),
+            KeyAction::PickProject => capture.open_picker(),
+            KeyAction::ToggleProject(index) => capture.toggle_project_index(index),
             KeyAction::Save { hide } => spawn_local(capture.save(hide)),
         }
     };
@@ -372,6 +453,80 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                     spellcheck="true"
                 ></textarea>
 
+                {move || {
+                    let active: Vec<Project> = capture
+                        .projects
+                        .get()
+                        .into_iter()
+                        .filter(|p| !p.archived)
+                        .collect();
+                    (!active.is_empty()).then(|| {
+                        view! {
+                            <div
+                                class="capture__projects"
+                                role="group"
+                                aria-label=i18n.text(key::INBOX_NAV_PROJECTS)
+                            >
+                                {active
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(|(i, project)| {
+                                        let name_click = project.name.clone();
+                                        let name_sel = project.name.clone();
+                                        let selected = Signal::derive(move || {
+                                            capture.category.with(|c| c == &name_sel)
+                                        });
+                                        let slot = (i < 9).then_some(i + 1);
+                                        let shortcut_attr = slot.map(|n| {
+                                            if os == Os::Macos {
+                                                format!("Meta+{n}")
+                                            } else {
+                                                format!("Control+{n}")
+                                            }
+                                        });
+                                        let title = slot.map(|n| {
+                                            format!("{} ({}+{n})", project.name, mod_cap(os))
+                                        });
+                                        view! {
+                                            <button
+                                                type="button"
+                                                class="capture__project-chip"
+                                                aria-pressed=move || selected.get().to_string()
+                                                aria-keyshortcuts=shortcut_attr
+                                                title=title
+                                                data-selected=move || selected.get().to_string()
+                                                on:click=move |_| capture.toggle_project(name_click.clone())
+                                            >
+                                                {slot.map(|n| {
+                                                    view! {
+                                                        <span class="capture__project-key" aria-hidden="true">
+                                                            {n}
+                                                        </span>
+                                                    }
+                                                })}
+                                                {project.color.map(|c| view! { <ProjectDot color=c /> })}
+                                                <span class="capture__project-chip-name">{project.name}</span>
+                                            </button>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        }
+                    })
+                }}
+
+                <Show when=move || capture.picker_open.get()>
+                    <div class="capture__picker">
+                        <ProjectPicker
+                            i18n=i18n
+                            mode=PickerMode::SetNote
+                            projects=Signal::derive(move || capture.projects.get())
+                            on_pick=move |row| capture.pick_project(row)
+                            on_close=move |()| capture.close_picker()
+                        />
+                    </div>
+                </Show>
+
                 <StatusBar capture=capture i18n=i18n os=os rules=rules ai_on=ai_on />
             </section>
         </div>
@@ -392,30 +547,46 @@ fn StatusBar(
 
     view! {
         <footer class="capture__footer" data-status=move || (!is("idle")).to_string()>
-            <input
+            <button
+                type="button"
                 class="capture__category"
                 aria-label=i18n.text(key::CAPTURE_CATEGORY_LABEL)
-                placeholder=i18n.text(key::CAPTURE_CATEGORY_PLACEHOLDER)
-                list="capture-categories"
-                maxlength="40"
-                use:bind_text=Signal::derive(move || capture.category.get())
-                on:input=move |event| {
-                    capture.edit(capture.content.get_untracked(), event_target_value(&event))
+                aria-haspopup="dialog"
+                aria-expanded=move || capture.picker_open.get().to_string()
+                aria-keyshortcuts=if os == Os::Macos { "Meta+P" } else { "Control+P" }
+                title=move || {
+                    format!(
+                        "{} ({}+P)",
+                        i18n.translator().text(key::CAPTURE_CATEGORY_LABEL),
+                        mod_cap(os)
+                    )
                 }
-                on:keydown=move |event: KeyboardEvent| {
-                    // Enter in the category goes back to the note; it does not save.
-                    if event.key() == "Enter" && !event.is_composing() {
-                        event.prevent_default();
-                        event.stop_propagation();
-                        capture.focus();
+                on:click=move |_| {
+                    if capture.picker_open.get_untracked() {
+                        capture.close_picker();
+                    } else {
+                        capture.open_picker();
                     }
                 }
-            />
-            <datalist id="capture-categories">
-                <For each=move || capture.categories.get() key=|c| c.clone() let:category>
-                    <option value=category></option>
-                </For>
-            </datalist>
+            >
+                {move || {
+                    let chosen = capture.category.get();
+                    if chosen.is_empty() {
+                        view! {
+                            <span class="capture__category-placeholder">
+                                {i18n.text(key::CAPTURE_CATEGORY_PLACEHOLDER)}
+                            </span>
+                        }
+                        .into_any()
+                    } else {
+                        view! {
+                            {capture.project_color().map(|c| view! { <ProjectDot color=c /> })}
+                            <span class="capture__category-name">{chosen}</span>
+                        }
+                        .into_any()
+                    }
+                }}
+            </button>
 
             <span
                 class="capture__status"

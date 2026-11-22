@@ -13,6 +13,8 @@ database file in milliseconds.
 |---|---|
 | `db.rs` | `Db`: the connection and every query |
 | `migrations.rs` + `migrations/*.sql` | Schema history |
+| `steps/` | Steps inside a note: storage, ranks, limits. Tests in `steps/tests.rs` |
+| `projects.rs` | Projects: table, counts, rename, archive, clear |
 | `transfer.rs` | JSON export and import |
 | `look/` | Looks: document validation, token derivation, share codes, storage. Tests in `look/tests/` |
 | `sync/` | Device sync engine: HLC, per-field change tracking, LWW merge with conflict preservation, transport-agnostic session. Tests in `sync/tests/` |

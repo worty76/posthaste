@@ -286,6 +286,141 @@ fn categories_are_listed_most_used_first() {
     assert_eq!(db.categories().unwrap(), ["work", "ideas"]);
 }
 
+// ---- category filter ---------------------------------------------------------
+
+fn by_category(db: &Db, category: &str) -> Vec<Note> {
+    db.list_notes(&NoteQuery {
+        category: Some(category.into()),
+        ..Default::default()
+    })
+    .unwrap()
+}
+
+#[test]
+fn filtering_by_category_returns_only_that_categorys_live_notes() {
+    let mut db = db();
+    let work = db
+        .create_note(NewNote {
+            content: "work note".into(),
+            category: Some("work".into()),
+            source: None,
+        })
+        .unwrap();
+    db.create_note(NewNote {
+        content: "idea note".into(),
+        category: Some("ideas".into()),
+        source: None,
+    })
+    .unwrap();
+    db.create_note(note("uncategorised")).unwrap();
+    db.trash_note(&work.id).unwrap();
+
+    assert_eq!(contents(&by_category(&db, "work")), [] as [&str; 0]);
+    assert_eq!(contents(&by_category(&db, "ideas")), ["idea note"]);
+}
+
+#[test]
+fn category_filter_combines_with_status_later_and_text() {
+    let mut db = db();
+    let work_open = db
+        .create_note(NewNote {
+            content: "work to do".into(),
+            category: Some("work".into()),
+            source: None,
+        })
+        .unwrap();
+    db.create_note(NewNote {
+        content: "work to read".into(),
+        category: Some("work".into()),
+        source: None,
+    })
+    .unwrap();
+    db.set_status(&work_open.id, Status::Completed).unwrap();
+
+    let both = db
+        .list_notes(&NoteQuery {
+            category: Some("work".into()),
+            statuses: vec![Status::Completed],
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(contents(&both), ["work to do"]);
+
+    let with_text = db
+        .list_notes(&NoteQuery {
+            category: Some("work".into()),
+            text: "read".into(),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(contents(&with_text), ["work to read"]);
+}
+
+#[test]
+fn a_category_filter_is_cleaned_like_a_saved_category() {
+    let mut db = db();
+    db.create_note(NewNote {
+        content: "launch steps".into(),
+        category: Some("Posthaste launch".into()),
+        source: None,
+    })
+    .unwrap();
+    assert_eq!(
+        contents(&by_category(&db, "  #Posthaste launch ")),
+        ["launch steps"]
+    );
+}
+
+#[test]
+fn category_counts_order_by_use_and_skip_trashed() {
+    let mut db = db();
+    let mut make = |category: &str| {
+        db.create_note(NewNote {
+            content: "x".into(),
+            category: Some(category.into()),
+            source: None,
+        })
+        .unwrap()
+    };
+    let work = make("work");
+    make("ideas");
+    make("ideas");
+    make("later");
+    // Parked notes are still live, so they count too.
+    let parked = make("later");
+    db.set_later(&parked.id, true).unwrap();
+    db.trash_note(&work.id).unwrap();
+
+    assert_eq!(
+        db.category_counts().unwrap(),
+        [
+            CategoryCount {
+                name: "ideas".into(),
+                count: 2
+            },
+            CategoryCount {
+                name: "later".into(),
+                count: 2
+            },
+        ]
+    );
+}
+
+#[test]
+fn a_category_whose_notes_are_all_trashed_is_not_counted() {
+    let mut db = db();
+    let note = db
+        .create_note(NewNote {
+            content: "x".into(),
+            category: Some("gone".into()),
+            source: None,
+        })
+        .unwrap();
+    assert_eq!(db.category_counts().unwrap().len(), 1);
+    db.trash_note(&note.id).unwrap();
+    assert!(db.category_counts().unwrap().is_empty());
+}
+
 // ---- search ----------------------------------------------------------------
 
 #[test]
@@ -535,7 +670,8 @@ fn export_then_import_into_a_fresh_database_preserves_everything() {
         ImportReport {
             imported: 2,
             skipped_existing: 0,
-            skipped_invalid: 0
+            skipped_invalid: 0,
+            skipped_steps: 0
         }
     );
     assert_eq!(b.get_note(&n1.id).unwrap(), n1);
@@ -665,7 +801,8 @@ fn a_markdown_export_imports_back_without_loss() {
         ImportReport {
             imported: 4,
             skipped_existing: 0,
-            skipped_invalid: 0
+            skipped_invalid: 0,
+            skipped_steps: 0
         }
     );
     for id in &ids {
@@ -738,6 +875,221 @@ fn import_still_reads_json_exports() {
         1
     );
     assert_eq!(b.get_note(&n.id).unwrap(), a.get_note(&n.id).unwrap());
+}
+
+// ---- steps in exports ------------------------------------------------------------
+
+/// A note holding `lines` as steps, the first `done` of them ticked.
+fn note_with_step_lines(db: &mut Db, lines: &[&str], done: usize) -> Note {
+    let n = db.create_note(note("a note with steps")).unwrap();
+    let steps: Vec<NewStep> = lines
+        .iter()
+        .enumerate()
+        .map(|(i, text)| NewStep {
+            text: (*text).into(),
+            done: i < done,
+        })
+        .collect();
+    db.add_steps(&n.id, None, &steps).unwrap();
+    db.get_note(&n.id).unwrap()
+}
+
+#[test]
+fn markdown_round_trip_preserves_step_ids_order_and_done_state() {
+    let mut a = db();
+    let n = note_with_step_lines(&mut a, &["Update website", "Prepare screenshots"], 1);
+
+    let md = a.export_markdown(0).unwrap();
+    assert!(md.contains("<!-- posthaste:steps -->"), "steps are marked");
+    assert!(md.contains("- [x] Update website"), "done state is written");
+    assert!(
+        md.contains("- [ ] Prepare screenshots"),
+        "open state is written"
+    );
+
+    let mut b = db();
+    b.import_text(&md).unwrap();
+    let before = a.list_steps(&n.id).unwrap();
+    let after = b
+        .list_steps(&b.list_notes(&NoteQuery::default()).unwrap()[0].id)
+        .unwrap();
+    assert_eq!(before, after, "ids, order and done state survive");
+}
+
+#[test]
+fn description_text_with_checkboxes_stays_description() {
+    let mut a = db();
+    let n = note_with_step_lines(&mut a, &["a real step"], 0);
+    a.set_details(&n.id, "- [ ] not a step, just a note\n- [x] neither")
+        .unwrap();
+
+    let md = a.export_markdown(0).unwrap();
+    let mut b = db();
+    b.import_text(&md).unwrap();
+    let imported = b.list_notes(&NoteQuery::default()).unwrap()[0].id.clone();
+    assert_eq!(b.note_detail(&imported).unwrap().steps.len(), 1);
+    assert_eq!(
+        b.note_detail(&imported).unwrap().details,
+        "- [ ] not a step, just a note\n- [x] neither"
+    );
+}
+
+#[test]
+fn a_hand_typed_marked_checklist_imports_as_steps() {
+    // A list typed by hand inside the steps markers: no ids, no ranks, and
+    // the checkboxes carry the done state.
+    let hand_typed = concat!(
+        "- [ ] a note\n",
+        "  <!-- posthaste:steps -->\n",
+        "  - [ ] first thing\n",
+        "  - [x] second thing\n",
+        "  <!-- /posthaste:steps -->\n",
+    );
+    let mut b = db();
+    let report = b.import_text(hand_typed).unwrap();
+    assert_eq!(report.imported, 1);
+    let id = b.list_notes(&NoteQuery::default()).unwrap()[0].id.clone();
+    let steps = b.list_steps(&id).unwrap();
+    assert_eq!(steps.len(), 2, "the marked lines became steps");
+    assert_eq!(steps[0].text, "first thing");
+    assert!(!steps[0].done);
+    assert_eq!(steps[1].text, "second thing");
+    assert!(steps[1].done);
+    // ids were generated, and the second step sorts after the first.
+    assert!(!steps[0].id.is_empty() && !steps[1].id.is_empty());
+    assert!(steps[0].rank < steps[1].rank);
+}
+
+#[test]
+fn markdown_without_a_steps_block_imports_as_before() {
+    // An export written by the version before steps existed.
+    let old = "\
+# Posthaste notes
+
+Exported 14 Nov 2026 09:12 · 1 notes
+
+## To do
+
+- [ ] written before steps existed
+  <!-- posthaste {\"id\":\"legacy-1\",\"status\":\"inbox\",\"created_at\":\"2026-11-14T02:12:00Z\",\"updated_at\":\"2026-11-14T02:12:00Z\"} -->
+  `work` · Added 14 Nov 2026 09:12
+  Some description.
+";
+    let mut b = db();
+    let report = b.import_text(old).unwrap();
+    assert_eq!(report.imported, 1);
+    let id = b.list_notes(&NoteQuery::default()).unwrap()[0].id.clone();
+    assert_eq!(
+        b.get_note(&id).unwrap().content,
+        "written before steps existed"
+    );
+    assert_eq!(b.list_steps(&id).unwrap(), [] as [Step; 0]);
+    assert_eq!(b.note_detail(&id).unwrap().details, "Some description.");
+}
+
+#[test]
+fn json_v1_files_still_import() {
+    let v1 = format!(
+        "{{\"format\":\"posthaste-export\",\"version\":1,\"exported_at\":\"2026-11-14T02:12:00Z\",\
+         \"notes\":[{{\"id\":\"old-1\",\"content\":\"from a v1 file\",\"status\":\"inbox\",\
+         \"created_at\":\"2026-11-14T02:12:00Z\"}}]}}"
+    );
+    let mut b = db();
+    let report = b.import_text(&v1).unwrap();
+    assert_eq!(report.imported, 1);
+    assert_eq!(b.get_note("old-1").unwrap().content, "from a v1 file");
+}
+
+#[test]
+fn json_export_import_preserves_step_ids_and_deleted_steps() {
+    let mut a = db();
+    let n = note_with_step_lines(&mut a, &["kept", "gone"], 0);
+    let steps = a.list_steps(&n.id).unwrap();
+    a.remove_step(&steps[1].id).unwrap();
+
+    let json = a.export_json().unwrap();
+    let mut b = db();
+    let report = b.import_text(&json).unwrap();
+    assert_eq!(report.imported, 1);
+    let id = b.list_notes(&NoteQuery::default()).unwrap()[0].id.clone();
+    assert_eq!(b.list_steps(&id).unwrap(), a.list_steps(&n.id).unwrap());
+    // The tombstoned step is preserved in the file, kept deleted on import.
+    let tombstones: i64 = b
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM note_steps WHERE note_id = ?1 AND deleted_at IS NOT NULL",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(tombstones, 1);
+}
+
+#[test]
+fn importing_a_note_twice_does_not_duplicate_its_steps() {
+    let mut a = db();
+    let n = note_with_step_lines(&mut a, &["once"], 0);
+    let md = a.export_markdown(0).unwrap();
+
+    let mut b = db();
+    b.import_text(&md).unwrap();
+    let report = b.import_text(&md).unwrap();
+    let _ = &n;
+    assert_eq!(report.skipped_existing, 1);
+    let id = b.list_notes(&NoteQuery::default()).unwrap()[0].id.clone();
+    assert_eq!(b.list_steps(&id).unwrap().len(), 1);
+}
+
+#[test]
+fn searching_finds_a_note_by_one_of_its_steps() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["update the website screenshots", "unrelated"], 0);
+    db.create_note(note("a note without steps")).unwrap();
+    assert_eq!(search(&db, "screenshots"), [db.get_note(&n.id).unwrap()]);
+    assert_eq!(search(&db, "unrelated").len(), 1);
+}
+
+#[test]
+fn a_deleted_step_no_longer_matches_search() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["buy stamps"], 0);
+    let step = db.list_steps(&n.id).unwrap().remove(0);
+    assert_eq!(search(&db, "stamps").len(), 1);
+    db.remove_step(&step.id).unwrap();
+    assert!(search(&db, "stamps").is_empty());
+}
+
+#[test]
+fn searching_a_step_word_with_diacritics_removed_still_matches() {
+    let mut db = db();
+    let n = note_with_step_lines(&mut db, &["uộn cho bài học"], 0);
+    assert_eq!(search(&db, "uon").len(), 1);
+    assert_eq!(search(&db, "hoc").len(), 1);
+}
+
+#[test]
+fn a_backup_keeps_steps_order_done_state_and_deletions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("posthaste.db");
+    let mut db = Db::open(&path).unwrap();
+    let n = note_with_step_lines(&mut db, &["kept", "gone", "ticked"], 1);
+    let steps = db.list_steps(&n.id).unwrap();
+    db.remove_step(&steps[1].id).unwrap();
+    let before = db.list_steps(&n.id).unwrap();
+
+    let backup = dir.path().join("backup.db");
+    db.backup_to(&backup).unwrap();
+    let copy = Db::open(&backup).unwrap();
+    assert_eq!(copy.list_steps(&n.id).unwrap(), before);
+    let tombstones: i64 = copy
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM note_steps WHERE note_id = ?1 AND deleted_at IS NOT NULL",
+            [&n.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(tombstones, 1);
 }
 
 #[test]

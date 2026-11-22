@@ -49,6 +49,13 @@ pub struct Note {
     /// How many files are attached. Lists never carry the files themselves.
     #[serde(default)]
     pub attachment_count: u32,
+    /// How many steps the note holds, and how many of them are ticked.
+    /// Tombstoned steps are in neither count. Lists never carry the steps
+    /// themselves; those come from `Db::list_steps`.
+    #[serde(default)]
+    pub step_total: u32,
+    #[serde(default)]
+    pub step_done: u32,
     /// When the note was parked in Later. `None` means it is not parked.
     /// Only an open (inbox) note can be parked.
     #[serde(default)]
@@ -61,6 +68,11 @@ pub const MAX_ATTACHMENT_BYTES: usize = 15 * 1024 * 1024;
 pub const MAX_ATTACHMENTS_PER_NOTE: usize = 20;
 /// Longest description a note can have, in characters.
 pub const MAX_DETAILS_CHARS: usize = 100_000;
+/// Most steps one note can hold when a person adds them on one device.
+/// Steps that arrive by sync are never discarded, so a note can hold more.
+pub const MAX_STEPS_PER_NOTE: usize = 100;
+/// Longest step text, in characters.
+pub const MAX_STEP_CHARS: usize = 500;
 
 /// A file attached to a note. The bytes live in the same database and are
 /// read only on request, never with the note.
@@ -74,12 +86,34 @@ pub struct Attachment {
     pub created_at: i64,
 }
 
+/// One step of a note's ordered list. `rank` is a base-62 fraction; the
+/// display order is `rank`, then `id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Step {
+    pub id: String,
+    pub note_id: String,
+    pub text: String,
+    pub done: bool,
+    pub rank: String,
+}
+
+/// A step to add. The id and rank are chosen when it is stored.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewStep {
+    pub text: String,
+    #[serde(default)]
+    pub done: bool,
+}
+
 /// Everything the Note details window shows for one note.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoteDetail {
     pub note: Note,
     pub details: String,
     pub attachments: Vec<Attachment>,
+    /// The note's live steps, in display order.
+    #[serde(default)]
+    pub steps: Vec<Step>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -97,6 +131,8 @@ pub struct NewNote {
 pub struct NoteQuery {
     /// Free-text search over content and category. Empty means no text filter.
     pub text: String,
+    /// Only notes with this category. The value is cleaned like a saved one.
+    pub category: Option<String>,
     /// Statuses to include. Empty means all.
     pub statuses: Vec<Status>,
     /// Inclusive lower bound on `created_at`.
@@ -108,6 +144,26 @@ pub struct NoteQuery {
     pub later: Option<bool>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+}
+
+/// How many live notes use one category.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategoryCount {
+    pub name: String,
+    pub count: u32,
+}
+
+/// A project that groups related notes. Identified by `name`, which lives in
+/// each note's `category` column.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Project {
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
+    pub archived: bool,
+    pub open: u32,
+    pub total: u32,
+    pub last_at: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -396,6 +452,10 @@ pub struct ImportReport {
     pub imported: usize,
     pub skipped_existing: usize,
     pub skipped_invalid: usize,
+    /// Steps in the file that could not be stored, counted so nothing is
+    /// dropped silently.
+    #[serde(default)]
+    pub skipped_steps: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

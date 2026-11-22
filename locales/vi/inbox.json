@@ -10,7 +10,37 @@
     "later": "Để sau",
     "archive": "Lưu trữ",
     "trash": "Thùng rác",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "projects": "Dự án",
+    "manage_projects": "Quản lý dự án"
+  },
+  "project_page": {
+    "menu": "Thao tác dự án (M)",
+    "rename": "Đổi tên",
+    "archive": "Lưu trữ dự án",
+    "rename_label": "Tên dự án mới",
+    "merge_confirm": "Chuyển {count} ghi chú sang {name}?",
+    "merge_action": "Chuyển",
+    "add_placeholder": "Thêm ghi chú vào {name}",
+    "empty_title": "Chưa có ghi chú nào trong dự án này.",
+    "archived_toast": "Đã lưu trữ dự án"
+  },
+  "manage_projects": {
+    "empty": "Chưa có dự án nào.",
+    "new_label": "Dự án mới",
+    "new_placeholder": "Tên dự án mới",
+    "add": "Thêm",
+    "color_pick": "Chọn màu",
+    "archived_group": "Đã lưu trữ ({count})",
+    "rename": "Đổi tên (R)",
+    "archive": "Lưu trữ (A)",
+    "unarchive": "Bỏ lưu trữ (U)",
+    "remove": "Gỡ (Delete)",
+    "remove_title": "Gỡ dự án khỏi {count} ghi chú?",
+    "remove_empty_title": "Gỡ dự án?",
+    "remove_text": "Các ghi chú vẫn còn trong hộp thư, không còn dự án.",
+    "remove_action": "Gỡ",
+    "merge_text": "Hai dự án sẽ gộp thành một."
   },
   "new_note": "Ghi chú mới",
   "search": {
@@ -34,6 +64,17 @@
     },
     "count_more": {
       "other": "{count}+ ghi chú"
+    },
+    "category_line": "Danh mục: {name}",
+    "category_clear": "Xóa bộ lọc danh mục"
+  },
+  "cat_picker": {
+    "title": "Chọn danh mục",
+    "placeholder": "Lọc danh mục",
+    "none": "Không có danh mục nào khớp.",
+    "empty_hint": "Thêm bằng # khi bạn ghi chú.",
+    "notes": {
+      "other": "{count} ghi chú"
     }
   },
   "banner": {
@@ -49,6 +90,8 @@
     "search_text": "Không có ghi chú nào chứa “{text}”. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
     "search_text_filtered": "Không có ghi chú nào chứa “{text}” với các bộ lọc này. Tìm kiếm xem qua mọi ghi chú, kể cả phần lưu trữ.",
     "search_date": "Không có ghi chú nào được ghi vào ngày đó.",
+    "category_title": "Không có ghi chú nào trong danh mục này.",
+    "category_text": "Danh mục chỉ là nhãn; các ghi chú này có thể đang ở mục khác.",
     "today_title": "Hôm nay chưa ghi gì",
     "today_text": "Ghi chú bạn ghi hôm nay sẽ hiện ở đây.",
     "later_title": "Chưa để gì lại sau",
@@ -65,6 +108,7 @@
     "show_more": "Xem thêm",
     "show_less": "Thu gọn",
     "from": "từ {source}",
+    "category_tip": "Lọc theo {name}",
     "later": "Để sau",
     "archived": "Đã lưu trữ",
     "completed": "Đã xong",
@@ -79,8 +123,8 @@
   },
   "edit": {
     "label": "Sửa ghi chú",
-    "category_label": "Danh mục (không bắt buộc)",
-    "category_placeholder": "Danh mục",
+    "category_label": "Dự án (không bắt buộc)",
+    "category_placeholder": "Dự án",
     "hint": "Enter để lưu, Shift+Enter để xuống dòng"
   },
   "toast": {
@@ -106,6 +150,8 @@
     "copy": "Sao chép",
     "delete": "Xóa",
     "search": "Tìm kiếm",
+    "project": "Chọn dự án",
+    "category": "Chuyển đến dự án",
     "sections": "Hộp thư, Hôm nay, Để sau, Lưu trữ, Thùng rác",
     "trash_restore": "Khôi phục (trong Thùng rác)",
     "trash_delete": "Xóa vĩnh viễn (trong Thùng rác)",

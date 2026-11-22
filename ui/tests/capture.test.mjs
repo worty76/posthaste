@@ -30,7 +30,7 @@ describe("capture input", () => {
 
   it("refocuses the input every time the window is shown, and names where you came from", async () => {
     const w = await capture();
-    await w.page.getByLabel("Category (optional)").focus();
+    await w.page.getByLabel("Project (optional)").focus();
     await w.mock.emit("capture-shown", { source: "Code" });
     await eventually(
       () => w.note.evaluate((el) => el === document.activeElement),
@@ -203,28 +203,136 @@ describe("save states", () => {
     await w.close();
   });
 
-  it("passes the optional category along, trimmed", async () => {
-    const w = await capture();
+  it("picks a project with Ctrl+P, returns focus to the note, and saves it", async () => {
+    const w = await capture({
+      store: {
+        projects: [{ name: "money", archived: false, color: "#3b82f6" }],
+      },
+    });
     await w.note.fill("call the bank");
-    await w.page.getByLabel("Category (optional)").fill(" money ");
+    await w.note.press("Control+p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "money");
+    await w.page.keyboard.type("money");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus returns to note",
+    );
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    assert.equal(await w.saves().then((c) => c.length), 0);
     await w.note.press("Enter");
     const [save] = await eventually(w.saves, (c) => c.length === 1, "one save");
     assert.equal(save.args.category, "money");
     await w.close();
   });
 
-  it("Enter in the category returns to the note without saving", async () => {
-    const w = await capture();
-    const category = w.page.getByLabel("Category (optional)");
-    await w.note.fill("x");
-    await category.fill("work");
-    await category.press("Enter");
+  it("keeps the chosen project when saving and staying open with Ctrl+Enter", async () => {
+    const w = await capture({
+      store: {
+        projects: [{ name: "work", archived: false }],
+      },
+    });
+    await w.note.press("Control+p");
+    await w.page.keyboard.type("work");
+    await w.page.keyboard.press("Enter");
+    await w.note.fill("first task");
+    await w.note.press("Control+Enter");
+    await eventually(w.saves, (c) => c.length === 1, "first save");
+    assert.equal(await w.note.inputValue(), "");
+    await text(w.page.getByLabel("Project (optional)"), "work");
+    await w.note.fill("second task");
+    await w.note.press("Enter");
+    const saves = await eventually(w.saves, (c) => c.length === 2, "second save");
+    assert.equal(saves[0].args.category, "work");
+    assert.equal(saves[1].args.category, "work");
+    await w.close();
+  });
+
+  it("picks and toggles an active project with one click on its chip", async () => {
+    const w = await capture({
+      store: {
+        projects: [
+          { name: "work", color: "#5b8def", archived: false },
+          { name: "money", archived: false },
+          { name: "old", archived: true },
+        ],
+      },
+    });
+    const chips = w.page.locator(".capture__project-chip");
+    await eventually(
+      () => chips.count(),
+      (n) => n === 2,
+      "only active projects shown",
+    );
+    const workChip = w.page.locator(".capture__project-chip", { hasText: "work" });
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "true");
     await eventually(
       () => w.note.evaluate((el) => el === document.activeElement),
       Boolean,
-      "focus",
+      "focus returns to note after chip click",
     );
-    assert.equal((await w.saves()).length, 0);
+    await w.note.fill("ship release");
+    await w.note.press("Enter");
+    const [save] = await eventually(w.saves, (c) => c.length === 1, "saved with clicked project");
+    assert.equal(save.args.category, "work");
+
+    // Clicking the selected chip again clears the project.
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "true");
+    await workChip.click();
+    assert.equal(await workChip.getAttribute("aria-pressed"), "false");
+    await w.close();
+  });
+
+  it("toggles active projects from the keyboard with Ctrl+1..9 without leaving the note", async () => {
+    const w = await capture({
+      store: {
+        // Give "work" a newer note so recency order would put it first;
+        // capture must keep fixed alphabetical slots (1 = money, 2 = work).
+        notes: [
+          {
+            id: "n-work",
+            content: "recent work",
+            category: "work",
+            status: "inbox",
+            created_at: 2_000_000,
+            updated_at: 2_000_000,
+          },
+        ],
+        projects: [
+          { name: "work", color: "#5b8def", archived: false },
+          { name: "money", archived: false },
+          { name: "old", archived: true },
+        ],
+      },
+    });
+    const chips = w.page.locator(".capture__project-chip");
+    await eventually(
+      () => chips.count(),
+      (n) => n === 2,
+      "two active chips",
+    );
+    await w.note.fill("pay electricity");
+    // Fixed alphabetical slots regardless of recency: 1 = money, 2 = work.
+    await w.note.press("Control+1");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    await w.note.press("Control+2");
+    await text(w.page.getByLabel("Project (optional)"), "work");
+    // Pressing the same shortcut again clears the project.
+    await w.note.press("Control+2");
+    await text(w.page.getByLabel("Project (optional)"), "# project");
+    await w.note.press("Control+1");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    // Out-of-range slot is ignored.
+    await w.note.press("Control+9");
+    await text(w.page.getByLabel("Project (optional)"), "money");
+    assert.equal(await w.note.evaluate((el) => el === document.activeElement), true);
+    await w.note.press("Enter");
+    const [save] = await eventually(w.saves, (c) => c.length === 1, "saved with Ctrl+1 project");
+    assert.equal(save.args.category, "money");
     await w.close();
   });
 });
@@ -392,7 +500,7 @@ describe("language", () => {
     await w.note.fill("đang gõ dở");
     await w.note.press("Shift+Enter");
     await w.mock.changeSettings({ language: "vi" });
-    await text(w.page.locator(".capture__title"), "Ghi nhanh");
+    await text(w.page.locator(".capture__title"), "Posthaste");
     await text(w.page.locator(".capture__hints"), "lưu");
     assert.equal(await w.note.inputValue(), "đang gõ dở\n");
     await w.close();
@@ -405,7 +513,8 @@ describe("language", () => {
       (c) => c.length > 0,
       "settings read",
     );
-    await text(w.page.locator(".capture__title"), "Quick Note");
+    await text(w.page.locator(".capture__title"), "Posthaste");
+    await text(w.page.locator(".capture__hints"), "save");
     await w.close();
   });
 });
@@ -451,6 +560,12 @@ describe("appearance", () => {
     );
     assert.equal(await html.getAttribute("data-shape"), "soft");
     assert.equal(await html.getAttribute("data-font"), "system");
+    await w.close();
+  });
+
+  it("capture labels the field Project", async () => {
+    const w = await capture();
+    await text(w.page.getByRole("button", { name: "Project (optional)" }), "# project");
     await w.close();
   });
 });

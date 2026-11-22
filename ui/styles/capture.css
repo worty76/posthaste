@@ -158,8 +158,11 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
 }
 
 .capture__category {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
   flex: none;
-  width: 116px;
+  max-width: 148px;
   /* Its text lines up with the note's text above, padding hangs outside. */
   margin-left: calc(-1 * var(--s-2));
   height: 24px;
@@ -169,17 +172,101 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
   background: transparent;
   color: var(--text-muted);
   font-size: var(--t-xs);
+  cursor: pointer;
 }
-.capture__category::placeholder {
+.capture__category-placeholder {
   color: var(--text-faint);
+}
+.capture__category-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .capture__category:hover {
   border-color: var(--border);
+  color: var(--text);
 }
 .capture__category:focus-visible {
   outline: none;
   border-color: var(--accent-ink);
   color: var(--text);
+}
+.capture__picker {
+  position: relative;
+}
+.capture__picker .proj-picker {
+  top: auto;
+  bottom: var(--s-1);
+  left: var(--s-3);
+}
+.capture__picker .proj-picker__list {
+  max-height: 120px;
+}
+
+.capture__projects {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  padding: 0 var(--s-4) var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.capture__projects::-webkit-scrollbar {
+  display: none;
+}
+.capture__project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  max-width: 148px;
+  height: 22px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+.capture__project-chip:hover {
+  background: var(--hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.capture__project-chip[data-selected="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent-ink);
+  color: var(--text);
+}
+.capture__project-chip:focus-visible {
+  outline: none;
+  border-color: var(--accent-ink);
+  color: var(--text);
+}
+.capture__project-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capture__project-key {
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-faint);
+}
+.capture__project-chip:hover .capture__project-key {
+  color: var(--text-muted);
+}
+.capture__project-chip[data-selected="true"] .capture__project-key {
+  color: var(--accent-ink);
 }
 
 /* A message outranks the hints people learn first: they step aside for it. */

@@ -87,6 +87,7 @@ by default** under **Settings → Devices**.
 ## 5. Scope (Current Experimental Version)
 
 - **Synced:** notes and their text/status fields (`content`, `details`,
-  `category`, `status`, `later`, `deleted`, `purged`).
+  `category`, `status`, `later`, `deleted`, `purged`), and steps (text, done,
+  rank, deleted) when the other computer runs a version that has them.
 - **Not synced yet:** attachments, looks and look images, settings, and unsaved
   drafts.

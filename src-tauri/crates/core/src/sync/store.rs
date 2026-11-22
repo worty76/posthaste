@@ -65,6 +65,10 @@ pub struct Peer {
     pub last_sync_at: Option<i64>,
     pub sent_up_to: i64,
     pub received_hlc: Option<String>,
+    /// Lowest seq of step changes this peer has not been sent because it did
+    /// not announce the steps capability. `None` when nothing is withheld.
+    #[serde(default)]
+    pub steps_resend_from: Option<i64>,
 }
 
 pub(crate) fn state_get(tx: &Transaction<'_>, key: &str) -> Result<Option<String>> {
@@ -89,6 +93,21 @@ pub(crate) fn next_seq(tx: &Transaction<'_>) -> Result<i64> {
         .unwrap_or(1);
     state_set(tx, STATE_NEXT_SEQ, &(seq + 1).to_string())?;
     Ok(seq)
+}
+
+fn peer_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Peer> {
+    let addrs_json: String = r.get(2)?;
+    let addrs: Vec<String> = serde_json::from_str(&addrs_json).unwrap_or_default();
+    Ok(Peer {
+        device_id: r.get(0)?,
+        name: r.get(1)?,
+        addrs,
+        paired_at: r.get(3)?,
+        last_sync_at: r.get(4)?,
+        sent_up_to: r.get(5)?,
+        received_hlc: r.get(6)?,
+        steps_resend_from: r.get(7)?,
+    })
 }
 
 impl Db {
@@ -196,24 +215,13 @@ impl Db {
 
     pub fn list_peers(&self) -> Result<Vec<Peer>> {
         let mut stmt = self.conn().prepare(
-            "SELECT device_id, name, addrs, paired_at, last_sync_at, sent_up_to, received_hlc
+            "SELECT device_id, name, addrs, paired_at, last_sync_at, sent_up_to, received_hlc,
+                    steps_resend_from
              FROM sync_peers
              ORDER BY paired_at ASC",
         )?;
         let rows = stmt
-            .query_map([], |r| {
-                let addrs_json: String = r.get(2)?;
-                let addrs: Vec<String> = serde_json::from_str(&addrs_json).unwrap_or_default();
-                Ok(Peer {
-                    device_id: r.get(0)?,
-                    name: r.get(1)?,
-                    addrs,
-                    paired_at: r.get(3)?,
-                    last_sync_at: r.get(4)?,
-                    sent_up_to: r.get(5)?,
-                    received_hlc: r.get(6)?,
-                })
-            })?
+            .query_map([], peer_from_row)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(rows)
     }
@@ -221,22 +229,11 @@ impl Db {
     pub fn get_peer(&self, device_id: &str) -> Result<Option<Peer>> {
         self.conn()
             .query_row(
-                "SELECT device_id, name, addrs, paired_at, last_sync_at, sent_up_to, received_hlc
+                "SELECT device_id, name, addrs, paired_at, last_sync_at, sent_up_to, received_hlc,
+                        steps_resend_from
                  FROM sync_peers WHERE device_id = ?1",
                 [device_id],
-                |r| {
-                    let addrs_json: String = r.get(2)?;
-                    let addrs: Vec<String> = serde_json::from_str(&addrs_json).unwrap_or_default();
-                    Ok(Peer {
-                        device_id: r.get(0)?,
-                        name: r.get(1)?,
-                        addrs,
-                        paired_at: r.get(3)?,
-                        last_sync_at: r.get(4)?,
-                        sent_up_to: r.get(5)?,
-                        received_hlc: r.get(6)?,
-                    })
-                },
+                peer_from_row,
             )
             .optional()
             .map_err(Into::into)
@@ -287,6 +284,30 @@ impl Db {
         self.conn().execute(
             "UPDATE sync_peers SET last_sync_at = ?2 WHERE device_id = ?1",
             params![device_id, synced_at],
+        )?;
+        Ok(())
+    }
+
+    /// Records the lowest seq of step changes withheld from this peer, so a
+    /// later session can resend from there once it announces the capability.
+    /// Keeping the lowest never loses an earlier marker.
+    pub fn mark_steps_withheld(&self, device_id: &str, seq: i64) -> Result<()> {
+        self.conn().execute(
+            "UPDATE sync_peers SET steps_resend_from =
+                 CASE WHEN steps_resend_from IS NULL OR ?2 < steps_resend_from
+                      THEN ?2 ELSE steps_resend_from END
+             WHERE device_id = ?1",
+            params![device_id, seq],
+        )?;
+        Ok(())
+    }
+
+    /// Clears the withheld marker once every batch of the resend was
+    /// acknowledged; merging is idempotent, so nothing is lost either way.
+    pub fn clear_steps_resend_from(&self, device_id: &str) -> Result<()> {
+        self.conn().execute(
+            "UPDATE sync_peers SET steps_resend_from = NULL WHERE device_id = ?1",
+            [device_id],
         )?;
         Ok(())
     }

@@ -54,6 +54,10 @@ export function emptyStore() {
     details: {},
     /** Attachments by note id. */
     attachments: {},
+    /** Steps by note id, in storage order. */
+    steps: {},
+    /** Explicit project rows `{ name, archived }`. */
+    projects: [],
     /** The note the details window opens on. */
     target: null,
     /** What the file dialog answers: an attach report, or null for cancel. */
@@ -221,7 +225,108 @@ export async function open({
           store.scene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset: ({ id }) =>
           `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#${id}`,
-        categories_list: () => ["work", "home"],
+        projects_list: ({ includeArchived }) => listProjects(Boolean(includeArchived)),
+        project_create: ({ name }) => {
+          const cleaned = cleanProject(name);
+          if (!cleaned) {
+            return Promise.reject({
+              code: "project_invalid",
+              message: "A project name is between 1 and 40 characters.",
+            });
+          }
+          if (listProjects(true).some((p) => p.name === cleaned)) {
+            return Promise.reject({
+              code: "project_exists",
+              message: "A project with that name already exists.",
+            });
+          }
+          store.projects.push({ name: cleaned, archived: false, color: null });
+          changed();
+          return { name: cleaned, color: null, archived: false, open: 0, total: 0, last_at: 0 };
+        },
+        project_rename: ({ from, to, merge }) => {
+          const src = cleanProject(from);
+          const dst = cleanProject(to);
+          if (!src || !dst) {
+            return Promise.reject({
+              code: "project_invalid",
+              message: "A project name is between 1 and 40 characters.",
+            });
+          }
+          if (src === dst) return 0;
+          const all = listProjects(true);
+          if (!all.some((p) => p.name === src)) {
+            return Promise.reject({ code: "not_found", message: "That note no longer exists." });
+          }
+          if (all.some((p) => p.name === dst) && !merge) {
+            return Promise.reject({
+              code: "project_exists",
+              message: "A project with that name already exists.",
+            });
+          }
+          let moved = 0;
+          for (const n of store.notes) {
+            if (n.category === src) {
+              n.category = dst;
+              moved += 1;
+            }
+          }
+          const oldRow = store.projects.find((p) => p.name === src);
+          store.projects = store.projects.filter((p) => p.name !== src);
+          if (!store.projects.some((p) => p.name === dst)) {
+            store.projects.push({
+              name: dst,
+              archived: Boolean(oldRow?.archived),
+              color: oldRow?.color ?? null,
+            });
+          }
+          changed();
+          return moved;
+        },
+        project_set_archived: ({ name, archived }) => {
+          const cleaned = cleanProject(name);
+          const existing = store.projects.find((p) => p.name === cleaned);
+          if (existing) existing.archived = Boolean(archived);
+          else if (cleaned)
+            store.projects.push({ name: cleaned, archived: Boolean(archived), color: null });
+          return changed();
+        },
+        project_set_color: ({ name, color }) => {
+          const cleaned = cleanProject(name);
+          const existing = store.projects.find((p) => p.name === cleaned);
+          if (existing) existing.color = color ?? null;
+          else if (cleaned)
+            store.projects.push({ name: cleaned, archived: false, color: color ?? null });
+          return changed();
+        },
+        project_clear: ({ name }) => {
+          const cleaned = cleanProject(name);
+          let cleared = 0;
+          for (const n of store.notes) {
+            if (n.category === cleaned) {
+              n.category = null;
+              cleared += 1;
+            }
+          }
+          store.projects = store.projects.filter((p) => p.name !== cleaned);
+          changed();
+          return cleared;
+        },
+        note_set_project: ({ id, project }) => {
+          const found = note(id);
+          if (!found) {
+            return Promise.reject({ code: "not_found", message: "That note no longer exists." });
+          }
+          const cleaned = project == null ? null : cleanProject(project);
+          found.category = cleaned;
+          if (cleaned) {
+            const row = store.projects.find((p) => p.name === cleaned);
+            if (row) row.archived = false;
+            else store.projects.push({ name: cleaned, archived: false });
+          }
+          changed();
+          return { ...found };
+        },
         draft_get: () => mock.draft,
         draft_set: ({ content, category }) => {
           mock.draft = { content, category, updated_at: 1 };
@@ -230,6 +335,28 @@ export async function open({
         draft_clear: () => {
           mock.draft = null;
           return null;
+        },
+        capture_save: ({ content, category }) => {
+          const now = Date.now();
+          const saved = {
+            id: `n-${store.notes.length + 1}-${now}`,
+            content,
+            category: category == null ? null : cleanProject(category),
+            source: null,
+            status: "inbox",
+            later_at: null,
+            created_at: now,
+            updated_at: now,
+            completed_at: null,
+            archived_at: null,
+            has_details: false,
+            attachment_count: 0,
+            step_total: 0,
+            step_done: 0,
+          };
+          store.notes.unshift(saved);
+          changed();
+          return saved;
         },
         glance_get: () => mock.glance,
         notes_day_marks: ({ edges }) =>
@@ -252,6 +379,7 @@ export async function open({
         notes_list: ({ query }) => {
           const within = (n) =>
             (!query.text || n.content.toLowerCase().includes(query.text.toLowerCase())) &&
+            (!query.category || n.category === query.category) &&
             (!query.statuses?.length || query.statuses.includes(n.status)) &&
             (query.created_from == null || n.created_at >= query.created_from) &&
             (query.created_to == null || n.created_at < query.created_to) &&
@@ -301,6 +429,9 @@ export async function open({
             note: found,
             details: store.details[id] ?? "",
             attachments: store.attachments[id] ?? [],
+            steps: (store.steps[id] ?? [])
+              .filter((st) => st.deleted_at == null)
+              .sort((x, y) => (x.rank < y.rank ? -1 : x.rank > y.rank ? 1 : 0)),
           };
         },
         note_details_set: ({ id, details }) => {
@@ -459,22 +590,120 @@ export async function open({
           mock.emit("sync-changed");
           return null;
         },
-        capture_save: ({ content, category }) => ({
-          id: "n1",
-          content,
-          status: "inbox",
-          category,
-          source: null,
-          created_at: 1,
-          updated_at: 1,
-          completed_at: null,
-          archived_at: null,
-          has_details: false,
-          attachment_count: 0,
-          later_at: null,
-        }),
+        steps_add: ({ noteId, after, lines }) => {
+          const list = (store.steps[noteId] ??= []);
+          let rank = after ? (list.find((st) => st.id === after)?.rank ?? "") : "";
+          const last = list[list.length - 1];
+          if (after == null && last) rank = last.rank;
+          const added = lines.map((line) => {
+            const step = {
+              id: `s${++nextStep}`,
+              note_id: noteId,
+              text: line.text,
+              done: line.done,
+              rank: rankBetween(rank, null),
+              deleted_at: null,
+            };
+            list.push(step);
+            rank = step.rank;
+            return { ...step };
+          });
+          refreshCounts(noteId);
+          changed();
+          return added;
+        },
+        step_set_text: ({ id, text }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.text = text;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_set_done: ({ id, done }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.done = done;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_move: ({ id, after }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          const list = store.steps[found.note_id];
+          const live = list.filter((st) => st.deleted_at == null);
+          const before = after ? live.find((st) => st.id === after) : null;
+          const lower = before ? before.rank : "";
+          const upper = before
+            ? (live.find((st) => st.rank > before.rank)?.rank ?? null)
+            : (live[0]?.rank ?? null);
+          found.rank = rankBetween(lower, upper);
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
+        step_remove: ({ id }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.deleted_at = Date.now();
+          refreshCounts(found.note_id);
+          changed();
+          return null;
+        },
+        step_restore: ({ id }) => {
+          const found = step(id);
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          found.deleted_at = null;
+          refreshCounts(found.note_id);
+          changed();
+          return { ...found };
+        },
       };
       const note = (id) => store.notes.find((n) => n.id === id);
+      const cleanProject = (raw) => {
+        if (typeof raw !== "string") return null;
+        const c = raw.trim().replace(/^#+/, "").trim();
+        return c ? [...c].slice(0, 40).join("") : null;
+      };
+      const listProjects = (includeArchived) => {
+        const names = new Set((store.projects ?? []).map((p) => p.name));
+        for (const n of store.notes) {
+          if (n.category) names.add(n.category);
+        }
+        const out = [];
+        for (const name of names) {
+          const row = (store.projects ?? []).find((p) => p.name === name);
+          const archived = Boolean(row?.archived);
+          if (!includeArchived && archived) continue;
+          const live = store.notes.filter((n) => n.category === name);
+          const open = live.filter((n) => n.status === "inbox").length;
+          const total = live.length;
+          const last_at = live.reduce((m, n) => Math.max(m, n.created_at ?? 0), 0);
+          out.push({ name, color: row?.color ?? null, archived, open, total, last_at });
+        }
+        out.sort(
+          (a, b) => b.last_at - a.last_at || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+        );
+        return out;
+      };
+      let nextStep = 0;
+      const step = (id) =>
+        Object.values(store.steps)
+          .flat()
+          .find((st) => st.id === id);
+      const rankBetween = (low, high) => {
+        // A rank strictly between, in the same spirit as the real one.
+        if (high != null && low.length < high.length) return low + "m";
+        return low + "n";
+      };
+      const refreshCounts = (noteId) => {
+        const live = (store.steps[noteId] ?? []).filter((st) => st.deleted_at == null);
+        const found = note(noteId);
+        if (!found) return;
+        found.step_total = live.length;
+        found.step_done = live.filter((st) => st.done).length;
+      };
       const changed = () => (mock.emit("notes-changed"), null);
       const summary = (id, name, base) => ({
         id,
@@ -590,6 +819,8 @@ export function note(content, patch = {}) {
     archived_at: null,
     has_details: false,
     attachment_count: 0,
+    step_total: 0,
+    step_done: 0,
     later_at: null,
     ...patch,
   };

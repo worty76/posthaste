@@ -9,7 +9,14 @@ const NOON = "2026-11-15T12:00:00+07:00";
 const at = (iso) => new Date(`${iso}+07:00`).getTime();
 
 /** Opens the details window on one note and waits for it to show. */
-async function details({ patch = {}, text: body = "", files = [], ...options } = {}) {
+async function details({
+  patch = {},
+  text: body = "",
+  files = [],
+  steps = [],
+  projects = [],
+  ...options
+} = {}) {
   const n = note("call the bank", {
     created_at: at("2026-11-15T09:05:00"),
     updated_at: at("2026-11-15T09:05:00"),
@@ -20,10 +27,12 @@ async function details({ patch = {}, text: body = "", files = [], ...options } =
     now: NOON,
     store: {
       notes: [n],
+      projects,
       details: { [n.id]: body },
       attachments: {
         [n.id]: files.map((f, i) => ({ id: `f${i}`, note_id: n.id, created_at: 1, ...f })),
       },
+      steps: { [n.id]: steps.map((st, i) => ({ id: `s${i + 1}`, note_id: n.id, ...st })) },
       target: { id: n.id, from: "inbox" },
     },
     ...options,
@@ -35,8 +44,293 @@ async function details({ patch = {}, text: body = "", files = [], ...options } =
     (v) => v === n.content,
     "the note to load",
   );
-  return { ...w, n, title, field, calls: (cmd) => w.mock.calls(cmd) };
+  const toast = w.page.locator(".toast");
+  return { ...w, n, title, field, toast, calls: (cmd) => w.mock.calls(cmd) };
 }
+
+describe("steps", () => {
+  const step = (text, patch = {}) => ({
+    text,
+    done: false,
+    rank: "V",
+    deleted_at: null,
+    ...patch,
+  });
+
+  /** Opens the steps editor on the first step by keyboard. */
+  async function editing(w, name) {
+    const row = w.page.getByRole("checkbox", { name });
+    await row.focus();
+    await w.page.keyboard.press("Enter");
+    return w.page.getByRole("textbox", { name: "Steps" });
+  }
+
+  it("adds, ticks, reorders and removes steps by keyboard", async () => {
+    const w = await details();
+    await w.page.getByRole("button", { name: "Add a step" }).click();
+    const input = w.page.getByRole("textbox", { name: "Add a step" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "add line focus",
+    );
+    await input.fill("first step");
+    await eventually(
+      () => w.calls("steps_add"),
+      (c) => c.length === 1,
+      "row created on the first keystroke",
+    );
+    await input.fill("first step, longer");
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c === 1,
+      "typing writes",
+    );
+    // While still typing in the add line, the step is not duplicated as a separate checkbox row above it.
+    assert.equal(await w.page.getByRole("checkbox").count(), 0);
+
+    // Enter commits the step into the list and opens the add line again for the next step.
+    await w.page.keyboard.press("Enter");
+    await text(w.page.getByRole("checkbox", { name: "first step, longer" }), "first step, longer");
+    await input.fill("second step");
+    await eventually(
+      () => w.calls("steps_add").then((c) => c.length),
+      (c) => c === 2,
+      "second row",
+    );
+    await w.page.keyboard.press("Escape");
+
+    // Space ticks the selected step.
+    const row = w.page.getByRole("checkbox", { name: "second step" });
+    await row.focus();
+    await w.page.keyboard.press(" ");
+    await eventually(
+      () => w.calls("step_set_done").then((c) => c.length),
+      (c) => c === 1,
+      "ticked",
+    );
+    assert.equal((await w.calls("step_set_done"))[0].args.done, true);
+
+    // Ctrl+ArrowUp reorders it above the first step.
+    await w.page.keyboard.press("Control+ArrowUp");
+    await eventually(
+      () => w.calls("step_move").then((c) => c.length),
+      (c) => c === 1,
+      "moved",
+    );
+
+    // Backspace removes it, with an undo toast.
+    await row.focus();
+    await w.page.keyboard.press("Backspace");
+    await text(w.toast.first(), "Step removed.");
+    await eventually(
+      () => w.calls("step_remove").then((c) => c.length),
+      (c) => c === 1,
+      "removed",
+    );
+    await w.close();
+  });
+
+  it("one step is created while the user is still typing", async () => {
+    const w = await details();
+    // The database write is slow: the answer is held while more keystrokes
+    // land on the add line.
+    await w.mock.hold("steps_add");
+    await w.page.getByRole("button", { name: "Add a step" }).click();
+    const input = w.page.getByRole("textbox", { name: "Add a step" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "add line focus",
+    );
+    await input.type("ab"); // two keystrokes, two input events
+    await eventually(
+      () => w.calls("steps_add").then((c) => c.length),
+      (c) => c === 1,
+      "exactly one creation in flight",
+    );
+
+    // The answer arrives; the text typed while waiting is not lost.
+    await w.mock.release("steps_add", [
+      { id: "s9", note_id: w.n.id, text: "a", done: false, rank: "V" },
+    ]);
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c === 1,
+      "the newer keystrokes are written once the row exists",
+    );
+    assert.equal((await w.calls("step_set_text"))[0].args.text, "ab");
+    await w.close();
+  });
+
+  it("keeps focus in the add line while typing character by character", async () => {
+    const w = await details();
+    await w.page.getByRole("button", { name: "Add a step" }).click();
+    const input = w.page.getByRole("textbox", { name: "Add a step" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "add line focus",
+    );
+    // Type the first character so steps_add creates the row and mounts StepRow,
+    // then type the rest (including spaces) without re-focusing the input.
+    await w.page.keyboard.type("b");
+    await eventually(
+      () => w.calls("steps_add").then((c) => c.length),
+      (c) => c === 1,
+      "row created on first character",
+    );
+    await w.page.keyboard.type("uy milk");
+    assert.equal(await input.inputValue(), "buy milk");
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c >= 1,
+      "subsequent characters saved to the same step",
+    );
+    assert.equal((await w.calls("step_set_text")).at(-1).args.text, "buy milk");
+    assert.equal((await w.calls("step_set_done")).length, 0);
+    await text(w.page.locator(".details__saved"), "Saved");
+    await w.page.keyboard.press("Escape");
+    await text(w.page.getByRole("checkbox", { name: "buy milk" }), "buy milk");
+    await w.close();
+  });
+
+  it("edits a step inline by clicking its text and deletes with the remove button or E key", async () => {
+    const w = await details({ steps: [step("first"), step("second")] });
+
+    // Clicking the step text opens the inline editor in place and focuses it.
+    await w.page.locator(".step__text", { hasText: "first" }).click();
+    const input = w.page.getByRole("textbox", { name: "Steps" });
+    await eventually(
+      () => input.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "inline step editor focused",
+    );
+    await w.page.keyboard.type(" updated");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.page.getByRole("checkbox", { name: "first updated" }).count(),
+      (c) => c === 1,
+      "edited step saved",
+    );
+
+    // Pressing E on a focused step row also opens and focuses the inline editor.
+    const second = w.page.getByRole("checkbox", { name: "second" });
+    await second.focus();
+    await w.page.keyboard.press("e");
+    await eventually(
+      () =>
+        w.page
+          .getByRole("textbox", { name: "Steps" })
+          .evaluate((el) => el === document.activeElement),
+      Boolean,
+      "E key focuses the inline step editor",
+    );
+    await w.page.keyboard.press("Escape");
+
+    // Clicking the Delete button on a step row removes it with an undo toast.
+    await w.page.getByRole("button", { name: "Delete step (Delete)" }).first().click();
+    await text(w.toast.first(), "Step removed.");
+    await eventually(
+      () => w.calls("step_remove").then((c) => c.length),
+      (c) => c === 1,
+      "removed by mouse button",
+    );
+    await w.close();
+  });
+
+  it("undo restores a removed step", async () => {
+    const w = await details({ steps: [step("only step")] });
+    const row = w.page.getByRole("checkbox", { name: "only step" });
+    await row.focus();
+    await w.page.keyboard.press("Delete");
+    await text(w.toast.first(), "Step removed.");
+    await eventually(
+      () => w.mock.store().then((store) => store.steps[w.n.id][0].deleted_at),
+      (v) => v != null,
+      "tombstoned",
+    );
+    await w.toast.first().getByRole("button", { name: "Undo" }).click();
+    await eventually(
+      () => w.mock.store().then((store) => store.steps[w.n.id][0].deleted_at),
+      (v) => v == null,
+      "restored",
+    );
+    assert.equal((await w.calls("step_restore")).length, 1);
+    await w.close();
+  });
+
+  it("escape saves and keeps text", async () => {
+    const w = await details({ steps: [step("typed")] });
+    const input = await editing(w, "typed");
+    await input.fill("typed more");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.calls("step_set_text").then((c) => c.length),
+      (c) => c === 1,
+      "saved before leaving",
+    );
+    await eventually(
+      () => w.page.getByRole("checkbox", { name: "typed more" }).count(),
+      (c) => c === 1,
+      "editor closed, text kept",
+    );
+    // Esc with no editor open closes the window, as today.
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.calls("details_dismiss").then((c) => c.length),
+      (c) => c === 1,
+      "window closes",
+    );
+    await w.close();
+  });
+
+  it("closing details flushes pending writes", async () => {
+    const w = await details({ steps: [step("half typed")] });
+    const input = await editing(w, "half typed");
+    await input.fill("half typed and more");
+    // Esc leaves the editor and saves; Esc again closes the window.
+    await w.page.keyboard.press("Escape");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.calls("details_dismiss").then((c) => c.length),
+      (c) => c === 1,
+      "hidden",
+    );
+    const all = (await w.calls()).map((c) => c.cmd);
+    assert.ok(all.indexOf("step_set_text") < all.indexOf("details_dismiss"), "saved before hiding");
+    await w.close();
+  });
+
+  it("failed step save keeps editor content", async () => {
+    const w = await details({ steps: [step("kept")] });
+    await w.mock.fail("step_set_text", "The disk is full.", "storage");
+    const input = await editing(w, "kept");
+    await input.fill("kept and edited");
+    await text(w.page.getByRole("alert"), "The disk is full.");
+    await eventually(
+      () => input.inputValue(),
+      (v) => v === "kept and edited",
+      "text stays",
+    );
+    await w.close();
+  });
+
+  it("a trashed note's steps are read-only", async () => {
+    const w = await details({ steps: [step("gone soon")] });
+    await w.mock.change(
+      "store.notes = []; store.trash = [{ note: arg, deleted_at: Date.now() }]",
+      w.n,
+    );
+    await w.mock.emit("notes-changed");
+    await eventually(
+      () => w.calls("details_dismiss").then((c) => c.length),
+      (c) => c === 1,
+      "the window leaves a trashed note",
+    );
+    await w.close();
+  });
+});
 
 describe("details window", () => {
   it("shows the note, when it was captured, and puts the caret in the description", async () => {
@@ -70,7 +364,7 @@ describe("details window", () => {
   it("stores the description shortly after typing stops", async () => {
     const w = await details();
     await w.field.fill("ask about the fee");
-    await text(w.page.getByRole("status"), "Saving…");
+    await text(w.page.locator(".details__saved"), "Saving…");
     await eventually(
       () => w.calls("note_details_set"),
       (c) => c.length === 1,
@@ -80,7 +374,7 @@ describe("details window", () => {
       id: w.n.id,
       details: "ask about the fee",
     });
-    await text(w.page.getByRole("status"), "Saved");
+    await text(w.page.locator(".details__saved"), "Saved");
     await w.close();
   });
 
@@ -101,6 +395,92 @@ describe("details window", () => {
     await w.field.focus();
     assert.equal(await w.title.inputValue(), "call the bank today");
     assert.equal((await w.calls("note_update")).length, 1);
+    await w.close();
+  });
+
+  it("sets a project from the picker by keyboard", async () => {
+    const w = await details({
+      projects: [
+        { name: "money", archived: false },
+        { name: "health", archived: false },
+        { name: "work", archived: false },
+      ],
+    });
+    await w.page.getByRole("button", { name: "Add project" }).focus();
+    await w.page.keyboard.press("Enter");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "money");
+    await w.page.keyboard.type("mo");
+    assert.equal(await picker.locator(".proj-picker__item").count(), 2);
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "saved",
+    );
+    assert.deepEqual((await w.calls("note_set_project"))[0].args, {
+      id: w.n.id,
+      project: "money",
+    });
+    await text(w.page.locator(".details__saved"), "Saved");
+    await text(w.page.locator(".details__category"), "money");
+    await w.close();
+  });
+
+  it("picking No project clears it", async () => {
+    const w = await details({ patch: { category: "money" } });
+    await text(w.page.locator(".details__category"), "money");
+    await w.page.getByRole("button", { name: "money" }).focus();
+    await w.page.keyboard.press("Enter");
+    await text(w.page.locator(".proj-picker"), "No project");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "cleared",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, null);
+    await eventually(
+      () => w.page.getByRole("button", { name: "Add project" }).count(),
+      (c) => c === 1,
+      "quiet control back",
+    );
+    await w.close();
+  });
+
+  it("escape cancels the project picker", async () => {
+    const w = await details({ patch: { category: "money" } });
+    await w.page.getByRole("button", { name: "money" }).focus();
+    await w.page.keyboard.press("Enter");
+    await text(w.page.locator(".proj-picker"), "No project");
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.page.locator(".proj-picker").count(),
+      (c) => c === 0,
+      "picker gone",
+    );
+    assert.equal(await w.calls("note_set_project").then((c) => c.length), 0);
+    await text(w.page.locator(".details__category"), "money");
+    // The window still closes with Esc afterwards.
+    await w.page.keyboard.press("Escape");
+    await eventually(
+      () => w.calls("details_dismiss"),
+      (c) => c.length === 1,
+      "dismiss",
+    );
+    await w.close();
+  });
+
+  it("a failed project save keeps the typed text", async () => {
+    const w = await details();
+    await w.mock.fail("note_set_project", "The disk is full.", "storage");
+    await w.page.getByRole("button", { name: "Add project" }).focus();
+    await w.page.keyboard.press("Enter");
+    const field = w.page.getByLabel("Filter or create project");
+    await field.fill("work");
+    await w.page.keyboard.press("Enter");
+    await text(w.page.getByRole("alert"), "The disk is full.");
+    assert.equal(await field.inputValue(), "work");
     await w.close();
   });
 
@@ -212,10 +592,10 @@ describe("details window", () => {
       "open",
     );
     await w.page.getByRole("button", { name: "Save a copy of receipt.pdf" }).click();
-    await text(w.page.getByRole("status"), "Saved a copy of receipt.pdf");
+    await text(w.page.locator(".details__saved"), "Saved a copy of receipt.pdf");
     await w.page.locator(".tile__main").focus();
     await w.page.keyboard.press("Delete");
-    await text(w.page.getByRole("status"), "Removed receipt.pdf");
+    await text(w.page.locator(".details__saved"), "Removed receipt.pdf");
     await eventually(
       () => w.page.locator(".tile").count(),
       (c) => c === 0,
@@ -237,7 +617,7 @@ describe("details window", () => {
     await w.mock.drag("over");
     await text(w.page.locator(".details__drop-hint"), "Drop to attach");
     await w.mock.drag("drop", ["/home/me/a.txt", "/home/me/b.txt"]);
-    await text(w.page.getByRole("status"), "Attached 2 files");
+    await text(w.page.locator(".details__saved"), "Attached 2 files");
     await text(w.page.locator(".details__drop-hint"), "Drop files here");
     assert.deepEqual((await w.calls("attachment_add_paths"))[0].args, {
       noteId: w.n.id,
@@ -255,7 +635,7 @@ describe("details window", () => {
       failed: [{ name: "huge.zip", code: "too_large", message: "This file is over 15 MB." }],
     });
     await w.page.keyboard.press("Control+o");
-    await text(w.page.getByRole("status"), "Attached ok.txt");
+    await text(w.page.locator(".details__saved"), "Attached ok.txt");
     await text(w.page.getByRole("alert"), "huge.zip: This file is over 15 MB.");
     await w.close();
   });
@@ -280,7 +660,7 @@ describe("details window", () => {
       data.items.add(new File([new Uint8Array([9, 8, 7])], "image.png", { type: "image/png" }));
       window.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, cancelable: true }));
     });
-    await text(w.page.getByRole("status"), "Attached the pasted image");
+    await text(w.page.locator(".details__saved"), "Attached the pasted image");
     const call = (await w.calls("attachment_add_bytes"))[0].args;
     assert.equal(call.size, 3);
     assert.equal(decodeURIComponent(call.headers["x-name"]), "Pasted image 2026-11-15 12.00.png");
@@ -293,6 +673,29 @@ describe("details window", () => {
     await text(w.page.locator(".details__meta"), "Tạo hôm nay");
     await text(w.page.locator(".details__status"), "Hộp thư");
     assert.equal(await w.page.getByRole("button", { name: "Thêm tệp" }).count(), 1);
+    await w.close();
+  });
+
+  it("details shows the project chip and changes it with the picker", async () => {
+    const w = await details({
+      patch: { category: "home" },
+      projects: [
+        { name: "home", archived: false },
+        { name: "work", archived: false },
+      ],
+    });
+    const chip = w.page.getByRole("button", { name: /home/ });
+    await chip.focus();
+    await w.page.keyboard.press("Enter");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.page.keyboard.press("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1 && c[0].args.project === "work",
+      "project changed via picker",
+    );
     await w.close();
   });
 });

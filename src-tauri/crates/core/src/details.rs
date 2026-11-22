@@ -13,8 +13,8 @@ const MAX_NAME_CHARS: usize = 120;
 const ATTACHMENT_COLUMNS: &str = "a.id, a.note_id, a.name, a.mime, a.size, a.created_at";
 
 impl Db {
-    /// The note with its description and the list of its attachments (not
-    /// their bytes).
+    /// The note with its description, its steps and the list of its
+    /// attachments (not their bytes).
     pub fn note_detail(&self, id: &str) -> Result<NoteDetail> {
         let note = self.get_note(id)?;
         let details: String =
@@ -29,10 +29,12 @@ impl Db {
         let attachments = stmt
             .query_map([id], attachment_from_row)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        let steps = self.list_steps(id)?;
         Ok(NoteDetail {
             note,
             details,
             attachments,
+            steps,
         })
     }
 

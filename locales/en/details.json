@@ -25,6 +25,11 @@
     "edited_yesterday": "edited yesterday, {time}",
     "edited_on": "edited {date}, {time}"
   },
+  "category": {
+    "label": "Project",
+    "add": "Add project",
+    "edit": "Edit project"
+  },
   "files": {
     "title": "Attachments",
     "add": "Add files",
@@ -62,5 +67,12 @@
     "close": "close",
     "done": "done",
     "add_file": "add file"
+  },
+  "steps": {
+    "title": "Steps",
+    "add": "Add a step",
+    "remove": "Delete step (Delete)",
+    "removed": "Step removed.",
+    "limit": "This note has more than 100 steps. Remove some to add more."
   }
 }

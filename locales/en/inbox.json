@@ -10,7 +10,37 @@
     "later": "Later",
     "archive": "Archive",
     "trash": "Trash",
-    "settings": "Settings"
+    "settings": "Settings",
+    "projects": "Projects",
+    "manage_projects": "Manage projects"
+  },
+  "project_page": {
+    "menu": "Project actions (M)",
+    "rename": "Rename",
+    "archive": "Archive project",
+    "rename_label": "New project name",
+    "merge_confirm": "Move {count} notes into {name}?",
+    "merge_action": "Move",
+    "add_placeholder": "Add a note to {name}",
+    "empty_title": "No notes in this project yet.",
+    "archived_toast": "Project archived"
+  },
+  "manage_projects": {
+    "empty": "No projects yet.",
+    "new_label": "New project",
+    "new_placeholder": "New project name",
+    "add": "Add",
+    "color_pick": "Pick color",
+    "archived_group": "Archived ({count})",
+    "rename": "Rename (R)",
+    "archive": "Archive (A)",
+    "unarchive": "Unarchive (U)",
+    "remove": "Remove (Delete)",
+    "remove_title": "Remove project from {count} notes?",
+    "remove_empty_title": "Remove project?",
+    "remove_text": "The notes stay in your inbox, without a project.",
+    "remove_action": "Remove",
+    "merge_text": "Both projects will become one."
   },
   "new_note": "New note",
   "search": {
@@ -36,6 +66,18 @@
     "count_more": {
       "one": "{count}+ note",
       "other": "{count}+ notes"
+    },
+    "category_line": "Category: {name}",
+    "category_clear": "Clear the category filter"
+  },
+  "cat_picker": {
+    "title": "Pick a category",
+    "placeholder": "Filter categories",
+    "none": "No categories match.",
+    "empty_hint": "Add one with # when you capture a note.",
+    "notes": {
+      "one": "{count} note",
+      "other": "{count} notes"
     }
   },
   "banner": {
@@ -51,6 +93,8 @@
     "search_text": "Nothing contains “{text}”. Search looks through every note, including the archive.",
     "search_text_filtered": "Nothing contains “{text}” with these filters. Search looks through every note, including the archive.",
     "search_date": "Nothing was captured on that date.",
+    "category_title": "No notes in this category here.",
+    "category_text": "The category is a label; these notes may be in another section.",
     "today_title": "Nothing captured today",
     "today_text": "Notes you capture today show up here.",
     "later_title": "Nothing parked",
@@ -67,6 +111,7 @@
     "show_more": "Show more",
     "show_less": "Show less",
     "from": "from {source}",
+    "category_tip": "Filter by {name}",
     "later": "Later",
     "archived": "Archived",
     "completed": "Completed",
@@ -81,8 +126,8 @@
   },
   "edit": {
     "label": "Edit note",
-    "category_label": "Category (optional)",
-    "category_placeholder": "Category",
+    "category_label": "Project (optional)",
+    "category_placeholder": "Project",
     "hint": "Enter saves, Shift+Enter adds a line"
   },
   "toast": {
@@ -108,6 +153,8 @@
     "copy": "Copy",
     "delete": "Delete",
     "search": "Search",
+    "project": "Set project",
+    "category": "Jump to project",
     "sections": "Inbox, Today, Later, Archive, Trash",
     "trash_restore": "Restore (in Trash)",
     "trash_delete": "Delete forever (in Trash)",

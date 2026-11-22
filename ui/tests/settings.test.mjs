@@ -75,7 +75,7 @@ describe("settings", () => {
     await picker.selectOption("vi");
     await text(w.page.locator(".content__title"), "Cài đặt");
     await text(w.page.locator("#s-general"), "Chung");
-    await text(w.page.locator(".nav"), "Hộp thư");
+    await text(w.page.locator(".nav").first(), "Hộp thư");
     assert.equal((await w.saved()).language, "vi");
     await w.page.getByLabel("Ngôn ngữ").selectOption("en");
     await text(w.page.locator(".content__title"), "Settings");

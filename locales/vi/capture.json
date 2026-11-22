@@ -1,10 +1,10 @@
 {
-  "title": "Ghi nhanh",
+  "title": "Posthaste",
   "from_source": "từ {app}",
   "note_label": "Ghi chú",
   "placeholder": "Bạn đang nghĩ gì?",
-  "category_label": "Phân loại (không bắt buộc)",
-  "category_placeholder": "# phân loại",
+  "category_label": "Dự án (không bắt buộc)",
+  "category_placeholder": "# dự án",
   "polish_label": "Trau chuốt ghi chú bằng AI",
   "discard": "Bỏ",
   "status": {

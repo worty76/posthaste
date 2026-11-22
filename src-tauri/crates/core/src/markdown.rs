@@ -12,10 +12,13 @@ use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, UtcOffset};
 
 use crate::error::{CoreError, Result};
-use crate::transfer::{ExportNote, EXPORT_VERSION};
+use crate::transfer::{ExportNote, ExportStep, EXPORT_VERSION};
 
 const FILE_MARKER: &str = "<!-- posthaste-export version ";
 const NOTE_MARKER: &str = "<!-- posthaste ";
+const STEPS_OPEN: &str = "<!-- posthaste:steps -->";
+const STEPS_CLOSE: &str = "<!-- /posthaste:steps -->";
+const STEP_MARKER: &str = "<!-- posthaste:step ";
 const INDENT: &str = "  ";
 
 /// What the hidden comment carries: everything but the text, which is
@@ -142,6 +145,8 @@ fn write_note(out: &mut String, n: &ExportNote, section: Section, shown: &dyn Fn
         .replace("--", "-\\u002d");
     out.push_str(&format!("{INDENT}{NOTE_MARKER}{json} -->\n"));
 
+    write_steps(out, n);
+
     let mut about = Vec::new();
     if let Some(c) = &n.category {
         about.push(format!("`{c}`"));
@@ -181,6 +186,29 @@ fn write_note(out: &mut String, n: &ExportNote, section: Section, shown: &dyn Fn
             push_indented(out, line);
         }
     }
+}
+
+/// The note's live steps, in an explicit block so nothing outside it is
+/// ever read as steps. Tombstoned steps are not written; the JSON export
+/// keeps them.
+fn write_steps(out: &mut String, n: &ExportNote) {
+    let live: Vec<&ExportStep> = n.steps.iter().filter(|s| !s.deleted).collect();
+    if live.is_empty() {
+        return;
+    }
+    out.push_str(&format!("{INDENT}{STEPS_OPEN}\n"));
+    for step in live {
+        let box_ = if step.done { "[x]" } else { "[ ]" };
+        // "--" would end the comment early; "-" is the same character in JSON.
+        let json = serde_json::json!({ "id": step.id, "rank": step.rank })
+            .to_string()
+            .replace("--", "-\\u002d");
+        out.push_str(&format!(
+            "{INDENT}- {box_} {} {STEP_MARKER}{json} -->\n",
+            step.text
+        ));
+    }
+    out.push_str(&format!("{INDENT}{STEPS_CLOSE}\n"));
 }
 
 fn push_indented(out: &mut String, line: &str) {
@@ -273,6 +301,9 @@ fn task_item(line: &str) -> Option<(bool, &str)> {
 }
 
 fn note_from(checked: bool, first: &str, body: &[&str], heading: &str) -> ExportNote {
+    // The steps block is taken out first, wherever the note carries it, so
+    // its lines are never read as content or description.
+    let (steps, body) = take_steps(body);
     let marker = body
         .iter()
         .position(|l| l.starts_with(NOTE_MARKER) && parse_meta(l).is_some());
@@ -334,7 +365,73 @@ fn note_from(checked: bool, first: &str, body: &[&str], heading: &str) -> Export
             .later_at
             .filter(|_| status == "inbox" && marked_status != Some("completed")),
         details,
+        steps,
     }
+}
+
+/// Lifts the steps block out of a note's body, wherever it sits. Lines
+/// outside the two markers are never read as steps.
+fn take_steps<'a>(body: &[&'a str]) -> (Vec<ExportStep>, Vec<&'a str>) {
+    let Some(open) = body.iter().position(|l| l.trim() == STEPS_OPEN) else {
+        return (Vec::new(), body.to_vec());
+    };
+    let close = body[open..]
+        .iter()
+        .position(|l| l.trim() == STEPS_CLOSE)
+        .map(|at| open + at);
+    let Some(close) = close else {
+        // An unterminated block is description text, not steps.
+        return (Vec::new(), body.to_vec());
+    };
+    let mut steps: Vec<ExportStep> = Vec::new();
+    for line in &body[open + 1..close] {
+        steps.push(step_from(line, steps.last()));
+    }
+    let mut kept = body[..open].to_vec();
+    kept.extend_from_slice(&body[close + 1..]);
+    (steps, kept)
+}
+
+/// One line of a steps block: `- [ ] text <!-- posthaste:step {...} -->`.
+/// A line without the step comment becomes a step too — the id is made on
+/// import and the rank lands after the step before it.
+fn step_from(line: &str, previous: Option<&ExportStep>) -> ExportStep {
+    let (checked, rest) = task_item(line).unwrap_or((false, line));
+    let (text, meta) = match rest.find(STEP_MARKER) {
+        Some(at) => {
+            let json = rest[at..]
+                .strip_prefix(STEP_MARKER)
+                .and_then(|j| j.trim_end().strip_suffix("-->"));
+            let meta: StepMeta = json
+                .and_then(|j| serde_json::from_str(j.trim()).ok())
+                .unwrap_or_default();
+            (&rest[..at], meta)
+        }
+        None => (rest, StepMeta::default()),
+    };
+    let rank = meta
+        .rank
+        .unwrap_or_else(|| rank_after(previous.map(|p| p.rank.as_str())));
+    ExportStep {
+        id: meta.id.unwrap_or_default(),
+        text: text.trim().to_string(),
+        done: checked,
+        rank,
+        deleted: false,
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct StepMeta {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rank: Option<String>,
+}
+
+/// A rank that sorts after `before`, so a hand-written line lands in order.
+fn rank_after(before: Option<&str>) -> String {
+    crate::steps::rank::rank_between(before, None)
 }
 
 fn parse_meta(line: &str) -> Option<Meta> {

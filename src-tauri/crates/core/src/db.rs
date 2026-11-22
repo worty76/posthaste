@@ -16,11 +16,16 @@ pub(crate) const SETTINGS_KEY: &str = "settings";
 const DEFAULT_LIMIT: u32 = 200;
 const MAX_LIMIT: u32 = 1000;
 const MAX_CATEGORY_CHARS: usize = 40;
-/// Every query that reads notes selects these, from `notes`. The last two are
-/// computed so lists say whether a note has more inside without loading it.
+/// Every query that reads notes selects these, from `notes`. The last four are
+/// computed so lists say whether a note has more inside without loading it,
+/// and how much of it is ticked. The step counts are correlated subqueries
+/// over the `(note_id, rank, id)` index, over live steps only.
 pub(crate) const NOTE_COLUMNS: &str =
     "id, content, status, category, source, created_at, updated_at, completed_at, archived_at, \
-     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id), later_at";
+     details != '', (SELECT COUNT(*) FROM attachments a WHERE a.note_id = notes.id), later_at, \
+     (SELECT COUNT(*) FROM note_steps s WHERE s.note_id = notes.id AND s.deleted_at IS NULL), \
+     (SELECT COUNT(*) FROM note_steps s WHERE s.note_id = notes.id AND s.deleted_at IS NULL \
+        AND s.done = 1)";
 
 pub fn now_ms() -> i64 {
     SystemTime::now()
@@ -265,7 +270,7 @@ impl Db {
         let rows = stmt.query_map([now - TRASH_RETENTION_MS], |r| {
             Ok(TrashedNote {
                 note: note_from_row(r)?,
-                deleted_at: r.get(12)?,
+                deleted_at: r.get(14)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -346,13 +351,24 @@ impl Db {
         let mut sql = format!("SELECT {NOTE_COLUMNS} FROM notes WHERE deleted_at IS NULL");
         let mut args: Vec<Value> = Vec::new();
 
+        // Cleaned like a saved category, so "  #Work " matches what capture stored.
+        if let Some(category) = clean_category(q.category.as_deref()) {
+            sql.push_str(" AND category = ?");
+            args.push(Value::Text(category));
+        }
         let text = q.text.trim();
         if !text.is_empty() {
             match fts_query(text) {
                 Some(m) => {
-                    sql.push_str(
-                        " AND seq IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)",
-                    );
+                    // One MATCH covers the note's own text and its steps':
+                    // the placeholder index is shared by both subqueries.
+                    let at = args.len() + 1;
+                    sql.push_str(&format!(
+                        " AND (seq IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?{at}) \
+                         OR id IN (SELECT note_id FROM note_steps \
+                             WHERE deleted_at IS NULL \
+                               AND seq IN (SELECT rowid FROM steps_fts WHERE steps_fts MATCH ?{at})))"
+                    ));
                     args.push(Value::Text(m));
                 }
                 // Nothing indexable (only punctuation): fall back to a
@@ -428,6 +444,23 @@ impl Db {
              GROUP BY category ORDER BY COUNT(*) DESC, category LIMIT 50",
         )?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// How many live notes use each category, most used first, then name.
+    /// The same rules as [`Db::categories`].
+    pub fn category_counts(&self) -> Result<Vec<CategoryCount>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT category, COUNT(*) FROM notes
+             WHERE deleted_at IS NULL AND category IS NOT NULL
+             GROUP BY category ORDER BY COUNT(*) DESC, category LIMIT 50",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(CategoryCount {
+                name: r.get(0)?,
+                count: r.get::<_, i64>(1)? as u32,
+            })
+        })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
@@ -730,7 +763,8 @@ impl Db {
         let tx = self.conn.transaction()?;
         tx.execute_batch(
             "DELETE FROM notes; DELETE FROM drafts; DELETE FROM settings; DELETE FROM looks;
-             DELETE FROM look_assets; DELETE FROM sync_fields; DELETE FROM sync_peers;",
+             DELETE FROM look_assets; DELETE FROM sync_fields; DELETE FROM sync_peers;
+             DELETE FROM projects;",
         )?;
         tx.commit()?;
         self.conn.execute_batch("VACUUM;")?;
@@ -762,6 +796,8 @@ fn insert_note(conn: &Connection, new: NewNote, now: i64) -> Result<Note> {
         archived_at: None,
         has_details: false,
         attachment_count: 0,
+        step_total: 0,
+        step_done: 0,
         later_at: None,
     };
     conn.execute(
@@ -787,6 +823,8 @@ pub(crate) fn note_from_row(r: &Row<'_>) -> rusqlite::Result<Note> {
         has_details: r.get(9)?,
         attachment_count: r.get(10)?,
         later_at: r.get(11)?,
+        step_total: r.get::<_, i64>(12)?.max(0) as u32,
+        step_done: r.get::<_, i64>(13)?.max(0) as u32,
     })
 }
 

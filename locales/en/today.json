@@ -26,6 +26,7 @@
     "day": "day",
     "done": "done",
     "later": "later",
+    "project": "project",
     "today": "today",
     "details": "details",
     "close": "close"

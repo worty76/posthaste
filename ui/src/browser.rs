@@ -78,6 +78,13 @@ pub fn focus_end(field: &web_sys::HtmlTextAreaElement) {
     let _ = field.set_selection_range(end, end);
 }
 
+/// Puts the caret at the end of a single-line input field.
+pub fn focus_input_end(field: &web_sys::HtmlInputElement) {
+    let _ = field.focus();
+    let end = field.value().encode_utf16().count() as u32;
+    let _ = field.set_selection_range(end, end);
+}
+
 fn target_element(event: &web_sys::Event) -> Option<web_sys::Element> {
     event.target()?.dyn_into().ok()
 }

@@ -1,6 +1,7 @@
 mod merge;
 mod record;
 mod session;
+mod steps;
 
 use rusqlite::Connection;
 
@@ -83,7 +84,11 @@ fn migration_7_creates_the_sync_tables_and_keeps_notes() {
     }
 
     let db = Db::open(&path).unwrap();
-    assert_eq!(db.info().unwrap().schema_version, 7);
+    // The upgrade always runs to the newest schema, whatever it is now.
+    assert_eq!(
+        db.info().unwrap().schema_version,
+        MIGRATIONS.last().unwrap().version
+    );
     assert_eq!(
         db.get_note("legacy-6").unwrap().content,
         "written before sync existed"

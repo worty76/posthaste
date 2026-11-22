@@ -11,8 +11,9 @@ export function DemoVideo() {
         See a day with it in {DEMO_VIDEO.seconds} seconds.
       </h2>
       <p className="watch__lede">
-        One note from a code editor, three from a call, a polish on the last one, then Today with a
-        note's details, the inbox, search and the six looks. It has sound.
+        A note caught from a code editor, Today, a note's details with attachments, why your notes
+        never leave your computer, the looks, and a first glimpse of the phone app, which is still
+        in development. It has sound.
       </p>
       <div className="watch__frame">
         <video

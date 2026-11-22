@@ -48,12 +48,12 @@ async function main({ store = {}, ...options } = {}) {
 }
 
 describe("inbox", () => {
-  it("lists open notes by day, newest first, with counts in the sidebar", async () => {
+  it("lists open notes by project section, newest first, with counts in the sidebar", async () => {
     const w = await main();
     await eventually(w.contents, (c) => c.length === 3, "three notes");
     assert.deepEqual(await w.contents(), ["book dentist", "call mum", "pay rent"]);
-    await text(w.page.getByRole("region", { name: "Today" }), "2");
-    await text(w.page.getByRole("region", { name: "Thursday 12 November" }), "pay rent");
+    await text(w.page.locator(".proj-section__header").first(), "health");
+    await text(w.page.locator(".proj-section__header").first(), "1");
     await text(w.page.locator(".nav__item").nth(0), "3");
     await text(w.page.locator(".nav__item").nth(2), "1");
     await text(w.rows.first(), "health");
@@ -116,7 +116,7 @@ describe("inbox", () => {
     await w.key("e");
     const field = w.page.getByLabel("Edit note");
     await field.fill("book dentist for Monday");
-    await w.page.getByLabel("Category (optional)").fill("teeth");
+    await w.page.getByLabel("Project (optional)").fill("teeth");
     await w.key("Enter");
     await eventually(w.contents, (c) => c[0] === "book dentist for Monday", "edit stored");
     assert.deepEqual((await w.calls("note_update"))[0].args.category, "teeth");
@@ -316,11 +316,537 @@ describe("inbox", () => {
     await mac.close();
   });
 
+  it("a note with steps shows done of total", async () => {
+    const w = await main({
+      store: {
+        notes: notes().concat([
+          note("with steps", {
+            created_at: at("2026-11-15T10:00:00"),
+            step_total: 5,
+            step_done: 2,
+          }),
+        ]),
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    const row = w.page.locator(".note", { hasText: "with steps" });
+    await text(row, "2/5");
+    const badge = row.locator(".badges");
+    await eventually(
+      () => badge.getAttribute("aria-label"),
+      (v) => v === "2 of 5 steps done",
+      "accessible label",
+    );
+    await w.close();
+  });
+
+  it("the inbox shows project sections with counts", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("fix sink", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+          note("call mum", { created_at: at("2026-11-15T11:00:00") }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    // Sections ordered by newest note; no-project group last.
+    assert.deepEqual(await w.contents(), ["buy milk", "fix sink", "draft spec", "call mum"]);
+    const headers = w.page.locator(".proj-section__header");
+    assert.equal(await headers.count(), 2);
+    await text(headers.nth(0), "home");
+    await text(headers.nth(0), "2");
+    await text(headers.nth(1), "work");
+    await text(headers.nth(1), "1");
+    await w.close();
+  });
+
+  it("a header collapses and expands by keyboard", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    const header = w.page.locator(".proj-section__header").first();
+    assert.equal(await header.getAttribute("aria-expanded"), "true");
+    await header.focus();
+    await w.key("ArrowLeft");
+    assert.equal(await header.getAttribute("aria-expanded"), "false");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "collapsed");
+    await w.key("ArrowRight");
+    assert.equal(await header.getAttribute("aria-expanded"), "true");
+    await eventually(w.contents, (c) => c.length === 2, "expanded");
+    await w.key("Enter");
+    assert.equal(await header.getAttribute("aria-expanded"), "false");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "toggled with enter");
+    await w.close();
+  });
+
+  it("arrow keys skip a collapsed section", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("alpha one", { created_at: at("2026-11-15T10:00:00"), category: "alpha" }),
+          note("beta one", { created_at: at("2026-11-15T09:00:00"), category: "beta" }),
+          note("beta two", { created_at: at("2026-11-15T08:30:00"), category: "beta" }),
+          note("gamma one", { created_at: at("2026-11-15T08:00:00"), category: "gamma" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 4, "four notes");
+    // Select beta one, then collapse beta: selection moves to gamma one.
+    await w.key("ArrowDown");
+    await w.key("ArrowDown");
+    await text(w.selected, "beta one");
+    await w.page.locator(".proj-section__header").nth(1).click();
+    await eventually(w.contents, (c) => c.join() === "alpha one,gamma one", "beta collapsed");
+    await text(w.selected, "gamma one");
+    // Moving up skips collapsed beta and lands on alpha one.
+    await w.key("ArrowUp");
+    await text(w.selected, "alpha one");
+    // Moving down skips collapsed beta and lands on gamma one.
+    await w.key("ArrowDown");
+    await text(w.selected, "gamma one");
+    await w.close();
+  });
+
+  it("search results are not sectioned", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy apples", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("buy paper", { created_at: at("2026-11-15T09:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 2,
+      "sectioned in inbox",
+    );
+    await w.search();
+    await w.page.keyboard.type("buy");
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 0,
+      "no section headers in search",
+    );
+    await eventually(w.contents, (c) => c.length === 2, "both search hits shown");
+    await w.close();
+  });
+
+  it("notes without a project have no header", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("plain one", { created_at: at("2026-11-15T10:00:00") }),
+          note("plain two", { created_at: at("2026-11-15T09:00:00") }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    assert.equal(await w.page.locator(".proj-section__header").count(), 0);
+    await w.close();
+  });
+
+  it("P sets the selected note's project", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+          note("call mum", { created_at: at("2026-11-15T08:00:00") }),
+        ],
+        projects: [{ name: "health", archived: false }],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 2, "two notes");
+    // Select "call mum" (second row).
+    await w.key("ArrowDown");
+    await w.key("ArrowDown");
+    await text(w.selected, "call mum");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "health");
+    await w.key("ArrowDown");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "note_set_project called",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, "health");
+    await text(w.page.locator(".proj-section__header").first(), "2");
+    await w.close();
+  });
+
+  it("P can create a project from the picker", async () => {
+    const w = await main({
+      store: {
+        notes: [note("file return", { created_at: at("2026-11-15T09:00:00") })],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await w.page.keyboard.type("taxes");
+    await text(picker, "Create “taxes”");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "created and set",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, "taxes");
+    await text(w.page.locator(".proj-section__header").first(), "taxes");
+    await w.close();
+  });
+
+  it("P with No project clears it", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "No project");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (c) => c.length === 1,
+      "cleared",
+    );
+    assert.equal((await w.calls("note_set_project"))[0].args.project, null);
+    await eventually(
+      () => w.page.locator(".proj-section__header").count(),
+      (n) => n === 0,
+      "header gone",
+    );
+    await w.close();
+  });
+
+  it("escape leaves the project unchanged", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("book dentist", { created_at: at("2026-11-15T09:00:00"), category: "health" }),
+        ],
+      },
+    });
+    await eventually(w.contents, (c) => c.length === 1, "one note");
+    await w.key("ArrowDown");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "No project");
+    await w.key("Escape");
+    await eventually(
+      () => picker.count(),
+      (n) => n === 0,
+      "picker closed",
+    );
+    assert.equal((await w.calls("note_set_project")).length, 0);
+    await w.close();
+  });
+
+  it("the sidebar lists active projects with counts", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("fix sink", {
+            created_at: at("2026-11-14T09:00:00"),
+            category: "home",
+            status: "completed",
+          }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+          note("old tax", { created_at: at("2026-11-10T09:00:00"), category: "taxes" }),
+        ],
+        projects: [{ name: "taxes", archived: true }],
+      },
+    });
+    const list = w.page.locator(".sidebar__projects");
+    await text(list, "home");
+    await text(list, "2");
+    await text(list, "work");
+    await text(list, "1");
+    assert.equal(await list.getByRole("button", { name: /taxes/ }).count(), 0);
+    assert.equal(
+      await w.page
+        .locator(".sidebar__group-header")
+        .getByRole("button", { name: "Manage projects" })
+        .count(),
+      1,
+    );
+    await w.close();
+  });
+
+  it("enter on a sidebar project opens its page grouped by day", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("open today", { created_at: at("2026-11-15T08:00:00"), category: "home" }),
+          note("done today", {
+            created_at: at("2026-11-15T10:00:00"),
+            category: "home",
+            status: "completed",
+          }),
+          note("earlier note", { created_at: at("2026-11-13T09:00:00"), category: "home" }),
+          note("other project", { created_at: at("2026-11-15T11:00:00"), category: "work" }),
+        ],
+      },
+    });
+    const btn = w.page.locator(".sidebar__projects").getByRole("button", { name: /home/ });
+    await btn.focus();
+    await w.key("Enter");
+    await text(w.page.locator(".content__title"), "home");
+    await eventually(
+      w.contents,
+      (c) => c.join() === "open today,done today,earlier note",
+      "open before done within today, then earlier day",
+    );
+    await text(w.page.locator(".day__label").first(), "Today");
+    await w.close();
+  });
+
+  it("the add line creates a note in that project", async () => {
+    const w = await main({
+      store: {
+        notes: [note("existing", { created_at: at("2026-11-15T09:00:00"), category: "home" })],
+      },
+    });
+    await w.page.locator(".sidebar__projects").getByRole("button", { name: /home/ }).click();
+    await text(w.page.locator(".content__title"), "home");
+    const add = w.page.getByLabel("Add a note to home");
+    await add.fill("buy paint");
+    await add.press("Enter");
+    await eventually(
+      () => w.calls("capture_save"),
+      (c) => c.length === 1,
+      "capture_save called",
+    );
+    assert.equal((await w.calls("capture_save"))[0].args.category, "home");
+    assert.equal((await w.calls("capture_save"))[0].args.content, "buy paint");
+    await eventually(w.contents, (c) => c.includes("buy paint"), "new note appears");
+    await w.close();
+  });
+
+  it("an empty project says so", async () => {
+    const w = await main({
+      store: {
+        notes: [],
+        projects: [{ name: "emptyproj", archived: false }],
+      },
+    });
+    await w.page
+      .locator(".sidebar__projects")
+      .getByRole("button", { name: /emptyproj/ })
+      .click();
+    await text(w.page.locator(".content__title"), "emptyproj");
+    assert.equal(
+      await w.page
+        .locator(".content__header")
+        .getByRole("button", { name: "Project actions (M)" })
+        .count(),
+      1,
+    );
+    await text(w.page.locator(".empty"), "No notes in this project yet.");
+    await w.close();
+  });
+
+  it("hash jumps to a project's page", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.key("#");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.key("Enter");
+    await text(w.page.locator(".content__title"), "work");
+    await eventually(w.contents, (c) => c.join() === "draft spec", "project page opened");
+    await w.close();
+  });
+
+  it("manage projects renames, archives and unarchives by keyboard", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("buy milk", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("draft spec", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await text(w.page.locator(".content__title"), "Manage projects");
+    const rows = w.page.locator(".manage-projects__row");
+    await eventually(
+      () => rows.count(),
+      (n) => n === 2,
+      "two active projects",
+    );
+    // Select first ("home"), press R, rename to "house".
+    await w.key("ArrowDown");
+    await w.key("r");
+    const input = w.page.getByLabel("New project name");
+    await input.fill("house");
+    await input.press("Enter");
+    await eventually(
+      () => w.calls("project_rename"),
+      (c) => c.length === 1,
+      "renamed",
+    );
+    assert.deepEqual((await w.calls("project_rename"))[0].args, {
+      from: "home",
+      to: "house",
+      merge: false,
+    });
+    await text(w.page.locator(".manage-projects"), "house");
+    // Archive "house" with A.
+    await w.key("a");
+    await eventually(
+      () => w.calls("project_set_archived"),
+      (c) => c.length === 1 && c[0].args.archived === true,
+      "archived",
+    );
+    // Expand Archived group and unarchive with U.
+    await w.page.getByRole("button", { name: /Archived/ }).click();
+    const archRow = w.page.locator(".manage-projects__archived .manage-projects__row").first();
+    await archRow.click();
+    await w.key("u");
+    await eventually(
+      () => w.calls("project_set_archived"),
+      (c) => c.length === 2 && c[1].args.archived === false,
+      "unarchived",
+    );
+    await w.close();
+  });
+
+  it("renaming onto an existing project asks and then merges", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("n1", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("n2", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+          note("n3", { created_at: at("2026-11-15T08:00:00"), category: "work" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await w.key("ArrowDown");
+    await w.key("r");
+    const input = w.page.getByLabel("New project name");
+    await input.fill("work");
+    await input.press("Enter");
+    const dialog = w.page.getByRole("dialog");
+    await text(dialog, "Move 2 notes into work?");
+    assert.equal((await w.calls("project_rename")).length, 0);
+    await dialog.getByRole("button", { name: "Move" }).click();
+    await eventually(
+      () => w.calls("project_rename"),
+      (c) => c.length === 1 && c[0].args.merge === true,
+      "merged",
+    );
+    await w.close();
+  });
+
+  it("removing a project clears it from its notes", async () => {
+    const w = await main({
+      store: {
+        notes: [
+          note("n1", { created_at: at("2026-11-15T10:00:00"), category: "home" }),
+          note("n2", { created_at: at("2026-11-15T09:00:00"), category: "home" }),
+        ],
+      },
+    });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    await w.key("ArrowDown");
+    await w.key("Delete");
+    const dialog = w.page.getByRole("dialog");
+    await text(dialog, "Remove project from 2 notes?");
+    assert.equal((await w.calls("project_clear")).length, 0);
+    await dialog.getByRole("button", { name: "Remove" }).click();
+    await eventually(
+      () => w.calls("project_clear"),
+      (c) => c.length === 1 && c[0].args.name === "home",
+      "cleared",
+    );
+    await w.close();
+  });
+
+  it("an archived project is gone from the sidebar but its notes still show in today", async () => {
+    const w = await main({
+      store: {
+        notes: [note("tax form", { created_at: at("2026-11-15T09:00:00"), category: "taxes" })],
+        projects: [{ name: "taxes", archived: true }],
+      },
+    });
+    assert.equal(
+      await w.page.locator(".sidebar__projects").getByRole("button", { name: /taxes/ }).count(),
+      0,
+    );
+    await w.key("2");
+    await eventually(w.contents, (c) => c.join() === "tax form", "still shown in Today view");
+    await text(w.page.locator(".proj-section__header").first(), "taxes");
+    await w.close();
+  });
+
+  it("manage projects creates a project and sets its color", async () => {
+    const w = await main({ store: { notes: [] } });
+    await w.page.getByRole("button", { name: "Manage projects" }).click();
+    const input = w.page.getByLabel("New project");
+    await input.fill("fitness");
+    await w.page.locator(".manage-projects__new").getByLabel("Pick color").fill("#3b82f6");
+    await input.press("Enter");
+    await eventually(
+      () => w.calls("project_create"),
+      (c) => c.length === 1 && c[0].args.name === "fitness",
+      "created",
+    );
+    await eventually(
+      () => w.calls("project_set_color"),
+      (c) => c.length === 1 && c[0].args.name === "fitness" && c[0].args.color === "#3b82f6",
+      "color set on create",
+    );
+    await text(w.page.locator(".sidebar__projects"), "fitness");
+    assert.equal(
+      await w.page.locator('.sidebar__projects .proj-dot[data-color="#3b82f6"]').count(),
+      1,
+    );
+    // Change color on the row to #e11d48.
+    await w.page.locator(".manage-projects__row").first().getByLabel("Pick color").fill("#e11d48");
+    await eventually(
+      () => w.calls("project_set_color"),
+      (c) => c.length === 2 && c[1].args.color === "#e11d48",
+      "color updated",
+    );
+    assert.equal(
+      await w.page.locator('.sidebar__projects .proj-dot[data-color="#e11d48"]').count(),
+      1,
+    );
+    await w.close();
+  });
+
   it("is written in Vietnamese when that is the language", async () => {
     const w = await main({ settings: { language: "vi" }, locale: "vi-VN" });
     await text(w.page.locator(".content__title"), "Hộp thư");
-    await text(w.page.locator(".nav"), "Thùng rác");
-    await text(w.page.locator(".day__label").first(), "Hôm nay");
+    await text(w.page.locator(".nav").first(), "Hôm nay");
+    await text(w.page.locator(".nav").first(), "Thùng rác");
     await w.close();
   });
 

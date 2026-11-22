@@ -3,26 +3,40 @@ use posthaste_i18n::key;
 use posthaste_model::Note;
 
 use crate::components::{Icon, IconName};
+use crate::logic::steps::badge_text;
 use crate::state::I18n;
 
-/// Small marks for a note that has more inside: a description, files.
+/// Small marks for a note that has more inside: a description, files, steps.
 /// Renders nothing for a note with neither.
 #[component]
 pub fn NoteBadges(note: Note, i18n: I18n) -> impl IntoView {
     let has_details = note.has_details;
     let files = note.attachment_count;
-    (has_details || files > 0).then(|| {
+    let steps = badge_text(note.step_done, note.step_total);
+    let has_steps = steps.is_some();
+    (has_details || files > 0 || has_steps).then(|| {
         let label = move || {
             let t = i18n.translator();
             let details = has_details.then(|| t.text(key::COMMON_BADGES_HAS_DETAILS).to_owned());
             let files =
                 (files > 0).then(|| t.plural(key::COMMON_BADGES_FILES, u64::from(files), &[]));
+            let steps = has_steps.then(|| {
+                t.format(
+                    key::COMMON_BADGES_STEPS,
+                    &[
+                        ("done", &note.step_done.to_string()),
+                        ("total", &note.step_total.to_string()),
+                    ],
+                )
+            });
             details
                 .into_iter()
                 .chain(files)
+                .chain(steps)
                 .collect::<Vec<_>>()
                 .join(", ")
         };
+        let text = steps.clone();
         view! {
             <span class="badges" aria-label=label title=label>
                 {has_details.then(|| view! { <Icon name=IconName::Lines size=12 /> })}
@@ -31,6 +45,10 @@ pub fn NoteBadges(note: Note, i18n: I18n) -> impl IntoView {
                         <Icon name=IconName::Paperclip size=12 />
                         {files}
                     </span>
+                })}
+                {(has_steps).then(|| {
+                    let text = text.clone().unwrap_or_default();
+                    view! { <span class="badges__steps">{text}</span> }
                 })}
             </span>
         }

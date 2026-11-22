@@ -62,6 +62,21 @@ pub enum CoreError {
     #[error("The description is too long. Notes hold up to 100,000 characters of details.")]
     DetailsTooLong,
 
+    #[error("This note already has {max} steps. Remove some to add more.")]
+    StepLimit { max: usize },
+
+    #[error("A step is one line of at most 500 characters.")]
+    StepInvalid,
+
+    #[error("Restore this note from the Trash to change its steps.")]
+    NoteTrashed,
+
+    #[error("A project with that name already exists.")]
+    ProjectExists,
+
+    #[error("A project name is between 1 and 40 characters.")]
+    ProjectInvalid,
+
     #[error("Database error: {0}")]
     Sqlite(#[source] rusqlite::Error),
 
@@ -91,6 +106,11 @@ impl CoreError {
             CoreError::TooManyAttachments => "too_many_attachments",
             CoreError::AttachmentEmpty => "attachment_empty",
             CoreError::DetailsTooLong => "details_too_long",
+            CoreError::StepLimit { .. } => "step_limit",
+            CoreError::StepInvalid => "step_invalid",
+            CoreError::NoteTrashed => "note_trashed",
+            CoreError::ProjectExists => "project_exists",
+            CoreError::ProjectInvalid => "project_invalid",
             CoreError::Sqlite(_) => "db",
             CoreError::Io(_) => "io",
             CoreError::Json(_) => "json",

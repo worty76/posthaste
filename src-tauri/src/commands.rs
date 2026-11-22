@@ -12,8 +12,9 @@ use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdi
 use posthaste_core::LookFilePreview;
 use posthaste_core::{
     now_ms, AppInfo, AttachFailure, AttachReport, Attachment, CommandError, Counts, DataInfo,
-    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, Note, NoteDetail, NoteQuery, Os,
-    Settings, SettingsState, Status, TrashedNote, MAX_ATTACHMENT_BYTES,
+    DayMark, Draft, ExportFormat, Glance, ImportReport, NewNote, NewStep, Note, NoteDetail,
+    NoteQuery, Os, Project, Settings, SettingsState, Status, Step, TrashedNote,
+    MAX_ATTACHMENT_BYTES,
 };
 use posthaste_i18n::key;
 use tauri::ipc::{InvokeBody, Request, Response};
@@ -129,9 +130,146 @@ pub fn notes_counts(
     state.with_db(|db| db.counts(today_from, today_to))
 }
 
+// ---- steps -------------------------------------------------------------------
+
 #[tauri::command]
-pub fn categories_list(state: State<'_, AppState>) -> AppResult<Vec<String>> {
-    state.with_db(|db| db.categories())
+pub fn steps_add(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    note_id: String,
+    after: Option<String>,
+    lines: Vec<NewStep>,
+) -> AppResult<Vec<Step>> {
+    let steps = state.with_db(|db| db.add_steps(&note_id, after.as_deref(), &lines))?;
+    notes_changed(&app);
+    Ok(steps)
+}
+
+#[tauri::command]
+pub fn step_set_text(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    text: String,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.set_step_text(&id, &text))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_set_done(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    done: bool,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.set_step_done(&id, done))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_move(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    after: Option<String>,
+) -> AppResult<Step> {
+    let step = state.with_db(|db| db.move_step(&id, after.as_deref()))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+#[tauri::command]
+pub fn step_remove(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.with_db(|db| db.remove_step(&id))?;
+    notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn step_restore(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<Step> {
+    let step = state.with_db(|db| db.restore_step(&id))?;
+    notes_changed(&app);
+    Ok(step)
+}
+
+// ---- projects -----------------------------------------------------------------
+
+#[tauri::command]
+pub fn projects_list(
+    state: State<'_, AppState>,
+    include_archived: bool,
+) -> AppResult<Vec<Project>> {
+    state.with_db(|db| db.projects(include_archived))
+}
+
+#[tauri::command]
+pub fn project_create(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+) -> AppResult<Project> {
+    let project = state.with_db(|db| db.create_project(&name))?;
+    notes_changed(&app);
+    Ok(project)
+}
+
+#[tauri::command]
+pub fn project_rename(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    from: String,
+    to: String,
+    merge: bool,
+) -> AppResult<u32> {
+    let moved = state.with_db(|db| db.rename_project(&from, &to, merge))?;
+    notes_changed(&app);
+    Ok(moved)
+}
+
+#[tauri::command]
+pub fn project_set_archived(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+    archived: bool,
+) -> AppResult<()> {
+    state.with_db(|db| db.set_project_archived(&name, archived))?;
+    notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn project_set_color(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+    color: Option<String>,
+) -> AppResult<()> {
+    state.with_db(|db| db.set_project_color(&name, color.as_deref()))?;
+    notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn project_clear(app: AppHandle, state: State<'_, AppState>, name: String) -> AppResult<u32> {
+    let cleared = state.with_db(|db| db.clear_project(&name))?;
+    notes_changed(&app);
+    Ok(cleared)
+}
+
+#[tauri::command]
+pub fn note_set_project(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    project: Option<String>,
+) -> AppResult<Note> {
+    let note = state.with_db(|db| db.set_note_project(&id, project.as_deref()))?;
+    notes_changed(&app);
+    Ok(note)
 }
 
 // ---- today --------------------------------------------------------------------

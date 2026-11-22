@@ -7,6 +7,8 @@ mod error;
 pub mod look;
 mod markdown;
 pub mod migrations;
+mod projects;
+mod steps;
 pub mod sync;
 mod transfer;
 

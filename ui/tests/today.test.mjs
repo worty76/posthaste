@@ -59,6 +59,27 @@ describe("today window", () => {
     await w.close();
   });
 
+  it("a note with steps shows done of total", async () => {
+    const f = three();
+    const withSteps = note("pack the bags", {
+      created_at: at("2026-11-15T09:30:00"),
+      step_total: 5,
+      step_done: 2,
+    });
+    const w = await today({
+      glance: glance({ today: [withSteps], done: 0, total: 1 }),
+    });
+    const row = w.page.locator(".today__row", { hasText: "pack the bags" });
+    await text(row, "2/5");
+    const badge = row.locator(".badges");
+    await eventually(
+      () => badge.getAttribute("aria-label"),
+      (v) => v === "2 of 5 steps done",
+      "accessible label",
+    );
+    await w.close();
+  });
+
   it("recomputes the day bounds when shown again on a later day", async () => {
     const w = await today();
     await w.mock.setNow("2026-11-16T08:00:00+07:00");
@@ -560,6 +581,57 @@ describe("language", () => {
       "date in Vietnamese",
     );
     await text(w.page.locator(".today__hints"), "X xong");
+    await w.close();
+  });
+
+  it("today shows project sections and P sets a project", async () => {
+    const a = note("pay rent", { created_at: at("2026-11-12T09:00:00"), category: "home" });
+    const b = note("draft spec", { created_at: at("2026-11-15T09:00:00"), category: "work" });
+    const c = note("call mum", { created_at: at("2026-11-15T08:00:00") });
+    const w = await today({
+      store: {
+        notes: [a, b, c],
+        projects: [
+          { name: "home", archived: false },
+          { name: "work", archived: false },
+        ],
+      },
+      glance: glance({ carried: [a], today: [b, c], done: 0, total: 3 }),
+    });
+    await text(w.page.locator(".proj-section__header").nth(0), "home");
+    await text(w.page.locator(".proj-section__header").nth(1), "work");
+    await text(w.page.locator(".today__hints"), "P project");
+    await w.key("p");
+    const picker = w.page.locator(".proj-picker");
+    await text(picker, "work");
+    await w.page.keyboard.type("work");
+    await w.key("Enter");
+    await eventually(
+      () => w.calls("note_set_project"),
+      (calls) => calls.length === 1 && calls[0].args.project === "work",
+      "project set from Today",
+    );
+    await w.close();
+  });
+
+  it("today tints a project's section rail and dot with its color", async () => {
+    const a = note("draft spec", { created_at: at("2026-11-15T09:00:00"), category: "work" });
+    const w = await today({
+      store: {
+        notes: [a],
+        projects: [{ name: "work", archived: false, color: "#3b82f6" }],
+      },
+      glance: glance({ today: [a], done: 0, total: 1 }),
+    });
+    await eventually(
+      () => w.page.locator('.today__section-header .proj-dot[data-color="#3b82f6"]').count(),
+      (n) => n === 1,
+      "dot colored",
+    );
+    assert.equal(
+      await w.page.locator('.today__rows--project[data-color="#3b82f6"] .today__rail').count(),
+      1,
+    );
     await w.close();
   });
 });

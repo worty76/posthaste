@@ -8,10 +8,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, Result};
-use crate::sync::merge::{ApplyReport, Change};
+use crate::sync::merge::{ApplyReport, Change, StepChange};
 use crate::Db;
 
 pub const PROTOCOL_VERSION: u32 = 1;
+/// This build announces the steps capability during the handshake. An older
+/// build's serde ignores the unknown `capabilities` key on the wire.
+pub const CAP_STEPS: &str = "steps";
 pub const BATCH_SIZE: usize = 500;
 pub const MAX_FRAME_BYTES: usize = 1024 * 1024; // 1 MiB
 
@@ -24,9 +27,17 @@ pub enum Message {
         device_id: String,
         name: String,
         pair_secret: Option<String>,
+        /// Capabilities this build has. Absent on pre-steps builds, which
+        /// ignore the key on both sides of the wire.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        capabilities: Vec<String>,
     },
     Batch {
         changes: Vec<Change>,
+        /// Step changes, sent only to peers that announced the steps
+        /// capability.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        steps: Vec<StepChange>,
         up_to: i64,
         more: bool,
     },
@@ -94,6 +105,9 @@ pub struct Session {
     pair_secret: Option<String>,
     peer_verified: bool,
     peer_name: Option<String>,
+    /// The peer announced the steps capability, so it may receive step
+    /// changes.
+    send_steps: bool,
     next_send_since: i64,
     in_flight_up_to: Option<i64>,
     sent_done: bool,
@@ -112,6 +126,7 @@ impl Session {
             pair_secret: None,
             peer_verified: false,
             peer_name: None,
+            send_steps: false,
             next_send_since: 0,
             in_flight_up_to: None,
             sent_done: false,
@@ -163,6 +178,7 @@ impl Session {
             device_id: self.local_device.clone(),
             name: self.local_name.clone(),
             pair_secret: self.pair_secret.clone(),
+            capabilities: vec![CAP_STEPS.to_owned()],
         }])
     }
 
@@ -194,6 +210,7 @@ impl Session {
                 device_id,
                 name,
                 pair_secret,
+                capabilities,
             } => {
                 if protocol != PROTOCOL_VERSION {
                     let reason = format!("unsupported protocol {protocol}");
@@ -225,11 +242,20 @@ impl Session {
                 }
 
                 self.peer_verified = true;
+                self.send_steps = capabilities.iter().any(|c| c == CAP_STEPS);
                 if !name.trim().is_empty() {
                     self.peer_name = Some(name);
                 }
                 if let Some(peer) = db.get_peer(&self.peer_device)? {
                     self.next_send_since = peer.sent_up_to;
+                    // Steps withheld from this peer before it upgraded are
+                    // all sent now; merging is idempotent, so ordinary note
+                    // changes in the rewound range simply replay.
+                    if self.send_steps {
+                        if let Some(from) = peer.steps_resend_from {
+                            self.next_send_since = self.next_send_since.min(from - 1);
+                        }
+                    }
                 }
 
                 self.next_send_message(db)
@@ -237,6 +263,7 @@ impl Session {
 
             Message::Batch {
                 changes,
+                steps,
                 up_to,
                 more: _,
             } => {
@@ -245,7 +272,8 @@ impl Session {
                     self.refused = Some(reason.clone());
                     return Ok(vec![Message::Refused { reason }]);
                 }
-                let report: ApplyReport = db.apply_changes(&self.peer_device, &changes, now_ms)?;
+                let report: ApplyReport =
+                    db.apply_changes(&self.peer_device, &changes, &steps, now_ms)?;
                 self.total_applied += report.applied;
                 self.total_conflicts += report.conflicts;
                 db.update_peer_sync_time(&self.peer_device, now_ms)?;
@@ -282,27 +310,33 @@ impl Session {
         }
     }
 
-    fn next_send_message(&mut self, db: &Db) -> Result<Vec<Message>> {
+    fn next_send_message(&mut self, db: &mut Db) -> Result<Vec<Message>> {
         if self.sent_done || self.in_flight_up_to.is_some() {
             return Ok(Vec::new());
         }
-        // Request one extra row to know whether more changes follow.
-        let (mut changes, _) = db.changes_since(self.next_send_since, BATCH_SIZE + 1)?;
-        let more = changes.len() > BATCH_SIZE;
-        if more {
-            changes.truncate(BATCH_SIZE);
+        // Changes that share one seq are one write and never split across a
+        // page, so `changes` and `steps` here are whole writes.
+        let export = db.changes_since(self.next_send_since, BATCH_SIZE, self.send_steps)?;
+        if let Some(withheld) = export.withheld_from {
+            db.mark_steps_withheld(&self.peer_device, withheld)?;
         }
-        if changes.is_empty() {
-            self.sent_done = true;
-            return Ok(vec![Message::Done]);
+        let more = export.changes.len() > BATCH_SIZE || !export.steps.is_empty();
+        let (mut changes, mut steps) = (export.changes, export.steps);
+        if !changes.is_empty() || !steps.is_empty() {
+            self.in_flight_up_to = Some(export.up_to);
+            return Ok(vec![Message::Batch {
+                changes: std::mem::take(&mut changes),
+                steps: std::mem::take(&mut steps),
+                up_to: export.up_to,
+                more,
+            }]);
         }
-        // Re-query the exact up_to for the truncated batch size.
-        let (batch, up_to) = db.changes_since(self.next_send_since, BATCH_SIZE)?;
-        self.in_flight_up_to = Some(up_to);
-        Ok(vec![Message::Batch {
-            changes: batch,
-            up_to,
-            more,
-        }])
+        // Nothing sendable is left. With a steps-capable peer the withheld
+        // marker has served its purpose once everything was acknowledged.
+        self.sent_done = true;
+        if self.send_steps {
+            db.clear_steps_resend_from(&self.peer_device)?;
+        }
+        Ok(vec![Message::Done])
     }
 }

@@ -51,6 +51,10 @@ pub enum KeyAction {
     Dismiss,
     /// Rewrite the note with AI.
     Polish,
+    /// Open the project picker.
+    PickProject,
+    /// Toggle the active project at 0-based slot `0..9` (`Mod+1`..`Mod+9`).
+    ToggleProject(usize),
     /// Save the note; `hide` closes the window afterwards.
     Save { hide: bool },
 }
@@ -66,6 +70,15 @@ pub fn key_action(press: KeyPress<'_>, rules: KeyRules) -> Option<KeyAction> {
     }
     if press.primary && press.key.eq_ignore_ascii_case("i") {
         return Some(KeyAction::Polish);
+    }
+    if press.primary && press.key.eq_ignore_ascii_case("p") {
+        return Some(KeyAction::PickProject);
+    }
+    if press.primary && !press.shift && press.key.len() == 1 {
+        let b = press.key.as_bytes()[0];
+        if (b'1'..=b'9').contains(&b) {
+            return Some(KeyAction::ToggleProject((b - b'1') as usize));
+        }
     }
     if press.key != "Enter" {
         return None;
@@ -235,6 +248,47 @@ mod tests {
             assert_eq!(key_action(mod_i, ENTER_SAVES), Some(KeyAction::Polish));
         }
         assert_eq!(key_action(press("i"), ENTER_SAVES), None);
+    }
+
+    #[test]
+    fn mod_p_opens_the_project_picker() {
+        for key in ["p", "P"] {
+            let mod_p = KeyPress {
+                primary: true,
+                ..press(key)
+            };
+            assert_eq!(key_action(mod_p, ENTER_SAVES), Some(KeyAction::PickProject));
+        }
+        assert_eq!(key_action(press("p"), ENTER_SAVES), None);
+    }
+
+    #[test]
+    fn mod_1_through_9_toggles_a_project_slot() {
+        for (i, digit) in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            .into_iter()
+            .enumerate()
+        {
+            let mod_digit = KeyPress {
+                primary: true,
+                ..press(digit)
+            };
+            assert_eq!(
+                key_action(mod_digit, ENTER_SAVES),
+                Some(KeyAction::ToggleProject(i))
+            );
+            assert_eq!(key_action(press(digit), ENTER_SAVES), None);
+        }
+        let mod_zero = KeyPress {
+            primary: true,
+            ..press("0")
+        };
+        assert_eq!(key_action(mod_zero, ENTER_SAVES), None);
+        let mod_shift_one = KeyPress {
+            primary: true,
+            shift: true,
+            ..press("1")
+        };
+        assert_eq!(key_action(mod_shift_one, ENTER_SAVES), None);
     }
 
     #[test]

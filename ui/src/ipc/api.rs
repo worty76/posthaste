@@ -5,8 +5,9 @@
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
     DayMark, DetailsFrom, DetailsTarget, Draft, Glance, ImportReport, LookFilePreview, LookSummary,
-    Note, NoteDetail, NoteQuery, ResolvedLook, ResolvedScene, SceneEdit, Settings, SettingsState,
-    Status, SyncDevice, SyncStatus, ThemeEdit, TrashedNote, UpdateInfo,
+    NewStep, Note, NoteDetail, NoteQuery, Project, ResolvedLook, ResolvedScene, SceneEdit,
+    Settings, SettingsState, Status, Step, SyncDevice, SyncStatus, ThemeEdit, TrashedNote,
+    UpdateInfo,
 };
 use serde::de::IgnoredAny;
 use serde::Serialize;
@@ -39,8 +40,79 @@ pub async fn look_active() -> Response<ResolvedLook> {
     invoke("look_active", &NoArgs {}).await
 }
 
-pub async fn categories_list() -> Response<Vec<String>> {
-    invoke("categories_list", &NoArgs {}).await
+// ---- projects ---------------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct ProjectsList {
+    include_archived: bool,
+}
+
+pub async fn projects_list(include_archived: bool) -> Response<Vec<Project>> {
+    invoke("projects_list", &ProjectsList { include_archived }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectByName<'a> {
+    name: &'a str,
+}
+
+pub async fn project_create(name: &str) -> Response<Project> {
+    invoke("project_create", &ProjectByName { name }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectRename<'a> {
+    from: &'a str,
+    to: &'a str,
+    merge: bool,
+}
+
+pub async fn project_rename(from: &str, to: &str, merge: bool) -> Response<u32> {
+    invoke("project_rename", &ProjectRename { from, to, merge }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct ProjectSetArchived<'a> {
+    name: &'a str,
+    archived: bool,
+}
+
+pub async fn project_set_archived(name: &str, archived: bool) -> Response<()> {
+    invoke(
+        "project_set_archived",
+        &ProjectSetArchived { name, archived },
+    )
+    .await
+}
+
+#[derive(Serialize)]
+struct ProjectSetColor<'a> {
+    name: &'a str,
+    color: Option<&'a str>,
+}
+
+pub async fn project_set_color(name: &str, color: Option<&str>) -> Response<()> {
+    invoke("project_set_color", &ProjectSetColor { name, color }).await
+}
+
+pub async fn project_clear(name: &str) -> Response<u32> {
+    invoke("project_clear", &ProjectByName { name }).await
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct NoteSetProject<'a> {
+    id: &'a str,
+    project: Option<&'a str>,
+}
+
+pub async fn note_set_project(id: &str, project: Option<&str>) -> Response<Note> {
+    invoke("note_set_project", &NoteSetProject { id, project }).await
 }
 
 #[derive(Serialize)]
@@ -218,6 +290,77 @@ pub async fn note_update(id: &str, content: &str, category: Option<&str>) -> Res
     invoke::<_, IgnoredAny>("note_update", &args)
         .await
         .map(drop)
+}
+
+// ---- steps ------------------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepsAdd<'a> {
+    note_id: &'a str,
+    after: Option<&'a str>,
+    lines: &'a [NewStep],
+}
+
+/// Adds steps after `after` (`None` means first), all or nothing.
+pub async fn steps_add(
+    note_id: &str,
+    after: Option<&str>,
+    lines: &[NewStep],
+) -> Response<Vec<Step>> {
+    invoke(
+        "steps_add",
+        &StepsAdd {
+            note_id,
+            after,
+            lines,
+        },
+    )
+    .await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepSetText<'a> {
+    id: &'a str,
+    text: &'a str,
+}
+
+pub async fn step_set_text(id: &str, text: &str) -> Response<Step> {
+    invoke("step_set_text", &StepSetText { id, text }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepSetDone<'a> {
+    id: &'a str,
+    done: bool,
+}
+
+pub async fn step_set_done(id: &str, done: bool) -> Response<Step> {
+    invoke("step_set_done", &StepSetDone { id, done }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StepMove<'a> {
+    id: &'a str,
+    after: Option<&'a str>,
+}
+
+/// Moves a step to sit directly after `after` (`None` means first).
+pub async fn step_move(id: &str, after: Option<&str>) -> Response<Step> {
+    invoke("step_move", &StepMove { id, after }).await
+}
+
+pub async fn step_remove(id: &str) -> Response<()> {
+    invoke::<_, IgnoredAny>("step_remove", &ById { id })
+        .await
+        .map(drop)
+}
+
+pub async fn step_restore(id: &str) -> Response<Step> {
+    invoke("step_restore", &ById { id }).await
 }
 
 // ---- attachments -----------------------------------------------------------
