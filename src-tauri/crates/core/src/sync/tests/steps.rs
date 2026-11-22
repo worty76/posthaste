@@ -103,6 +103,7 @@ fn an_old_build_can_read_a_hello_with_capabilities() {
     // frame that carries it: serde ignores the unknown key.
     #[derive(Debug, serde::Deserialize)]
     #[serde(tag = "type", rename_all = "snake_case")]
+    #[allow(dead_code)]
     enum V1Message {
         Hello {
             protocol: u32,
@@ -241,7 +242,7 @@ fn step_changes_withheld_from_an_old_peer_are_all_sent_after_it_upgrades() {
 
     // The same build, now announcing steps: everything withheld is sent.
     let mut sa2 = Session::new("dev-a", "dev-b");
-    let _ = sa2.start(&mut a).unwrap();
+    let _ = sa2.start(&a).unwrap();
     let replies = sa2
         .on_message(&mut a, hello_with_capabilities("dev-b", "B"), 4_000)
         .unwrap();
@@ -580,9 +581,8 @@ fn an_interrupted_session_resumes_without_duplicate_steps() {
     // The session drops after B received the batch but before A got the Ack.
     let mut sa1 = Session::new("dev-a", "dev-b");
     let mut sb1 = Session::new("dev-b", "dev-a");
-    let mut q_a_to_b: VecDeque<Message> = sa1.start(&mut a).unwrap().into();
-    let mut q_b_to_a: VecDeque<Message> = sb1.start(&mut b).unwrap().into();
-    let mut batches = 0;
+    let mut q_a_to_b: VecDeque<Message> = sa1.start(&a).unwrap().into();
+    let mut q_b_to_a: VecDeque<Message> = sb1.start(&b).unwrap().into();
     'outer: while !q_a_to_b.is_empty() || !q_b_to_a.is_empty() {
         if let Some(msg) = q_a_to_b.pop_front() {
             let is_batch = matches!(msg, Message::Batch { .. });

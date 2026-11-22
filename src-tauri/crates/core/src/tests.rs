@@ -989,13 +989,12 @@ Exported 14 Nov 2026 09:12 · 1 notes
 
 #[test]
 fn json_v1_files_still_import() {
-    let v1 = format!(
-        "{{\"format\":\"posthaste-export\",\"version\":1,\"exported_at\":\"2026-11-14T02:12:00Z\",\
-         \"notes\":[{{\"id\":\"old-1\",\"content\":\"from a v1 file\",\"status\":\"inbox\",\
-         \"created_at\":\"2026-11-14T02:12:00Z\"}}]}}"
-    );
+    let v1 =
+        "{\"format\":\"posthaste-export\",\"version\":1,\"exported_at\":\"2026-11-14T02:12:00Z\",\
+         \"notes\":[{\"id\":\"old-1\",\"content\":\"from a v1 file\",\"status\":\"inbox\",\
+         \"created_at\":\"2026-11-14T02:12:00Z\"}]}";
     let mut b = db();
-    let report = b.import_text(&v1).unwrap();
+    let report = b.import_text(v1).unwrap();
     assert_eq!(report.imported, 1);
     assert_eq!(b.get_note("old-1").unwrap().content, "from a v1 file");
 }
@@ -1062,7 +1061,7 @@ fn a_deleted_step_no_longer_matches_search() {
 #[test]
 fn searching_a_step_word_with_diacritics_removed_still_matches() {
     let mut db = db();
-    let n = note_with_step_lines(&mut db, &["uộn cho bài học"], 0);
+    let _ = note_with_step_lines(&mut db, &["uộn cho bài học"], 0);
     assert_eq!(search(&db, "uon").len(), 1);
     assert_eq!(search(&db, "hoc").len(), 1);
 }
