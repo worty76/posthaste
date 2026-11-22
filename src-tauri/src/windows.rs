@@ -190,7 +190,7 @@ pub fn toggle_capture(app: &AppHandle) {
     let Some(window) = app.get_webview_window(CAPTURE) else {
         return;
     };
-    if window.is_visible().unwrap_or(false) {
+    if panels::is_visible(app, &window) {
         hide_capture(app, true);
     } else {
         show_capture(app);
@@ -266,7 +266,7 @@ pub fn hide_capture(app: &AppHandle, restore_focus: bool) {
     // One main-thread step, so the hide and the re-activation cannot reorder.
     let result = app.run_on_main_thread(move || {
         let _ = window.emit("capture-hidden", ());
-        if let Err(e) = window.hide() {
+        if let Err(e) = panels::hide_on_main_thread(&handle, &window) {
             log::error!("capture window could not be hidden: {e}");
         }
         if !restore_focus {
@@ -287,7 +287,7 @@ pub fn toggle_today(app: &AppHandle) {
     let Some(window) = app.get_webview_window(TODAY) else {
         return;
     };
-    if window.is_visible().unwrap_or(false) {
+    if panels::is_visible(app, &window) {
         hide_today(app, true);
     } else {
         show_today(app);
@@ -386,7 +386,7 @@ pub fn hide_today(app: &AppHandle, restore_focus: bool) {
     let handle = app.clone();
     // One main-thread step, so the hide and the re-activation cannot reorder.
     let result = app.run_on_main_thread(move || {
-        if let Err(e) = window.hide() {
+        if let Err(e) = panels::hide_on_main_thread(&handle, &window) {
             log::error!("today window could not be hidden: {e}");
         }
         if !restore_focus {
@@ -470,7 +470,7 @@ pub fn show_details(app: &AppHandle, target: DetailsTarget) {
         // a hidden window by focusing whatever was behind it, after our own
         // focus request, so details asks for focus once more afterwards.
         if let Some(today) = app.get_webview_window(TODAY) {
-            let _ = today.hide();
+            let _ = panels::hide(app, &today);
         }
         refocus_later(app.clone(), window);
     }
@@ -492,7 +492,7 @@ fn unpin_details_size(window: &WebviewWindow) {
 fn refocus_later(app: AppHandle, window: WebviewWindow) {
     std::thread::spawn(move || {
         std::thread::sleep(REFOCUS_DELAY);
-        if window.is_visible().unwrap_or(false) {
+        if panels::is_visible(&app, &window) {
             let has_keyboard = panels::show(&app, &window).unwrap_or_default();
             if !has_keyboard {
                 // A regular window, or panels are unavailable: plain focus,
@@ -515,7 +515,7 @@ pub fn hide_details(app: &AppHandle) {
         None => {}
     }
     if let Some(window) = app.get_webview_window(DETAILS) {
-        if let Err(e) = window.hide() {
+        if let Err(e) = panels::hide(app, &window) {
             log::error!("details window could not be hidden: {e}");
         }
     }
@@ -669,17 +669,23 @@ fn place_in_area(
             LogicalSize::new(w, h).into(),
         )
     };
-    // Skip moving when the window is already at the target position, so AppKit
-    // does not trigger a redundant frame/compositor invalidation on re-open.
-    let target_pos_physical = match position {
-        tauri::Position::Physical(p) => p,
-        tauri::Position::Logical(p) => {
-            let scale = window.scale_factor().unwrap_or(area.scale);
-            PhysicalPosition::new((p.x * scale).round() as i32, (p.y * scale).round() as i32)
-        }
+    // Position first so the size is applied at the destination display's scale.
+    // On macOS, panels are hidden at alpha 0 while placed, so moving never
+    // flashes; skip when the exact target coordinates already match the last
+    // placement to avoid redundant AppKit frame notifications.
+    let target_key = (x.round() as i64, y.round() as i64);
+    let moved = {
+        use std::collections::HashMap;
+        use std::sync::{Mutex, OnceLock};
+        static LAST_POS: OnceLock<Mutex<HashMap<String, (i64, i64)>>> = OnceLock::new();
+        let mut map = LAST_POS
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let prev = map.insert(window.label().to_owned(), target_key);
+        prev != Some(target_key)
     };
-    if window.outer_position().ok() != Some(target_pos_physical) {
-        // Position first so the size is applied at the destination display's scale.
+    if moved {
         let _ = window.set_position(position);
     }
     // Skip resizing when the window is already at the target size: redundant
