@@ -29,6 +29,20 @@ mod tests {
         // The old theme key is ignored, and with no usable look the
         // factory default is worn.
         assert_eq!(settings.look_id, DEFAULT_LOOK_ID);
+        assert_eq!(settings.text_size, TextSize::Medium);
+    }
+
+    #[test]
+    fn unknown_text_size_falls_back_to_medium() {
+        let settings: Settings = serde_json::from_str(r#"{"text_size":"huge"}"#).unwrap();
+        assert_eq!(settings.text_size, TextSize::Medium);
+        let small = Settings {
+            text_size: TextSize::Small,
+            ..Settings::default()
+        };
+        let loaded: Settings =
+            serde_json::from_str(&serde_json::to_string(&small).unwrap()).unwrap();
+        assert_eq!(loaded.text_size, TextSize::Small);
     }
 
     #[test]

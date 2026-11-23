@@ -6,7 +6,7 @@ use std::cell::RefCell;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_model::{Base, FontFace, ResolvedLook, Shape};
+use posthaste_model::{Base, FontFace, ResolvedLook, Shape, TextSize};
 use wasm_bindgen::prelude::*;
 
 use super::SettingsHandle;
@@ -133,6 +133,25 @@ pub fn use_appearance(settings: SettingsHandle) -> Appearance {
     Effect::new(move |_| {
         if let (Some(scheme), Some(root)) = (scheme.get(), root()) {
             let _ = root.set_attribute("data-theme", scheme.as_str());
+        }
+    });
+    let text_size = Memo::new(move |_| {
+        settings
+            .settings
+            .with(|s| s.as_ref().map(|s| s.text_size).unwrap_or_default())
+    });
+    Effect::new(move |_| {
+        let Some(root) = root() else { return };
+        match text_size.get() {
+            TextSize::Small => {
+                let _ = root.set_attribute("data-text-size", "small");
+            }
+            TextSize::Medium => {
+                let _ = root.remove_attribute("data-text-size");
+            }
+            TextSize::Large => {
+                let _ = root.set_attribute("data-text-size", "large");
+            }
         }
     });
     Appearance { preview }

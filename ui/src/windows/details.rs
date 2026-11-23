@@ -1093,9 +1093,20 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                 aria-label=i18n.text(key::DETAILS_TITLE)
                 data-dropping=move || details.dropping.get().to_string()
             >
-                <header class="details__header" data-tauri-drag-region>
-                    <input
+                <header class="details__header">
+                    <div class="details__bar" data-tauri-drag-region>
+                        <CategoryChip details=details i18n=i18n />
+                        <StatusButton details=details i18n=i18n os=os />
+                        <span class="details__spacer" data-tauri-drag-region></span>
+                        <IconButton
+                            icon=IconName::Close
+                            label=i18n.label(key::DETAILS_CLOSE)
+                            on_click=move |()| spawn_local(details.close())
+                        />
+                    </div>
+                    <textarea
                         class="details__title"
+                        rows="1"
                         aria-label=i18n.text(key::DETAILS_TITLE_FIELD)
                         use:bind_text=Signal::derive(move || details.title.get())
                         disabled=move || !has_note()
@@ -1112,14 +1123,7 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                                 }
                             }
                         }
-                    />
-                    <CategoryChip details=details i18n=i18n />
-                    <StatusButton details=details i18n=i18n os=os />
-                    <IconButton
-                        icon=IconName::Close
-                        label=i18n.label(key::DETAILS_CLOSE)
-                        on_click=move |()| spawn_local(details.close())
-                    />
+                    ></textarea>
                 </header>
 
                 <Meta details=details i18n=i18n locale=locale />

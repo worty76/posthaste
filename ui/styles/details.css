@@ -44,12 +44,21 @@ html.is-linux.is-details .details__panel {
 
 .details__header {
   display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3) 0 var(--s-4);
+}
+.details__bar {
+  display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-3) var(--s-3) 0 var(--s-4);
+}
+.details__spacer {
+  flex: 1;
+  min-height: 24px;
 }
 .details__title {
-  flex: 1;
+  width: calc(100% + var(--s-2));
   min-width: 0;
   padding: var(--s-1) var(--s-2);
   margin-left: calc(var(--s-2) * -1);
@@ -58,9 +67,13 @@ html.is-linux.is-details .details__panel {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--t-title);
+  font-size: var(--t-lg);
   font-weight: 600;
   line-height: var(--lh-tight);
+  resize: none;
+  field-sizing: content;
+  max-height: calc(1em * var(--lh-tight) * 3 + var(--s-1) * 2);
+  overflow-y: auto;
   user-select: text;
   -webkit-user-select: text;
 }
@@ -450,11 +463,11 @@ html.is-linux.is-details .details__panel {
   display: inline-flex;
   flex: none;
 }
-/* CategoryChip sits on the right side of the header, so anchor the picker's
-   right edge to the chip and open inward — never clipped by .details__panel. */
+/* CategoryChip sits on the left side of the top bar, so anchor the picker's
+   left edge to the chip and open inward — never clipped by .details__panel. */
 .details__cat-editor .proj-picker {
   top: calc(100% + var(--s-1));
-  right: 0;
-  left: auto;
+  left: 0;
+  right: auto;
   z-index: 20;
 }

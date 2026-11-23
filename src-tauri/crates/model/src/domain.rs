@@ -301,6 +301,21 @@ fn lenient_window_size<'de, D: serde::Deserializer<'de>>(d: D) -> Result<WindowS
     Ok(serde_json::from_value(value).unwrap_or_default())
 }
 
+/// The interface text scale across every window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TextSize {
+    Small,
+    #[default]
+    Medium,
+    Large,
+}
+
+fn lenient_text_size<'de, D: serde::Deserializer<'de>>(d: D) -> Result<TextSize, D::Error> {
+    let value = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(value).unwrap_or_default())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EnterBehavior {
@@ -365,6 +380,9 @@ pub struct Settings {
     /// How big the capture, Today and details windows open.
     #[serde(deserialize_with = "lenient_window_size")]
     pub window_size: WindowSize,
+    /// The interface text size across every window.
+    #[serde(deserialize_with = "lenient_text_size")]
+    pub text_size: TextSize,
     /// Hide the capture window after a successful save.
     pub hide_after_save: bool,
     /// Hide the capture window when it loses focus (the draft is kept).
@@ -429,6 +447,7 @@ impl Default for Settings {
             capture_position: CapturePosition::Center,
             today_position: CapturePosition::Center,
             window_size: WindowSize::Medium,
+            text_size: TextSize::Medium,
             hide_after_save: true,
             hide_on_blur: true,
             enter_behavior: EnterBehavior::Save,

@@ -28,6 +28,7 @@ export const defaultSettings = {
   capture_position: "center",
   today_position: "center",
   window_size: "medium",
+  text_size: "medium",
   hide_after_save: true,
   hide_on_blur: true,
   enter_behavior: "save",
