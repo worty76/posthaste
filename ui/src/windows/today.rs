@@ -923,19 +923,23 @@ fn Row(today: Today, i18n: I18n, locale: Memo<String>, note: Note) -> impl IntoV
             >
                 <Icon name=IconName::Check size=12 />
             </button>
-            <p class="today__text selectable">{note.with_value(|note| note.content.clone())}</p>
-            {move || came_from().map(|(shown, day)| view! {
-                <button
-                    type="button"
-                    class="today__origin"
-                    aria-label=i18n.translator().format(key::TODAY_ROW_SHOW_CAPTURED, &[("day", &day)])
-                    title=i18n.text(key::TODAY_ROW_SHOW_CAPTURED_TIP)
-                    on:click=move |_| note.with_value(|note| today.show_captured_day(note))
-                >
-                    {shown}
-                </button>
-            })}
-            <NoteBadges note=note.get_value() i18n=i18n />
+            <div class="today__main">
+                <p class="today__text selectable">{note.with_value(|note| note.content.clone())}</p>
+                <div class="today__meta">
+                    {move || came_from().map(|(shown, day)| view! {
+                        <button
+                            type="button"
+                            class="today__origin"
+                            aria-label=i18n.translator().format(key::TODAY_ROW_SHOW_CAPTURED, &[("day", &day)])
+                            title=i18n.text(key::TODAY_ROW_SHOW_CAPTURED_TIP)
+                            on:click=move |_| note.with_value(|note| today.show_captured_day(note))
+                        >
+                            {shown}
+                        </button>
+                    })}
+                    <NoteBadges note=note.get_value() i18n=i18n />
+                </div>
+            </div>
             <IconButton
                 icon=IconName::Open
                 class="today__open"

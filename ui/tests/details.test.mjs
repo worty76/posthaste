@@ -410,6 +410,13 @@ describe("details window", () => {
     await w.page.keyboard.press("Enter");
     const picker = w.page.locator(".proj-picker");
     await text(picker, "money");
+    const panelBox = await w.page.locator(".details__panel").boundingBox();
+    const pickerBox = await picker.boundingBox();
+    assert.ok(panelBox && pickerBox, "panel and picker are laid out");
+    assert.ok(
+      pickerBox.x >= panelBox.x && pickerBox.x + pickerBox.width <= panelBox.x + panelBox.width,
+      "picker stays completely inside the details panel without clipping",
+    );
     await w.page.keyboard.type("mo");
     assert.equal(await picker.locator(".proj-picker__item").count(), 2);
     await w.page.keyboard.press("Enter");

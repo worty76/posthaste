@@ -168,6 +168,24 @@
   --r-lg: 22px;
 }
 
+/* Text size preference: `medium` is the default above. */
+:root[data-text-size="small"] {
+  --t-xs: 10.5px;
+  --t-sm: 11.5px;
+  --t-md: 12.5px;
+  --t-lg: 14px;
+  --t-xl: 15.5px;
+  --t-title: 18px;
+}
+:root[data-text-size="large"] {
+  --t-xs: 12.5px;
+  --t-sm: 14px;
+  --t-md: 15.5px;
+  --t-lg: 18px;
+  --t-xl: 20px;
+  --t-title: 24px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --fast: 0ms;

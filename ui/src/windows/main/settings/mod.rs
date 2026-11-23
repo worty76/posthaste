@@ -13,7 +13,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key};
 use posthaste_model::{
-    AppInfo, DraftRetention, EnterBehavior, Os, Settings, ShortcutStatus, WindowSize,
+    AppInfo, DraftRetention, EnterBehavior, Os, Settings, ShortcutStatus, TextSize, WindowSize,
     DEFAULT_CAPTURE_SHORTCUT,
 };
 
@@ -243,6 +243,23 @@ pub(super) fn SettingsView(
                             (WindowSize::Large, key::SETTINGS_CAPTURE_SIZE_LARGE),
                         ]
                         on_change=move |size| context.set(move |s| s.window_size = size)
+                    />
+                </Row>
+                <Row
+                    i18n=i18n
+                    label=key::SETTINGS_CAPTURE_TEXT_SIZE
+                    help=key::SETTINGS_CAPTURE_TEXT_SIZE_HELP
+                >
+                    <Segmented
+                        i18n=i18n
+                        label=key::SETTINGS_CAPTURE_TEXT_SIZE
+                        value=context.read(|s| s.text_size)
+                        options=vec![
+                            (TextSize::Small, key::SETTINGS_CAPTURE_TEXT_SIZE_SMALL),
+                            (TextSize::Medium, key::SETTINGS_CAPTURE_TEXT_SIZE_MEDIUM),
+                            (TextSize::Large, key::SETTINGS_CAPTURE_TEXT_SIZE_LARGE),
+                        ]
+                        on_change=move |size| context.set(move |s| s.text_size = size)
                     />
                 </Row>
                 <Row i18n=i18n label=key::SETTINGS_CAPTURE_ENTER help=key::SETTINGS_CAPTURE_ENTER_HELP>
