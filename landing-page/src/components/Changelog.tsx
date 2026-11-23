@@ -1,14 +1,19 @@
+"use client";
+
+import { useSite } from "./SiteState";
 import { PRODUCT } from "@/config";
 import { formatIsoDate } from "@/lib/dates";
 import type { Release } from "@/lib/releases";
 
 /** The last few releases, from GitHub at build time (config.ts if offline). */
 export function Changelog({ releases }: { releases: Release[] }) {
+  const { lang } = useSite();
+  const vi = lang === "vi";
   if (releases.length === 0) return null;
   return (
     <section className="page changelog" id="changelog" aria-labelledby="changelog-title">
       <h2 className="h2" id="changelog-title">
-        What changed lately.
+        {vi ? "Cập nhật gần đây." : "What changed lately."}
       </h2>
       <ol className="changelog__list">
         {releases.map((r) => (
@@ -26,7 +31,9 @@ export function Changelog({ releases }: { releases: Release[] }) {
         ))}
       </ol>
       <p className="quiet">
-        <a href={PRODUCT.releasesUrl}>Every release, with installers</a>
+        <a href={PRODUCT.releasesUrl}>
+          {vi ? "Tất cả phiên bản và bộ cài đặt" : "Every release, with installers"}
+        </a>
       </p>
     </section>
   );

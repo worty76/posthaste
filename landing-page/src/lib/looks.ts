@@ -6,13 +6,7 @@
 export type Base = "light" | "dark";
 export type Shape = "sharp" | "soft" | "round";
 export type FontMode =
-  | "system"
-  | "rounded"
-  | "serif"
-  | "mono"
-  | "be-vietnam-pro"
-  | "nunito"
-  | "quicksand";
+  "system" | "rounded" | "serif" | "mono" | "be-vietnam-pro" | "nunito" | "quicksand";
 
 export interface Look {
   /** Stable slug, also the key used to remember the choice. */

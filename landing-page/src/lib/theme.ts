@@ -25,8 +25,7 @@ const FONT_STACKS: Record<Look["font"], string> = {
   rounded: "var(--font-recursive), ui-sans-serif, system-ui, sans-serif",
   serif: "var(--font-recursive), ui-sans-serif, system-ui, sans-serif",
   mono: "var(--font-recursive), ui-monospace, monospace",
-  "be-vietnam-pro":
-    '"Be Vietnam Pro", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
+  "be-vietnam-pro": '"Be Vietnam Pro", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
   nunito: '"Nunito", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
   quicksand: '"Quicksand", var(--font-recursive), ui-sans-serif, system-ui, sans-serif',
 };

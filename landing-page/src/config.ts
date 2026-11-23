@@ -58,25 +58,24 @@ export const SYNC_VIDEO = {
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {
   "0.7.1": [
-    "Choose your preferred text size (Small, Standard or Large) in Settings to scale typography across every window.",
-    "In Today, carried-over date tags now sit cleanly under the note title so longer titles stay readable instead of getting cut off.",
-    "In Note details, long titles now wrap across up to three lines beneath a compact top bar, and the project picker opens inward without clipping.",
+    "Text size setting (Small, Standard, Large) across all windows.",
+    "Carried-over date tags in Today now sit below the title so long notes aren't cut off.",
+    "Note details titles wrap up to three lines beneath a compact top bar.",
   ],
   "0.7.0": [
-    "Projects: group related notes under named projects with custom colors, open each project's page across days with #, set a note's project with P, and manage projects (create, recolor, rename, merge, archive or remove) from the sidebar.",
-    "Inbox and Today now separate project sections with colored left rails and hairlines so you can tell at a glance which notes belong to a project and which stand alone.",
-    "Keyboard-first project capture: toggle fixed-slot projects in Quick Capture with ⌘1–⌘9 / Ctrl+1–Ctrl+9, open the full picker with ⌘P / Ctrl+P, and keep the chosen project selected when saving and adding another note with ⌘↵ / Ctrl+↵.",
-    "Steps in Note details: break a note into an ordered list of one-line steps, edit them inline, tick with Space, and reorder by keyboard.",
-    "Floating Capture, Today and Note details windows stay warm on macOS, eliminating the black-screen flash and lag when opening them.",
+    "Projects: group notes with custom colors, filter with #, and assign with P.",
+    "Quick Capture project slots (⌘1–9 / Ctrl+1–9) and project picker (⌘P / Ctrl+P).",
+    "Steps in Note details: ordered one-line items ticked with Space.",
+    "Instant, flash-free floating panels on macOS.",
   ],
   "0.6.4": [
-    "Collapse or expand the main window sidebar into an icon rail with the header toggle or ⌘B / Ctrl+B; your choice is remembered and notes expand to use the freed space.",
-    "Settings no longer reloads the whole page when you change a preference, fixes row overlap in WebKit, and aligns the Look editor's scene controls cleanly.",
-    "Opening the floating Capture and Today windows on macOS no longer flashes a dark border or re-composites a second time.",
+    "Collapsible sidebar icon rail (⌘B / Ctrl+B).",
+    "Smoother Settings updates and Look editor alignment.",
+    "Clean first-frame floating window open on macOS.",
   ],
   "0.6.3": [
-    "Shortcut recording in Settings now pauses global and in-window shortcuts while listening, and clicking again cancels cleanly instead of getting stuck.",
-    "The quick capture window now opens in a single instant frame without flashing.",
+    "Cleaner shortcut recording in Settings with click-to-cancel.",
+    "Single-frame quick capture open without flashing.",
   ],
   "0.6.2": [
     "Floating capture, Today and note details windows now paint edge to edge on Linux.",

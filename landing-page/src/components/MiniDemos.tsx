@@ -157,7 +157,6 @@ export function DetailsDemo() {
           ))}
         </ul>
       )}
-      <p className="mini__fine">A demo. Nothing is stored or sent.</p>
     </div>
   );
 }
@@ -181,7 +180,6 @@ export function AiPolishDemo() {
           <Keys keys={[os === "mac" || os === null ? "⌘" : "Ctrl", "I"]} /> in the app
         </span>
       </div>
-      <p className="mini__fine">A demo with a ready-made answer. Nothing leaves this page.</p>
     </div>
   );
 }

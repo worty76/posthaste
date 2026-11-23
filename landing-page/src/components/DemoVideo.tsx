@@ -1,3 +1,6 @@
+"use client";
+
+import { useSite } from "./SiteState";
 import { DEMO_VIDEO } from "@/config";
 
 /**
@@ -5,15 +8,19 @@ import { DEMO_VIDEO } from "@/config";
  * loads until the visitor presses play beyond the poster frame.
  */
 export function DemoVideo() {
+  const { lang } = useSite();
+  const vi = lang === "vi";
   return (
     <section className="page watch" id="demo" aria-labelledby="watch-title">
       <h2 className="h2" id="watch-title">
-        See a day with it in {DEMO_VIDEO.seconds} seconds.
+        {vi
+          ? `Xem một ngày dùng Posthaste trong ${DEMO_VIDEO.seconds} giây.`
+          : `See a day with it in ${DEMO_VIDEO.seconds} seconds.`}
       </h2>
       <p className="watch__lede">
-        A note caught from a code editor, Today, a note's details with attachments, why your notes
-        never leave your computer, the looks, and a first glimpse of the phone app, which is still
-        in development. It has sound.
+        {vi
+          ? "Ghi nhanh khi đang code, xem việc Hôm nay, mở chi tiết ghi chú và đổi giao diện."
+          : "Capture from a code editor, check Today, open note details, and switch looks."}
       </p>
       <div className="watch__frame">
         <video
@@ -28,11 +35,6 @@ export function DemoVideo() {
           <a href={DEMO_VIDEO.src}>Download the demo video (MP4)</a>
         </video>
       </div>
-      <p className="quiet watch__note">
-        Built from the app&apos;s own windows running with sample notes, shown on a Mac. The code
-        editor and the call are mock-ups, and the sound is made up for the film; the app itself is
-        silent.
-      </p>
     </section>
   );
 }

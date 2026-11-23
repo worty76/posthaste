@@ -48,9 +48,8 @@ export function Downloads({
             <span className="downloads__notice-tag">First open on macOS</span>
           </div>
           <p className="downloads__notice-body">
-            Posthaste is an unsigned indie build, so macOS may say it can&apos;t be verified or is
-            damaged. After dragging it to <strong>Applications</strong>, run this once in Terminal
-            (or allow it in <strong>System Settings → Privacy &amp; Security</strong>):
+            Unsigned indie build — after moving to <strong>Applications</strong>, run once in
+            Terminal (or allow in <strong>System Settings → Privacy &amp; Security</strong>):
           </p>
           <div className="downloads__cmd">
             <code>{MAC_FIX_CMD}</code>
@@ -66,8 +65,8 @@ export function Downloads({
             <span className="downloads__notice-tag">First open on Windows</span>
           </div>
           <p className="downloads__notice-body">
-            Windows SmartScreen may warn that Posthaste is unrecognized because it is a new indie
-            release. Click <strong>More info</strong>, then <strong>Run anyway</strong> to install.
+            If SmartScreen warns on a new release, click <strong>More info</strong> →{" "}
+            <strong>Run anyway</strong>.
           </p>
         </aside>
       )}
@@ -77,9 +76,8 @@ export function Downloads({
             <span className="downloads__notice-tag">First open on Linux</span>
           </div>
           <p className="downloads__notice-body">
-            For the <code>.AppImage</code>, mark it executable with{" "}
-            <code>chmod +x Posthaste_*.AppImage</code> before running — or install the{" "}
-            <code>.deb</code> / <code>.rpm</code> package directly.
+            For <code>.AppImage</code>, run <code>chmod +x Posthaste_*.AppImage</code> first — or
+            install the <code>.deb</code> / <code>.rpm</code> package directly.
           </p>
         </aside>
       )}

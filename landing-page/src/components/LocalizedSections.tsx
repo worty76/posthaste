@@ -6,6 +6,7 @@ import { ContrastToy } from "./ContrastToy";
 import { Downloads } from "./Downloads";
 import { HeroActions } from "./HeroActions";
 import { KeyboardBackdrop } from "./KeyboardBackdrop";
+import { LangToggle } from "./LangToggle";
 import { LookTiles } from "./LookTiles";
 import { ShareCodeRow } from "./ShareCodeRow";
 import { useSite } from "./SiteState";
@@ -30,8 +31,7 @@ export function SiteHeader({ stars }: { stars: number | null }) {
         <a href="#changelog">{copy.nav.changelog}</a>
       </nav>
       <span className="head__spacer" />
-      {/* The EN/VI switcher is parked until the Vietnamese copy ships:
-          <LangToggle /> stays in components/LangToggle.tsx. */}
+      <LangToggle />
       <a className="head__link" href={PRODUCT.discordUrl} rel="noopener noreferrer">
         <ChatIcon />
         Discord
@@ -45,21 +45,9 @@ export function SiteHeader({ stars }: { stars: number | null }) {
 }
 
 /** Where each hero fact links, in the same order as the words in i18n. */
-const FACT_ANCHORS = [
-  "#free",
-  "#features",
-  "#features",
-  "#local",
-  "#looks",
-  "#ai",
-  "#features",
-];
+const FACT_ANCHORS = ["#free", "#features", "#features", "#local", "#looks", "#ai", "#features"];
 
-export function HeroSection({
-  downloads,
-}: {
-  downloads: Record<Platform, Download | null>;
-}) {
+export function HeroSection({ downloads }: { downloads: Record<Platform, Download | null> }) {
   const { copy } = useSite();
   return (
     <section className="page hero" aria-labelledby="hero-title">
@@ -80,7 +68,7 @@ export function HeroSection({
         <div className="hero__side">
           <p className="hero__sub">{copy.hero.sub1}</p>
           <p className="hero__sub">{copy.hero.sub2}</p>
-          <p className="hero__sub">{copy.hero.sub3}</p>
+          {copy.hero.sub3 && <p className="hero__sub">{copy.hero.sub3}</p>}
           <noscript>
             <p className="hero__sub">Turn on JavaScript to try the box below.</p>
           </noscript>
@@ -175,7 +163,6 @@ export function SyncSection() {
           <a href={SYNC_VIDEO.src}>MP4</a>
         </video>
       </div>
-      <p className="quiet watch__note">{copy.sync.filmNote}</p>
       <ul className="ledger sync__points">
         {copy.sync.points.map((line) => (
           <li key={line}>{line}</li>

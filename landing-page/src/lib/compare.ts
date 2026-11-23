@@ -44,7 +44,7 @@ export const COMPARE_ROWS: CompareRow[] = [
   {
     label: "Storage",
     cells: {
-      posthaste: "One local SQLite file",
+      posthaste: "One local file on your computer",
       "apple-notes": "iCloud or Mac",
       notion: "Notion's cloud",
       obsidian: "Local Markdown folder",
@@ -74,7 +74,7 @@ export const COMPARE_ROWS: CompareRow[] = [
   {
     label: "Sync & mobile",
     cells: {
-      posthaste: "Optional P2P sync between computers (experimental); phone app in development",
+      posthaste: "Direct device sync (no cloud); phone app in development",
       "apple-notes": "Mac, iPhone, iPad, web",
       notion: "Desktop, phone, web",
       obsidian: "Desktop & phone (paid sync or DIY)",
@@ -85,17 +85,17 @@ export const COMPARE_ROWS: CompareRow[] = [
 
 /** Why you would pick Posthaste. Each line is a behaviour, not a boast. */
 export const PICK_POSTHASTE: string[] = [
-  "You want keyboard-first capture and a short Today list on macOS, Windows or Linux.",
-  "You want your notes in one local file, with optional encrypted P2P sync and no account.",
-  "You want AI polish only when you ask, using your own key.",
+  "Keyboard-first capture and a short Today list on macOS, Windows, or Linux.",
+  "Local data on your computer, direct device sync without cloud storage, no account.",
+  "Optional AI polish using your own key.",
 ];
 
 /** Where the others are the better pick. Said plainly, because it is true. */
 export const PICK_OTHERS: string[] = [
-  "You need a phone app today, or Apple-only Pencil/scans (Apple Notes).",
-  "You collaborate on shared docs, databases and wikis (Notion).",
-  "You build a linked library of long Markdown notes (Obsidian).",
-  "You want a focus timer or coding agents over MCP (TodoGlow).",
+  "Phone app today or Apple Pencil support (Apple Notes).",
+  "Shared team docs, databases, and wikis (Notion).",
+  "Long-form linked Markdown vault (Obsidian).",
+  "Focus timer or MCP coding agents (TodoGlow).",
 ];
 
 /** Vietnamese translation of the comparison table and pick lists. */
@@ -118,7 +118,7 @@ export const COMPARE_VI: {
     {
       label: "Lưu trữ",
       cells: {
-        posthaste: "Một tệp SQLite trên máy",
+        posthaste: "Một tệp ngay trên máy bạn",
         "apple-notes": "iCloud hoặc máy Mac",
         notion: "Máy chủ của Notion",
         obsidian: "Thư mục Markdown trên máy",
@@ -148,7 +148,8 @@ export const COMPARE_VI: {
     {
       label: "Đồng bộ & điện thoại",
       cells: {
-        posthaste: "Đồng bộ P2P giữa các máy tính (thử nghiệm); app điện thoại đang phát triển",
+        posthaste:
+          "Đồng bộ trực tiếp giữa các máy (không qua đám mây); app điện thoại đang phát triển",
         "apple-notes": "Mac, iPhone, iPad, web",
         notion: "Máy tính, điện thoại, web",
         obsidian: "Máy tính & điện thoại (trả phí hoặc tự làm)",
@@ -157,14 +158,14 @@ export const COMPARE_VI: {
     },
   ],
   pickPosthaste: [
-    "Bạn muốn ghi nhanh bằng phím tắt và xem danh sách việc hôm nay thật gọn trên macOS, Windows hoặc Linux.",
-    "Bạn muốn dữ liệu nằm trên máy mình, có đồng bộ mã hóa P2P tùy chọn và không cần tài khoản.",
-    "Bạn chỉ muốn dùng AI khi tự bấm, bằng khóa riêng của mình.",
+    "Ghi nhanh bằng phím tắt và danh sách Hôm nay gọn trên macOS, Windows, Linux.",
+    "Dữ liệu nằm trên máy bạn, đồng bộ thiết bị không cần đám mây, không cần tài khoản.",
+    "AI tùy chọn bằng khóa riêng.",
   ],
   pickOthers: [
-    "Bạn cần ghi chú trên điện thoại ngay bây giờ hoặc vẽ Apple Pencil (Apple Notes).",
-    "Bạn làm việc nhóm trên tài liệu chung và bảng dữ liệu (Notion).",
-    "Bạn xây kho ghi chú Markdown liên kết dài hạn (Obsidian).",
-    "Bạn cần đồng hồ tập trung hoặc kết nối coding agent qua MCP (TodoGlow).",
+    "Cần app điện thoại ngay hoặc vẽ Apple Pencil (Apple Notes).",
+    "Làm việc nhóm trên tài liệu và bảng dữ liệu (Notion).",
+    "Kho ghi chú Markdown liên kết dài hạn (Obsidian).",
+    "Đồng hồ tập trung hoặc kết nối coding agent qua MCP (TodoGlow).",
   ],
 };

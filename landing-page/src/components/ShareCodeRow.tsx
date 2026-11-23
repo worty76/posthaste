@@ -41,9 +41,7 @@ export function ShareCodeRow() {
         </button>
       </div>
       <p className="share__note" aria-live="polite">
-        {copied === code
-          ? "Paste it into a chat. Your friend opens Settings, Appearance, Add from code."
-          : "Send it to a friend. They paste it into Add from code and get the same look."}
+        Paste into Settings → Appearance → Add from code.
       </p>
     </div>
   );
