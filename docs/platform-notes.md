@@ -66,15 +66,19 @@ window is focused, or position its own windows.
 
 ### macOS
 
-- The capture window is a normal always-on-top window, not an `NSPanel`. It
-  will not appear over another application's **full-screen** space. Fixing
-  that needs a non-activating panel.
+- Capture, Today and Note details are non-activating `NSPanel`s (`tauri-nspanel`,
+  `src-tauri/src/panels.rs`), so they appear over full-screen spaces and take
+  the keyboard without pulling other Posthaste windows forward or switching
+  desktops. When hidden, they stay warm at `alphaValue = 0.0` (`ignoresMouseEvents = true`)
+  so `WKWebView` keeps its GPU backing store and opens in a single frame without
+  a black flash.
 - The system reports no conflict when another app already uses a shortcut;
   registration succeeds and whichever app registered first wins. Posthaste
   cannot detect this.
 - Transparent windows use Tauri's `macOSPrivateApi`, which rules out the Mac
   App Store.
-- The app is not signed or notarised.
+- Release builds are signed for the in-app updater; macOS Gatekeeper notarisation
+  is not configured yet.
 
 ### Windows (unverified)
 
@@ -86,19 +90,23 @@ window is focused, or position its own windows.
 ## How it is built
 
 ```
-src/                      React + TypeScript UI (no business logic)
-  lib/ipc.ts              the only module that calls the native side; typed
-  lib/                    pure logic: dates, query building, shortcuts, draft sync
-  components/             Button, inputs, Switch, Segmented, Dialog, Toasts, Kbd, …
-  capture/                the floating capture window
-  main/                   inbox, search, settings
+ui/                       Rust + Leptos UI compiled to WebAssembly (no business logic)
+  src/ipc/                the only module that calls the native side; typed
+  src/logic/              pure logic: dates, query building, shortcuts, steps, projects
+  src/components/         Button, inputs, Switch, Segmented, Dialog, Toasts, Kbd, Scene, …
+  src/windows/            capture, today, details, and main (inbox, trash, settings)
   styles/tokens.css       design tokens: colour, type, spacing, motion
+  tests/                  browser tests against a fake Tauri shell (harness.mjs)
+locales/                  interface text for every language (en/, vi/)
 src-tauri/
-  crates/core/            storage. SQLite, migrations, notes, drafts, search,
-                          settings, export/import (Markdown and JSON).
-                          No Tauri dependency.
+  crates/core/            storage. SQLite, migrations, notes, steps, projects, drafts,
+                          search, settings, looks, sync engine, export/import.
+                          No Tauri or iroh dependency.
+  crates/model/           shared serde types across the IPC boundary
+  crates/i18n/            compile-time checked language catalogue and Translator
   crates/platform/        per-OS "which app was in front / give focus back"
-  src/                    Tauri shell: windows, shortcuts, tray, commands
+  crates/sync-net/        iroh QUIC peer-to-peer transport and pairing codes
+  src/                    Tauri shell: windows, panels, shortcuts, tray, sync, ai, commands
 scripts/e2e-linux.sh      end-to-end test against real windows under Xvfb
 ```
 
@@ -112,22 +120,24 @@ Decisions worth knowing:
 - **Drafts** are written to the `drafts` table ~250 ms after each keystroke and
   flushed on Esc, focus loss and hide. Saving a note and clearing its draft is
   one transaction.
-- **Search** is SQLite FTS5 (prefix matching, diacritics ignored), kept in sync
-  by triggers. Input is tokenised before it reaches FTS, so no query syntax can
-  break it.
+- **Search** is SQLite FTS5 (prefix matching, diacritics ignored) across notes,
+  descriptions and steps, kept in sync by triggers. Input is tokenised before
+  it reaches FTS, so no query syntax can break it.
 - **Migrations** are versioned with `PRAGMA user_version`, each in its own
   transaction. Before upgrading a database that has data, a snapshot is written
   next to it (`posthaste.db.before-upgrade-from-vN.bak`). A database from a
   newer version is refused, not modified.
-- **Delete** moves a note to a trash that is emptied after 24 hours, which is
-  what makes Undo possible.
+- **Delete** moves a note to Trash for 30 days (`TRASH_RETENTION_MS`), which is
+  what makes Undo and restore possible.
 - **rusqlite, not SQLx**: one local user and one connection behind a mutex; an
   async pool would add weight without benefit.
 - **Logging** records events and error kinds, never note text.
 
 Data location: `<app data dir>/dev.posthaste.desktop/posthaste.db`
 (`~/.local/share/…` on Linux, `~/Library/Application Support/…` on macOS,
-`%APPDATA%\…` on Windows). Settings → Data shows the exact path.
+`%APPDATA%\…` on Windows). Development builds (`debug_assertions`) open
+`posthaste-dev.db` in the same folder so local testing never upgrades or
+modifies your installed app's notes. Settings → Data shows the exact path.
 
 ## Trash
 
@@ -155,7 +165,7 @@ display under the pointer, 8 logical pixels from the edges it sits against
 "Upper third" loads as Top center, which now sits near the top edge rather
 than 22% down. The details window always opens centred.
 
-## Window sizes
+## Window and text sizes
 
 Capture, Today and the details window's first-open size are base sizes times
 the Window size setting: Compact 0.9, Standard 1.0 (the original sizes), Roomy
@@ -165,11 +175,15 @@ height, so Roomy stays on a short display. The details window gets its base
 size on its first open in a run; after that it keeps the size the user left
 it at, and changing the setting resizes it afresh on its next open.
 
+The Text size setting (Small, Standard or Large) sets `data-text-size` on the
+root `<html>` element in all four windows, scaling the typography tokens
+(`--t-xs` through `--t-title`) in `ui/styles/tokens.css`.
+
 Each time the details window opens from hidden it is centred on the display
-the pointer is on, like capture and Today. On macOS it also joins every Space
-for the moment it is shown and then leaves again, so it appears on the
-desktop the user is on instead of switching them back to the Space it was
-last shown on (or out of a full-screen app). Not yet checked on a Mac.
+the pointer is on, like capture and Today. On macOS all three floating windows
+are non-activating `NSPanel`s with `can_join_all_spaces` and
+`full_screen_auxiliary`, so they open on the desktop or full-screen Space the
+user is currently on instead of switching Spaces.
 
 
 ## AI providers and keys
@@ -200,14 +214,16 @@ GitHub Models (from a development build) reverts to Off.
 Checked on Linux without a keychain (database fallback, key moved from old
 settings, Settings shown). Not yet checked on macOS or Windows.
 
-## Capture and Today are non-activating panels (macOS)
+## Floating windows are non-activating panels (macOS)
 
 Showing an ordinary window makes its application active, and activating
 Posthaste brings every Posthaste window in front of the app you are working
-in, greys that app out and can switch desktops. So on macOS the capture and
-Today windows are turned into `NSPanel`s with the non-activating style
-(through `tauri-nspanel`, `src-tauri/src/panels.rs`), like Spotlight: they
-take the keyboard but Posthaste stays in the background and the app you were
-in stays active behind them. They float on every desktop and above apps in
-full screen. If a window cannot be made a panel it is shown the ordinary
-way. Not yet checked on a real Mac: type-checked only on Linux.
+in, greys that app out and can switch desktops. So on macOS the capture,
+Today and Note details windows are turned into `NSPanel`s with the
+non-activating style (through `tauri-nspanel`, `src-tauri/src/panels.rs`),
+like Spotlight: they take the keyboard (`make_key_and_order_front`) while
+Posthaste stays in the background and the app you were in stays active behind
+them. They float on every desktop and above apps in full screen, and when
+dismissed they are kept warm at `alphaValue = 0.0` (`ignoresMouseEvents = true`)
+rather than ordered out so `WKWebView` never purges its GPU backing store. If
+a window cannot be made a panel it is shown the ordinary way.

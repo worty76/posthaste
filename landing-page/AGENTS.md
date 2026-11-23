@@ -100,5 +100,9 @@ The share image `public/og.png` is rendered from `public/og-src.svg` with
 `rsvg-convert` (instructions in the SVG).
 
 Tests: `npm test` (share-code, contrast, derivation pinned to the app's Rust
-golden values, theme, demo). Formatting: `npm run format`. Never edit files
-outside `landing-page/` and `docs/` when working on the site.
+golden values, theme, demo, release config sync). Formatting: `npm run format`.
+When bumping a release version, follow `docs/release-guide.md` so `RELEASE`,
+`PRODUCT.version`, all 5 installer URLs, `RELEASE_NOTES`, and
+`FALLBACK_RELEASES` in `src/config.ts` all stay in sync with
+`src-tauri/Cargo.toml`. Never edit files outside `landing-page/` and `docs/`
+when working on the site alone.

@@ -13,7 +13,9 @@ what makes the app themeable: a theme changes token values and nothing else.
 | `base.css` | Element resets, focus ring, scrollbars. |
 | `ui.css` | Styles for `components/` (reusable controls). |
 | `capture.css` | The capture window. |
-| `main.css` | Inbox, search, settings layout. |
+| `today.css` | The Today window. |
+| `details.css` | The Note details window. |
+| `main.css` | Inbox, search, projects, settings layout. |
 
 ## Rules
 
@@ -68,8 +70,8 @@ A look is user- or bundled data that recolours the app: four colours, a base
 - The allow-list and derivation live in Rust, `src-tauri/crates/core/src/look/derive.rs`:
   a look document is validated there (hex-only colours, contrast floors) and
   turned into a fixed set of CSS custom properties. The frontend never
-  computes a colour; `lib/appearance.ts` only applies the resulting token map
-  to the root element.
+  computes a colour; `ui/src/state/appearance.rs` only applies the resulting
+  token map to the root element.
 - `shape` and `font` are ids, not values. Their pixel values and font stacks
   live in `tokens.css` and are selected through `data-shape`/`data-font`.
 - Fills and decoration use `--accent`; text and focus indicators use

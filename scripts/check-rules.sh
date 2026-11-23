@@ -78,6 +78,29 @@ rule "No unwrap()/expect() in non-test Rust; return an error (src-tauri/AGENTS.m
 rule "The version lives only in src-tauri/Cargo.toml [workspace.package] (src-tauri/AGENTS.md)" \
   "$(grep -n '"version"' src-tauri/tauri.conf.json package.json)"
 
+# Every release version location (Cargo.toml, Cargo.lock workspace crates, and
+# landing-page/src/config.ts) must stay in sync (docs/release-guide.md).
+APP_VER=$(grep -m1 '^version = "' src-tauri/Cargo.toml | cut -d'"' -f2)
+rule "Workspace crates in src-tauri/Cargo.lock must match src-tauri/Cargo.toml version ($APP_VER) (docs/release-guide.md)" \
+  "$(awk -v ver="$APP_VER" '
+    /^name = "posthaste(-core|-i18n|-model|-platform|-sync-net|-ui)?"$/ { pkg=$0; getline; if ($0 != "version = \"" ver "\"") print pkg " has " $0 " (expected " ver ")" }
+  ' src-tauri/Cargo.lock)"
+
+rule "landing-page/src/config.ts must match src-tauri/Cargo.toml version ($APP_VER) in all 9 release locations (docs/release-guide.md)" \
+  "$(
+    grep -Fq "releases/download/v${APP_VER}\"" landing-page/src/config.ts || echo "RELEASE url does not end with v${APP_VER}";
+    grep -Fq "version: \"${APP_VER}\"" landing-page/src/config.ts || echo "PRODUCT.version is not ${APP_VER}";
+    grep -Fq "The v${APP_VER} installers" landing-page/src/config.ts || echo "PRODUCT.downloads comment does not name v${APP_VER}";
+    grep -Fq "Posthaste_${APP_VER}_aarch64.dmg" landing-page/src/config.ts || echo "mac .dmg url does not have ${APP_VER}";
+    grep -Fq "Posthaste_${APP_VER}_x64-setup.exe" landing-page/src/config.ts || echo "windows .exe url does not have ${APP_VER}";
+    grep -Fq "Posthaste_${APP_VER}_amd64.AppImage" landing-page/src/config.ts || echo "linux .AppImage url does not have ${APP_VER}";
+    grep -Fq "Posthaste_${APP_VER}_amd64.deb" landing-page/src/config.ts || echo "linux .deb url does not have ${APP_VER}";
+    grep -Fq "Posthaste-${APP_VER}-1.x86_64.rpm" landing-page/src/config.ts || echo "linux .rpm url does not have ${APP_VER}";
+    grep -Fq "\"${APP_VER}\": [" landing-page/src/config.ts || echo "RELEASE_NOTES[\"${APP_VER}\"] is missing";
+    FIRST_FALLBACK=$(awk '/export const FALLBACK_RELEASES/,/\] as const/' landing-page/src/config.ts | grep -m1 -oE '\["[0-9]+\.[0-9]+\.[0-9]+"' | tr -d '["');
+    [ "$FIRST_FALLBACK" = "$APP_VER" ] || echo "FALLBACK_RELEASES[0] is ${FIRST_FALLBACK:-missing} (expected ${APP_VER})"
+  )"
+
 rule "CLAUDE.md copies are out of date; run: npm run sync:rules (AGENTS.md)" \
   "$(bash scripts/sync-rules.sh --check)"
 

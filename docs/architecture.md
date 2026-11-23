@@ -19,9 +19,9 @@ describe.
 | 10 | [Adding things](#10-adding-things) | Where does a new window, command, language or look go? |
 | 11 | [How it scales](#11-how-it-scales) | What grows, and where are the limits? |
 
-Rough size, in lines: interface 10.8k Rust and 2.2k CSS; shell 4.4k; storage
-5.7k; shared types 0.7k; per-OS code 0.4k; language catalogue 0.3k Rust and
-1.1k JSON; browser tests 2.5k.
+Rough size, in lines: interface 17.0k Rust and 3.4k CSS; shell 5.9k; storage
+14.0k; shared types 1.5k; sync transport 0.7k; per-OS code 0.4k; language
+catalogue 0.3k Rust and 1.4k JSON; browser tests 4.7k.
 
 ---
 
@@ -32,8 +32,9 @@ app its windows, tray, global shortcuts and installers. What is drawn inside
 each window is the **interface**: Rust compiled to WebAssembly (Leptos), shown
 by the system webview using HTML and CSS.
 
-There is no server. Everything runs on the user's computer and the only file
-that matters is one SQLite database.
+There is no central server holding user data. Everything runs on the user's
+computer and lives in one SQLite database (with optional peer-to-peer device
+sync directly between the user's own paired computers).
 
 ```mermaid
 flowchart TB
@@ -44,14 +45,15 @@ flowchart TB
   end
 
   subgraph shell["Desktop shell: src-tauri/src (Tauri 2)"]
-    cmds["commands.rs<br/>51 commands, thin adapters"]
+    cmds["commands.rs<br/>78 commands, thin adapters"]
     wins["windows.rs, panels.rs<br/>create, place, show, focus"]
-    misc["shortcuts.rs, tray.rs,<br/>updates.rs, ai/"]
+    misc["shortcuts.rs, tray.rs,<br/>updates.rs, sync.rs, ai/"]
     state["AppState<br/>database, settings,<br/>shortcut status, previous app"]
   end
 
   subgraph crates["Shared crates: src-tauri/crates"]
-    core["core<br/>storage, search, looks,<br/>import and export"]
+    core["core<br/>storage, steps, projects, search,<br/>looks, sync engine, import/export"]
+    syncnet["sync-net<br/>iroh QUIC transport,<br/>pairing codes, frames"]
     plat["platform<br/>per-OS: foreground app,<br/>display under the cursor"]
     shared["model and i18n<br/>the types and the words<br/>both sides share"]
   end
@@ -67,6 +69,7 @@ flowchart TB
   core --> db
   cmds --> wins
   misc --> wins
+  misc --> syncnet
   wins --> plat
   ui -. "compiled against" .-> shared
   shell -. "compiled against" .-> shared
@@ -92,11 +95,13 @@ flowchart LR
     model["posthaste-model"]
     i18n["posthaste-i18n"]
     plat["posthaste-platform"]
+    syncnet["posthaste-sync-net"]
     ui["posthaste-ui<br/>../ui, target wasm32"]
   end
 
   shell --> core
   shell --> plat
+  shell --> syncnet
   shell --> i18n
   core --> model
   ui --> model
@@ -105,19 +110,22 @@ flowchart LR
 
   tauri{{"tauri and its plugins"}}
   sqlite{{"rusqlite"}}
+  iroh{{"iroh (QUIC)"}}
   leptos{{"leptos, wasm-bindgen"}}
   shell --> tauri
   core --> sqlite
+  syncnet --> iroh
   ui --> leptos
 ```
 
 | Crate | Owns | Must not |
 |---|---|---|
-| `model` | Serde types on the boundary: `Note`, `Settings`, `ResolvedLook`, `CommandError`… | Hold logic or I/O |
-| `core` | Validation, SQL, search, looks, import and export | Depend on Tauri (`check-rules.sh` fails the build) |
+| `model` | Serde types on the boundary: `Note`, `Step`, `Project`, `Settings`, `ResolvedLook`, `CommandError`… | Hold logic or I/O |
+| `core` | Validation, SQL, steps, projects, search, looks, sync engine, import and export | Depend on Tauri or iroh (`check-rules.sh` fails the build) |
 | `i18n` | The catalogue and the `Translator` | Do I/O at run time |
 | `platform` | One file per OS for "which app was focused" and "which display" | Know about notes |
-| shell | Windows, shortcuts, tray, updates, commands | Hold SQL or business rules |
+| `sync-net` | iroh QUIC endpoint, single-use pairing codes, length-prefixed frame I/O | Open SQLite or use n0 lookup services |
+| shell | Windows, shortcuts, tray, updates, sync service, AI polish, commands | Hold SQL or business rules |
 | `ui` | Layout, keys, what is on screen | Hold business rules or name a command string outside `ipc/` |
 
 `ui/src/logic/` is plain functions of plain values with no browser in them, so
@@ -256,10 +264,10 @@ flowchart LR
   ev -- "events::on::NotesChanged(handler)" --> win
 ```
 
-**Commands** are requests with an answer (51 of them: capture, notes, trash,
-details and attachments, settings, data, looks). Each is one function in
-`commands.rs` that checks its input, calls `core`, and returns a result. No SQL
-lives there.
+**Commands** are requests with an answer (78 of them: capture, notes, steps,
+projects, trash, details and attachments, settings, data, looks, AI polish,
+device sync, updates). Each is one function in `commands.rs` that checks its
+input, calls `core`, and returns a result. No SQL lives there.
 
 **Events** are announcements with no answer. The shell says something changed
 and each window decides what to fetch.
@@ -269,6 +277,7 @@ and each window decides what to fetch.
 | `notes-changed` | A note was added, edited, moved or deleted | refetches its list |
 | `settings-changed` | Settings were saved | refetches settings |
 | `looks-changed` | A look was saved, imported or deleted | refetches the active look |
+| `sync-changed` | Paired device sync status or peer list changed | refetches sync status and peers |
 | `capture-shown` / `capture-hidden` | The capture window appeared or went away | focuses, or flushes its draft |
 | `today-shown` / `today-returned` | The Today window appeared, or got control back when note details closed | reloads, restores focus |
 | `details-open` | Show this note | opens it |
@@ -302,8 +311,8 @@ flowchart TB
     lid["look_id memo"]
     lact["look_active"]
     worn["worn look<br/>(a preview wins over the active look)"]
-    scheme["light or dark<br/>from the look's base,<br/>or the theme setting for Plain"]
-    html["write to the html element:<br/>CSS variables, data-shape,<br/>data-font, data-theme"]
+    scheme["light or dark<br/>from the look's base"]
+    html["write to the html element:<br/>CSS variables, data-shape,<br/>data-font, data-theme, data-text-size"]
   end
 
   subgraph lang["state/i18n.rs: use_i18n()"]
@@ -403,14 +412,16 @@ One SQLite file in WAL mode. Timestamps are milliseconds since the Unix epoch
 ```mermaid
 erDiagram
   notes ||--o{ attachments : "has up to 20"
+  notes ||--o{ note_steps : "has ordered steps"
   notes ||--|| notes_fts : "kept in step by triggers"
+  note_steps ||--|| steps_fts : "kept in step by triggers"
 
   notes {
     integer seq PK "stable across VACUUM"
     text id UK
     text content "not blank"
     text status "inbox, completed, archived"
-    text category
+    text category "project name"
     text source "app it was captured from"
     text details "the description"
     integer created_at
@@ -419,6 +430,25 @@ erDiagram
     integer archived_at
     integer later_at "set aside"
     integer deleted_at "in the trash"
+  }
+
+  note_steps {
+    integer seq PK "stable across VACUUM"
+    text id UK
+    text note_id FK "cascades on delete"
+    text text "one line, <= 500 chars"
+    integer done "0 or 1"
+    text rank "fractional ordering"
+    integer created_at
+    integer updated_at
+    integer deleted_at "local tombstone"
+  }
+
+  projects {
+    text name PK "1..40 chars"
+    integer archived_at
+    integer created_at
+    text color "optional #rrggbb"
   }
 
   attachments {
@@ -460,10 +490,32 @@ erDiagram
     integer updated_at
   }
 
+  sync_fields {
+    text note_id PK
+    text field PK
+    text hlc
+    integer seq
+  }
+
+  sync_peers {
+    text device_id PK
+    text name
+    text addrs "JSON"
+    integer paired_at
+    integer last_sync_at
+    integer sent_up_to
+    text received_hlc
+    integer steps_resend_from
+  }
+
   notes_fts {
     text content "full-text search, FTS5"
     text category
     text details
+  }
+
+  steps_fts {
+    text text "full-text search, FTS5"
   }
 ```
 
@@ -488,10 +540,13 @@ flowchart TB
   ok -- "no" --> rolled(["rolled back:<br/>the database is exactly as it was"])
 ```
 
-Today there are six migrations (the last one adds `look_assets`): initial tables, full-text search, looks,
-details and attachments, and "later". Opening a database made by a newer
-version is refused instead of guessed at, which is why you cannot simply
-downgrade the app after it has upgraded your data.
+Today there are 11 migrations (`0001_init` through `0011_project_custom_color`):
+initial tables, full-text search, looks, details and attachments, Later, look
+image assets, device sync (`sync_fields`, `sync_peers`, `sync_state`), note
+steps (`note_steps`, `steps_fts`, `sync_held_steps`), projects, and project
+colours. Opening a database made by a newer version is refused instead of
+guessed at, which is why you cannot simply downgrade the app after it has
+upgraded your data.
 
 ---
 
@@ -529,9 +584,12 @@ flowchart TB
 
 Notes:
 
-- The version lives in one place, `src-tauri/Cargo.toml`
-  (`[workspace.package]`). `check-rules.sh` fails if `tauri.conf.json` or
-  `package.json` carries a `"version"`.
+- The app version lives in `src-tauri/Cargo.toml` (`[workspace.package]`),
+  mirrored in `src-tauri/Cargo.lock` and `landing-page/src/config.ts`.
+  `check-rules.sh` fails if `tauri.conf.json` or `package.json` carries a
+  `"version"`, or if `Cargo.lock` or `landing-page/src/config.ts` is out of
+  sync with `src-tauri/Cargo.toml`. See [docs/release-guide.md](release-guide.md)
+  for the full release checklist.
 - Docs, scripts and the landing page are in the workflow's `paths-ignore`, so
   a push that only touches them builds and releases nothing.
 - Updates are checked from Rust (`update_check`, `update_install`) against the

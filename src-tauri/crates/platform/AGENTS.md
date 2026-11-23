@@ -30,10 +30,10 @@ behind one small API in `lib.rs`.
 ## Verification
 
 - Linux/X11 is exercised by `scripts/e2e-linux.sh`.
-- `macos.rs` and `windows.rs` have not been compiled in this repo's
-  development environment. If you change them and cannot build for that OS,
-  check each call against the binding crate's source, and say "not compiled" in
-  your summary and in the platform table in `docs/platform-notes.md`.
+- `macos.rs` is compiled and used on macOS (Apple Silicon). If you change
+  `macos.rs` or `windows.rs` and cannot build for that OS locally, check each
+  call against the binding crate's source, and say "not compiled" or "not run"
+  in your summary and in the platform table in `docs/platform-notes.md`.
 - Wayland cannot support this crate's features by design. Do not add
   compositor-specific hacks; the documented route is the `posthaste --capture`
   command bound in the desktop's own settings.

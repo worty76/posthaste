@@ -16,6 +16,8 @@ overrides the "Never" list below.
 | `src-tauri/crates/i18n/`, `locales/` (interface text) | `src-tauri/crates/i18n/AGENTS.md` |
 | `src-tauri/crates/platform/` (per-OS code) | `src-tauri/crates/platform/AGENTS.md` |
 | `src-tauri/crates/sync-net/` (peer-to-peer sync transport) | `src-tauri/crates/sync-net/AGENTS.md` |
+| `landing-page/` (marketing site) | `landing-page/AGENTS.md` |
+| Releases / version bumps | `docs/release-guide.md` |
 
 `AGENTS.md` is the source of truth. Each `CLAUDE.md` is a generated copy for
 Claude Code: edit `AGENTS.md`, then run `npm run sync:rules`. When a rule
@@ -126,6 +128,7 @@ npm run check
 (cd src-tauri && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test --workspace)
 (cd src-tauri && cargo clippy -p posthaste-ui --target wasm32-unknown-unknown -- -D warnings)
 npm run build && npm run test:ui
+(cd landing-page && npm run format:check && npm test && npx tsc --noEmit)  # when landing-page/ or the release version changed
 scripts/e2e-linux.sh        # when capture, focus, shortcuts or windows changed (Linux/X11)
 ```
 

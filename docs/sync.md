@@ -43,7 +43,8 @@ by default** under **Settings → Devices**.
   in `sync_fields`.
 - Tracked fields: `content`, `details`, `category`, `status` (bundled with
   `completed_at` and `archived_at`), `later`, `deleted`, `created`, and
-  `purged` (tombstone).
+  `purged` (tombstone), plus per-step fields (`step:<id>:text`,
+  `step:<id>:done`, `step:<id>:rank`, `step:<id>:deleted`).
 - Each change is stamped with:
   - A **Hybrid Logical Clock (HLC)** (`{wall_ms:013}-{counter:06}-{device}`)
     so string order equals causal order and the clock never moves backwards
@@ -87,7 +88,10 @@ by default** under **Settings → Devices**.
 ## 5. Scope (Current Experimental Version)
 
 - **Synced:** notes and their text/status fields (`content`, `details`,
-  `category`, `status`, `later`, `deleted`, `purged`), and steps (text, done,
-  rank, deleted) when the other computer runs a version that has them.
-- **Not synced yet:** attachments, looks and look images, settings, and unsaved
+  `category` / project name, `status`, `later`, `deleted`, `purged`), and steps
+  (text, done, rank, deleted) when the other computer runs a version that has
+  them. Syncing a note with a project ensures that project exists on the
+  receiving computer.
+- **Not synced yet:** project colour and project archive status (kept per
+  computer for now), attachments, looks and look images, settings, and unsaved
   drafts.

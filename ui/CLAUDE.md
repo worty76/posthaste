@@ -40,10 +40,10 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
 - A window keeps its signals in one `Copy` struct and its actions as methods
   on it (`Capture` in `windows/capture.rs`). Handlers call those methods; the
   `view!` holds markup and wiring only.
-- A new window: one module in `windows/`, one arm in `windows::mount`, its
-  and its URL changed to `RUST_UI` in
-  `src-tauri/src/windows.rs`. Delete the React window and its test in the
-  same change, after the browser tests cover what that test covered.
+- A new window: one module in `windows/`, one arm in `windows::mount`,
+  created at startup in `src-tauri/src/windows.rs`, listed in
+  `src-tauri/capabilities/default.json`, and styled under `.is-<label>` in
+  `ui/styles/`.
 
 ## The IPC boundary
 
@@ -77,8 +77,8 @@ Dependencies point one way: `windows` → `state`, `components`, `ipc`,
 - Data changed elsewhere arrives as an event. Refetch on it; do not patch
   local copies to mirror what the database probably did.
 - `state/appearance.rs` is the only writer of CSS custom properties and of
-  `data-theme`, `data-shape`, `data-font`. `state/i18n.rs` is the only
-  writer of `lang` and `dir`.
+  `data-theme`, `data-shape`, `data-font`, `data-text-size`. `state/i18n.rs`
+  is the only writer of `lang` and `dir`.
 - To make an effect depend on a value it does not use, read it with
   `value.with(|_| ())`, never `value.track()`. A `Memo` that is only
   tracked is never computed, so it never subscribes to what it is made
@@ -129,8 +129,9 @@ invariants hold in every phase:
 
 - The interface never parses a look or reads a look file: it applies the
   tokens `look_active` and `look_preview` resolved in storage, and edits a
-  look only through the v1 view the shell returns. A look with scene parts
-  this build does not draw keeps them; saving one never strips them.
+  look only through the `ThemeEdit` and `SceneEdit` views the shell returns.
+  A look with scene parts this build does not draw keeps them; saving one
+  never strips them.
 - Scene layers draw through `SceneHost` from the `ResolvedScene` storage
   resolved. Stickers and backdrops are CSS classes — sizes, anchors, tilts
   and dims are fixed lists, one class each; never inline values. The scene

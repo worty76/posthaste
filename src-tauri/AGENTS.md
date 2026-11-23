@@ -11,8 +11,12 @@ are in `crates/platform`).
 | `lib.rs` | Startup order, plugin registration, command list, launch flags |
 | `commands.rs` | Every `#[tauri::command]`. Thin adapters only |
 | `windows.rs` | Creating, showing, hiding, placing all four windows |
+| `panels.rs` | Non-activating macOS floating panels (`tauri-nspanel`), kept warm at alpha 0 |
 | `shortcuts.rs` | Global shortcut registration and its status report |
 | `tray.rs` | Tray icon and menu |
+| `sync.rs` | Background peer-to-peer device sync service (`SyncService`) |
+| `updates.rs` | In-app update check and installation |
+| `ai/` | Optional AI polish providers, wire requests, and OS keychain secrets |
 | `state.rs` | `AppState`, database access, lock helper |
 | `error.rs` | `AppError { code, message }`, the only error shape commands return |
 
@@ -81,14 +85,21 @@ are in `crates/platform`).
 
 ## Releases
 
-- The version lives in exactly one place: `version` under
-  `[workspace.package]` in `Cargo.toml`. `tauri.conf.json` and `package.json`
-  intentionally have no version field; Tauri resolves it from Cargo.toml for
-  the bundle, the updater manifest, the frontend's `app_info`, and the CI
-  release tag. Bumping it there is the whole release.
-- Release notes write themselves: CI lists the commits between the previous
-  tag and the new one in the GitHub release body. A commit message is
-  user-facing text, so write it as one — say what changed, not what you did
+- For the desktop app crate, the version is defined under `[workspace.package]`
+  in `src-tauri/Cargo.toml` (`tauri.conf.json` and `package.json` intentionally
+  have no version field; Tauri resolves it from `Cargo.toml` for the bundle,
+  the updater manifest, the frontend's `app_info`, and the CI release tag).
+- **A release spans both the desktop workspace and the landing page.** Bumping
+  `src-tauri/Cargo.toml` alone is incomplete: `src-tauri/Cargo.lock` and all
+  versioned fields in `landing-page/src/config.ts` (`RELEASE`,
+  `PRODUCT.version`, the five installer URLs, `RELEASE_NOTES["<version>"]`,
+  and the top entry of `FALLBACK_RELEASES`) must be updated together. Follow
+  `docs/release-guide.md` step by step; `scripts/check-rules.sh` enforces that
+  every location matches.
+- Release notes on GitHub write themselves from commits between the previous
+  tag and the new one, while the website changelog uses the human-written
+  bullets in `RELEASE_NOTES` in `landing-page/src/config.ts`. A commit message
+  is user-facing text, so write it as one — say what changed, not what you did
   to the repo.
 
 ## Style

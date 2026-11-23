@@ -8,9 +8,9 @@ it slower, need more keystrokes, or make it less reliable.
 
 - **Small fix or translation:** open a pull request directly.
 - **New feature or setting:** open an issue first and describe what a user
-  would do with it. Some things are out on purpose (accounts, sync, telemetry,
-  reminders, folders, statistics); see the "Not in it" section of the
-  [README](README.md).
+  would do with it. Some things are out on purpose (accounts, central cloud
+  storage, telemetry, reminders, folders, statistics); see the "Not in it"
+  section of the [README](README.md).
 - **Not sure?** Open an issue and ask. It is cheaper than a rewrite.
 
 ## Set up
@@ -48,13 +48,15 @@ npm run check                                     # formatting and rule checks
 cd src-tauri
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy -p posthaste-ui --target wasm32-unknown-unknown -- -D warnings
 cargo test --workspace
 ```
 
 Always pass `--workspace` to clippy. Without it only one crate is checked.
 
-`npm run test:ui` runs the browser tests of the interface. It needs
-`playwright-core` and a Chrome binary, so it is not part of the automatic
+`npm run build && npm run test:ui` builds the WebAssembly bundle and runs the
+browser tests of the interface. It needs `playwright-core` and a Chrome,
+Chromium, or Edge binary (`CHROME_PATH`), so it is not part of the automatic CI
 checks yet. Run it if you changed anything in `ui/`.
 
 ## The rules
@@ -63,7 +65,9 @@ The rules live in `AGENTS.md` at the root and in each source folder. Read the
 root file and the one nearest the code you change. The ones that matter most:
 
 - Never lose the user's text: a note is saved only after SQLite commits.
-- Never send anything off the machine, and never log note content.
+- Never send anything off the machine except sync traffic to the user's own
+  paired devices, the update check, and AI polish the user turned on. Never log
+  note content.
 - Never edit a shipped migration; add a new numbered one.
 - Do not add a dependency without asking in the issue first.
 - Never weaken a test to make it pass.
