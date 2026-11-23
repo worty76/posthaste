@@ -53,24 +53,32 @@ impl Db {
     /// `category` values, ordered by newest note (`last_at` DESC) then name.
     pub fn projects(&self, include_archived: bool) -> Result<Vec<Project>> {
         let mut stmt = self.conn().prepare_cached(
-            "WITH names AS (
+            "WITH note_stats AS (
+                 SELECT
+                     category AS name,
+                     COUNT(*) FILTER (WHERE status = 'inbox') AS open_count,
+                     COUNT(*) AS total_count,
+                     MAX(created_at) AS last_at
+                 FROM notes
+                 WHERE deleted_at IS NULL AND category IS NOT NULL
+                 GROUP BY category
+             ),
+             names AS (
                  SELECT name FROM projects
                  UNION
-                 SELECT DISTINCT category AS name FROM notes
-                 WHERE deleted_at IS NULL AND category IS NOT NULL
+                 SELECT name FROM note_stats
              )
              SELECT
                  n.name,
                  p.color,
                  COALESCE(p.archived_at IS NOT NULL, 0) AS archived,
-                 COUNT(notes.id) FILTER (WHERE notes.status = 'inbox') AS open_count,
-                 COUNT(notes.id) AS total_count,
-                 COALESCE(MAX(notes.created_at), 0) AS last_at
+                 COALESCE(s.open_count, 0) AS open_count,
+                 COALESCE(s.total_count, 0) AS total_count,
+                 COALESCE(s.last_at, 0) AS last_at
              FROM names n
              LEFT JOIN projects p ON p.name = n.name
-             LEFT JOIN notes ON notes.category = n.name AND notes.deleted_at IS NULL
+             LEFT JOIN note_stats s ON s.name = n.name
              WHERE ?1 OR p.archived_at IS NULL
-             GROUP BY n.name
              ORDER BY last_at DESC, n.name ASC",
         )?;
         let rows = stmt.query_map([include_archived], |r| {

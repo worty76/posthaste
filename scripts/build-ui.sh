@@ -36,10 +36,18 @@ if [ "$FOUND" != "$WASM_BINDGEN_VERSION" ]; then
 fi
 
 # UI_CARGO_ARGS: extra cargo arguments, for machines with an unusual toolchain.
+# Keep the `target_features` custom section intact for wasm-bindgen even when
+# `[profile.release]` sets `strip = true` for the native desktop binary.
 # shellcheck disable=SC2086
-(cd src-tauri && cargo build -p posthaste-ui --target wasm32-unknown-unknown $PROFILE_FLAG ${UI_CARGO_ARGS:-})
+(cd src-tauri && CARGO_PROFILE_RELEASE_STRIP=none cargo build -p posthaste-ui --target wasm32-unknown-unknown $PROFILE_FLAG ${UI_CARGO_ARGS:-})
 
 wasm-bindgen --target web --no-typescript \
   --out-dir ui/pkg --out-name posthaste_ui \
   "src-tauri/target/wasm32-unknown-unknown/$PROFILE_DIR/posthaste_ui.wasm"
+
+if [ "$PROFILE_DIR" = "release" ] && command -v wasm-opt >/dev/null; then
+  wasm-opt -Oz --strip-debug \
+    -o ui/pkg/posthaste_ui_bg.wasm \
+    ui/pkg/posthaste_ui_bg.wasm
+fi
 echo "ui: built ($PROFILE_DIR) -> ui/pkg"

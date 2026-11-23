@@ -560,6 +560,8 @@ pub fn show_main(app: &AppHandle, view: Option<&str>) {
         log::error!("main window could not be shown: {e}");
     }
     let _ = window.set_focus();
+    // Refresh in case notes changed while the main window was hidden.
+    let _ = window.emit("notes-changed", ());
     if let Some(view) = view {
         let _ = window.emit("navigate", view);
     }
