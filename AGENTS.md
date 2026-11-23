@@ -110,7 +110,7 @@ to its layer rather than bending the boundary.
 Follow the existing path; do not invent a parallel one.
 
 1. Storage: method on `Db` in `crates/core` with tests.
-2. Command: thin adapter in `src-tauri/src/commands.rs`, registered in
+2. Command: thin adapter in `src-tauri/src/commands/`, registered in
    `lib.rs`, returning `AppResult<T>`.
 3. Types: new serde types go in `crates/model`, where the shell and the
    interface both read them.

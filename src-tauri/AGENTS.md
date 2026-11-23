@@ -9,7 +9,7 @@ are in `crates/platform`).
 | File | Owns |
 |---|---|
 | `lib.rs` | Startup order, plugin registration, command list, launch flags |
-| `commands.rs` | Every `#[tauri::command]`. Thin adapters only |
+| `commands/` | Every `#[tauri::command]`, grouped by domain (`capture`, `notes`, `steps`, `projects`, `details`, `settings`, `data`, `looks`, `sync`). Thin adapters only |
 | `windows.rs` | Creating, showing, hiding, placing all four windows |
 | `panels.rs` | Non-activating macOS floating panels (`tauri-nspanel`), kept warm at alpha 0 |
 | `shortcuts.rs` | Global shortcut registration and its status report |
@@ -31,7 +31,7 @@ are in `crates/platform`).
 - After any change to notes, call `notes_changed(&app)`. After settings change,
   emit `settings-changed`. Windows refetch on these.
 - Commands that open a file dialog or block are `async`. Others are sync.
-- A new command is added in four places in the same change: `commands.rs`, the
+- A new command is added in four places in the same change: `commands/`, the
   `generate_handler!` list in `lib.rs`, `ui/src/ipc/api.rs`, and a default
   answer in `ui/tests/harness.mjs`.
 - Text the shell itself shows (tray menu, file dialog titles) comes from

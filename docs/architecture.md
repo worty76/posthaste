@@ -45,7 +45,7 @@ flowchart TB
   end
 
   subgraph shell["Desktop shell: src-tauri/src (Tauri 2)"]
-    cmds["commands.rs<br/>78 commands, thin adapters"]
+    cmds["commands/<br/>78 commands, thin adapters"]
     wins["windows.rs, panels.rs<br/>create, place, show, focus"]
     misc["shortcuts.rs, tray.rs,<br/>updates.rs, sync.rs, ai/"]
     state["AppState<br/>database, settings,<br/>shortcut status, previous app"]
@@ -192,7 +192,7 @@ sequenceDiagram
   participant W as windows.rs
   participant PL as platform
   participant C as Capture window (ui)
-  participant CMD as commands.rs
+  participant CMD as commands/
   participant DB as core Db
   participant O as Other windows
 
@@ -249,7 +249,7 @@ flowchart LR
 
   subgraph shell["src-tauri/src"]
     handler["generate_handler!<br/>in lib.rs"]
-    cmd["commands.rs<br/>validate, call core, emit"]
+    cmd["commands/<br/>validate, call core, emit"]
     emit["app.emit(name, payload)"]
   end
 
@@ -266,7 +266,7 @@ flowchart LR
 
 **Commands** are requests with an answer (78 of them: capture, notes, steps,
 projects, trash, details and attachments, settings, data, looks, AI polish,
-device sync, updates). Each is one function in `commands.rs` that checks its
+device sync, updates). Each is one function in `commands/` that checks its
 input, calls `core`, and returns a result. No SQL lives there.
 
 **Events** are announcements with no answer. The shell says something changed
@@ -540,13 +540,13 @@ flowchart TB
   ok -- "no" --> rolled(["rolled back:<br/>the database is exactly as it was"])
 ```
 
-Today there are 11 migrations (`0001_init` through `0011_project_custom_color`):
+Today there are 12 migrations (`0001_init` through `0012_query_indexes`):
 initial tables, full-text search, looks, details and attachments, Later, look
 image assets, device sync (`sync_fields`, `sync_peers`, `sync_state`), note
-steps (`note_steps`, `steps_fts`, `sync_held_steps`), projects, and project
-colours. Opening a database made by a newer version is refused instead of
-guessed at, which is why you cannot simply downgrade the app after it has
-upgraded your data.
+steps (`note_steps`, `steps_fts`, `sync_held_steps`), projects, project
+colours, and covering query indexes for projects and counts. Opening a database
+made by a newer version is refused instead of guessed at, which is why you
+cannot simply downgrade the app after it has upgraded your data.
 
 ---
 
@@ -605,7 +605,7 @@ Each thing has one path. Follow it instead of inventing a parallel one.
 flowchart TB
   subgraph feature["A feature, end to end"]
     f1["1. Db method in core, with tests"] --> f2["2. Types in model"]
-    f2 --> f3["3. Thin command in commands.rs,<br/>registered in lib.rs"]
+    f2 --> f3["3. Thin command in commands/,<br/>registered in lib.rs"]
     f3 --> f4["4. Typed wrapper in ui/src/ipc/api.rs<br/>and a default answer in the test harness"]
     f4 --> f5["5. Text in locales/, every language"]
     f5 --> f6["6. Use it in a window,<br/>test it against the harness"]
@@ -699,7 +699,7 @@ flowchart LR
   end
 
   data --> limit1["Limit: one connection behind a Mutex,<br/>every command waits its turn"]
-  code --> limit2["Limit: some window files are large<br/>(details 912 lines, today 735)"]
+  code --> limit2["Submodules per domain:<br/>commands/, details/, today/, main/"]
   world --> limit3["Limit: every language ships in the<br/>one WebAssembly module"]
 ```
 
@@ -715,7 +715,7 @@ flowchart LR
 | **Plural rules** | Two rules: `other` and `one_other`. | Languages with more forms (Russian, Polish, Arabic) | Add the rule to `PluralRule` first; the build says so. |
 | **Schema** | Append-only, transactional, with a snapshot before an upgrade. | No downgrade path | Keep migrations small; never rename in place. |
 | **Platforms** | One file per OS in `platform`; Mac panels are macOS-only code. | Behaviour that differs per OS cannot be tested on one machine | Keep OS code thin and tested on each OS before a release. |
-| **Code size** | Window files are single structs of signals with actions as methods. | `details.rs` and `today.rs` approach a size where they should split | Move pure decisions to `logic/` and sub-views to their own files as they grow. |
+| **Code size** | Commands (`commands/`) and complex windows (`main/`, `details/`, `today/`) are split into focused domain submodules. | A single submodule growing past ~600–800 lines | Move pure decisions to `logic/` and sub-views to their own files as they grow. |
 
 **Habits that keep it scalable**
 

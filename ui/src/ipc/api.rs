@@ -1,6 +1,6 @@
 //! One typed function per shell command. Adding a command to a window means
 //! adding it here, next to its argument struct; the names and shapes match
-//! `src-tauri/src/commands.rs`.
+//! `src-tauri/src/commands/`.
 
 use posthaste_model::{
     AiOverview, AppInfo, AssetRef, AttachReport, Attachment, CommandError, Counts, DataInfo,
