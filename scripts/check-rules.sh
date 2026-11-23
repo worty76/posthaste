@@ -116,6 +116,14 @@ rule "Looks have one format; no v1 remnants (crates/core/AGENTS.md)" \
       src-tauri ui/src ui/tests landing-page/src \
       --include='*.rs' --include='*.ts' --include='*.tsx' --include='*.mjs' 2>/dev/null)"
 
+# WebKit renders half-pixel text sizes blurry on standard-resolution screens.
+rule "Type sizes are whole pixels (ui/styles/AGENTS.md)" \
+  "$(grep -rnE --include='*.css' -e '(--t-[a-z]+|font-size): *[0-9]*\.[0-9]+px' ui/styles)"
+
+rule "font-size uses a --t-* token outside ui/styles/tokens.css (ui/styles/AGENTS.md)" \
+  "$(grep -rnE 'font-size: *[0-9.]+(px|rem|em|pt)' ui/styles --include='*.css' \
+      | grep -v '^ui/styles/tokens.css:')"
+
 # Every bundled font file carries its licence: one OFL-<family>.txt per
 # family, committed beside the files it covers.
 rule "Every bundled font has its OFL licence beside it (ui/styles/AGENTS.md)" \

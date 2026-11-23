@@ -258,7 +258,7 @@ html.is-linux.is-capture .capture__panel[data-shake="true"] {
 }
 .capture__project-key {
   font-family: var(--font-mono-ui);
-  font-size: 10px;
+  font-size: var(--t-xs);
   line-height: 1;
   color: var(--text-faint);
 }

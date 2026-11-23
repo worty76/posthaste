@@ -29,6 +29,10 @@ what makes the app themeable: a theme changes token values and nothing else.
   becoming a lie.
 - **Every colour token is defined in both the dark and the light block.** Add
   to both in the same change, and check both in the running app.
+- **Type sizes are whole pixels**, in every `--t-*` preset, and every
+  `font-size` uses a `--t-*` token: WebKit blurs text at half-pixel sizes
+  and positions on standard-resolution screens. `scripts/check-rules.sh`
+  enforces both.
 - **Spacing uses the `--s-*` scale**, type uses `--t-*`, radii use `--r-*`,
   motion uses `--fast`/`--quick` and `--ease`. Literal pixel values are for
   control dimensions (a 30px button height, an 18px checkbox) and hairlines,
@@ -39,7 +43,9 @@ what makes the app themeable: a theme changes token values and nothing else.
   `color-mix(in srgb, var(--token) N%, transparent)`, not from a new hard-coded
   colour.
 - **Text contrast**: `--text` and `--text-muted` on `--bg`, `--surface` and
-  `--surface-raised` meet WCAG AA (4.5:1). `--text-faint` is for hints only,
+  `--surface-raised` meet WCAG AA (4.5:1). `--text-faint` reaches 4.5:1 on
+  `--bg` in dark and 4.0:1 in light (looks derive it to the same floors in
+  `look/derive.rs`). `--text-faint` is for hints only,
   never for content. Changing any of these means re-checking contrast.
 - **One accent.** Colour carries meaning: accent for the current or primary
   thing, danger for destructive or failed, ok for confirmed. Not decoration.

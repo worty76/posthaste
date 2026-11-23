@@ -3,54 +3,54 @@
 //! ← and → show earlier days, read-only and rebuilt from timestamps. There
 //! are no future days, because notes have no dates.
 
+mod list;
+
 use std::collections::HashSet;
 
 use leptos::ev::KeyboardEvent;
 use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use posthaste_i18n::{key, Translator};
+use posthaste_i18n::key;
 use posthaste_model::{CommandError, Glance, Note, Os, Project, Status};
 use wasm_bindgen::JsCast;
 
-use super::note_badges::NoteBadges;
-use crate::components::{
-    caps, Calendar, DayMarks, EmptyState, Icon, IconButton, IconName, Kbd, ProjectDot,
-    ProjectPicker,
-};
+use crate::components::{Calendar, DayMarks, IconButton, IconName, ProjectPicker};
 use crate::ipc::{self, api, events};
 use crate::logic::dates::Day;
 use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
 use crate::logic::shortcut::format_accelerator;
 use crate::logic::today::{
-    clamp_to_past, is_done, key_action, moved_selection, neighbour, origin, selection_after_load,
-    visible_ids, KeyAction, KeyContext, KeyPress, Origin,
+    clamp_to_past, key_action, moved_selection, neighbour, selection_after_load, visible_ids,
+    KeyAction, KeyContext, KeyPress,
 };
-use crate::state::{use_appearance, use_i18n, use_settings, I18n};
+use crate::state::{use_appearance, use_i18n, use_settings};
 use crate::time::{self, DateStyle, Width};
+
+use list::{Hints, Notes, Nothing, Progress};
 
 /// Everything the window's actions read and write. `Copy`, so each handler
 /// takes it by value.
 #[derive(Clone, Copy)]
-struct Today {
-    glance: RwSignal<Option<Glance>>,
-    error: RwSignal<Option<CommandError>>,
+pub(super) struct Today {
+    pub(super) glance: RwSignal<Option<Glance>>,
+    pub(super) error: RwSignal<Option<CommandError>>,
     /// The id of the selected row.
-    selected: RwSignal<Option<String>>,
+    pub(super) selected: RwSignal<Option<String>>,
     /// The day being looked at. `None` follows today, across midnight too.
-    view_day: RwSignal<Option<Day>>,
+    pub(super) view_day: RwSignal<Option<Day>>,
     /// Today's date as of the last load, so a window left open overnight
     /// redraws for the new day instead of trusting an old clock reading.
-    today: RwSignal<Day>,
-    calendar_open: RwSignal<bool>,
-    marks: RwSignal<DayMarks>,
-    collapsed_sections: RwSignal<HashSet<String>>,
-    picker_open: RwSignal<bool>,
-    picker_projects: RwSignal<Vec<Project>>,
-    list: NodeRef<html::Div>,
+    pub(super) today: RwSignal<Day>,
+    pub(super) calendar_open: RwSignal<bool>,
+    pub(super) marks: RwSignal<DayMarks>,
+    pub(super) collapsed_sections: RwSignal<HashSet<String>>,
+    pub(super) picker_open: RwSignal<bool>,
+    pub(super) picker_projects: RwSignal<Vec<Project>>,
+    pub(super) list: NodeRef<html::Div>,
     /// Counts loads, so a slow answer to an old one cannot replace a newer.
-    request: StoredValue<u32>,
+    pub(super) request: StoredValue<u32>,
 }
 
 impl Today {
@@ -71,11 +71,11 @@ impl Today {
         }
     }
 
-    fn viewing_today(self) -> bool {
+    pub(super) fn viewing_today(self) -> bool {
         self.view_day.with(Option::is_none)
     }
 
-    fn shown_day(self) -> Day {
+    pub(super) fn shown_day(self) -> Day {
         self.view_day.get().unwrap_or_else(|| self.today.get())
     }
 
@@ -83,11 +83,11 @@ impl Today {
         self.error.set(Some(error));
     }
 
-    fn is_section_collapsed(self, project: &str) -> bool {
+    pub(super) fn is_section_collapsed(self, project: &str) -> bool {
         self.collapsed_sections.with(|set| set.contains(project))
     }
 
-    fn set_section_collapsed(self, project: &str, collapse: bool) {
+    pub(super) fn set_section_collapsed(self, project: &str, collapse: bool) {
         if collapse {
             let current = self.selected.get_untracked();
             if current.is_some() {
@@ -118,14 +118,14 @@ impl Today {
         }
     }
 
-    fn toggle_section(self, project: &str) {
+    pub(super) fn toggle_section(self, project: &str) {
         let collapsed = self
             .collapsed_sections
             .with_untracked(|set| set.contains(project));
         self.set_section_collapsed(project, !collapsed);
     }
 
-    fn project_color(self, name: &str) -> Option<String> {
+    pub(super) fn project_color(self, name: &str) -> Option<String> {
         self.picker_projects
             .with(|list| list.iter().find(|p| p.name == name)?.color.clone())
     }
@@ -265,7 +265,7 @@ impl Today {
 
     /// Marks the note done, or not done. The list refreshes when the shell
     /// announces the change.
-    fn toggle(self, note: &Note) {
+    pub(super) fn toggle(self, note: &Note) {
         let id = note.id.clone();
         let status = if note.status == Status::Completed {
             Status::Inbox
@@ -295,7 +295,7 @@ impl Today {
     }
 
     /// Opens the inbox, filtered to the day the note was captured.
-    fn show_captured_day(self, note: &Note) {
+    pub(super) fn show_captured_day(self, note: &Note) {
         let day = time::day_of(note.created_at).key();
         spawn_local(async move {
             if let Err(error) = api::inbox_open_date(&day).await {
@@ -304,7 +304,7 @@ impl Today {
         });
     }
 
-    fn open_details(self, note: &Note) {
+    pub(super) fn open_details(self, note: &Note) {
         let id = note.id.clone();
         self.selected.set(Some(id.clone()));
         spawn_local(async move {
@@ -574,417 +574,5 @@ pub fn TodayWindow(os: Os) -> impl IntoView {
                 <Hints today=today i18n=i18n />
             </section>
         </div>
-    }
-}
-
-/// "3 of 5 done" and the bar under it.
-#[component]
-fn Progress(today: Today, i18n: I18n) -> impl IntoView {
-    let counts = Memo::new(move |_| today.glance.with(|g| g.as_ref().map(|g| (g.done, g.total))));
-    move || {
-        counts.get().map(|(done, total)| {
-            let all_done = total > 0 && done == total;
-            let text = move || {
-                let t = i18n.translator();
-                if all_done {
-                    t.text(key::TODAY_ALL_DONE).to_owned()
-                } else {
-                    let (done, total) = (done.to_string(), total.to_string());
-                    t.format(key::TODAY_COUNT, &[("done", &done), ("total", &total)])
-                }
-            };
-            view! {
-                <p class="today__count" data-all-done=all_done.then_some("true")>{text}</p>
-                <progress
-                    class="today__bar"
-                    value=done
-                    max=total
-                    aria-label=i18n.text(key::TODAY_PROGRESS_LABEL)
-                ></progress>
-            }
-        })
-    }
-}
-
-/// The empty day: says so, and on today says how to capture a note.
-#[component]
-fn Nothing(today: Today, i18n: I18n, capture_keys: Memo<Vec<String>>) -> impl IntoView {
-    let title = Signal::derive(move || {
-        let key = if today.viewing_today() {
-            key::TODAY_EMPTY_TODAY_TITLE
-        } else {
-            key::TODAY_EMPTY_PAST_TITLE
-        };
-        i18n.translator().text(key).to_owned()
-    });
-    view! {
-        <EmptyState title=title>
-            {move || {
-                let t = i18n.translator();
-                if !today.viewing_today() {
-                    t.text(key::TODAY_EMPTY_PAST_TEXT).into_any()
-                } else if capture_keys.with(Vec::is_empty) {
-                    t.text(key::TODAY_EMPTY_CAPTURE_PLAIN).into_any()
-                } else {
-                    let (before, after) = t.around(key::TODAY_EMPTY_CAPTURE_WITH_SHORTCUT, "keys");
-                    view! { {before} <Kbd keys=capture_keys /> {after} }.into_any()
-                }
-            }}
-        </EmptyState>
-    }
-}
-
-/// The two groups of rows, and the line that says more exist.
-#[component]
-fn Notes(today: Today, i18n: I18n, locale: Memo<String>) -> impl IntoView {
-    let carried = move || {
-        today
-            .glance
-            .with(|g| g.as_ref().map(|g| g.carried.clone()).unwrap_or_default())
-    };
-    let captured = move || {
-        today
-            .glance
-            .with(|g| g.as_ref().map(|g| g.today.clone()).unwrap_or_default())
-    };
-    let more = Memo::new(move |_| {
-        today.glance.with(|g| {
-            g.as_ref()
-                .map_or(0, |g| g.total - (g.carried.len() + g.today.len()) as i64)
-        })
-    });
-    let has_more = move || more.get() > 0;
-    let own_group = move || {
-        if today.viewing_today() {
-            key::TODAY_GROUP_TODAY
-        } else {
-            key::TODAY_GROUP_THAT_DAY
-        }
-    };
-
-    view! {
-        <div node_ref=today.list class="today__list" tabindex="-1">
-            <Group today=today i18n=i18n locale=locale notes=Signal::derive(carried)
-                label=Signal::derive(move || i18n.translator().text(key::TODAY_GROUP_CARRIED).to_owned()) />
-            <Group today=today i18n=i18n locale=locale notes=Signal::derive(captured)
-                label=Signal::derive(move || i18n.translator().text(own_group()).to_owned()) />
-        </div>
-        <Show when=has_more>
-            <p class="today__more">
-                {move || {
-                    let key = if today.viewing_today() { key::TODAY_MORE_IN_INBOX } else { key::TODAY_MORE };
-                    i18n.translator().format(key, &[("count", &more.get().to_string())])
-                }}
-            </p>
-        </Show>
-    }
-}
-
-/// Everything about a note that changes how its row is drawn. A row is
-/// redrawn only when this changes, so focus and scroll survive a refresh.
-fn row_key(note: &Note) -> (String, i64, Option<i64>, bool, u32) {
-    (
-        note.id.clone(),
-        note.updated_at,
-        note.completed_at,
-        note.has_details,
-        note.attachment_count,
-    )
-}
-
-#[component]
-fn Group(
-    today: Today,
-    i18n: I18n,
-    locale: Memo<String>,
-    notes: Signal<Vec<Note>>,
-    label: Signal<String>,
-) -> impl IntoView {
-    let grouped = Memo::new(move |_| {
-        notes.with(|notes| {
-            sections::group(notes)
-                .into_iter()
-                .map(|section| {
-                    (
-                        section.project.map(str::to_owned),
-                        section.notes.into_iter().cloned().collect::<Vec<_>>(),
-                    )
-                })
-                .collect::<Vec<_>>()
-        })
-    });
-    let keys = move || {
-        grouped.with(|groups| {
-            groups
-                .iter()
-                .map(|(project, _)| project.clone())
-                .collect::<Vec<_>>()
-        })
-    };
-    let notes_of = move |project: Option<&str>| {
-        grouped.with(|groups| {
-            groups
-                .iter()
-                .find(|(name, _)| name.as_deref() == project)
-                .map(|(_, notes)| notes.clone())
-                .unwrap_or_default()
-        })
-    };
-
-    view! {
-        <Show when=move || notes.with(|notes| !notes.is_empty())>
-            <section class="today__group" aria-label=move || label.get()>
-                <h2 class="today__group-label">{move || label.get()}</h2>
-                <For each=keys key=|project| project.clone() let:project>
-                    {match project {
-                        Some(name) => {
-                            let project = StoredValue::new(name);
-                            let expanded = move || {
-                                project.with_value(|name| !today.is_section_collapsed(name))
-                            };
-                            view! {
-                                <div class="proj-section today__section">
-                                    <button
-                                        type="button"
-                                        class="proj-section__header today__section-header"
-                                        aria-expanded=move || expanded().to_string()
-                                        on:click=move |_| {
-                                            project.with_value(|name| today.toggle_section(name));
-                                        }
-                                        on:keydown=move |event| {
-                                            if event.is_composing() {
-                                                return;
-                                            }
-                                            match event.key().as_str() {
-                                                "ArrowLeft" => {
-                                                    event.prevent_default();
-                                                    event.stop_propagation();
-                                                    project.with_value(|name| {
-                                                        today.set_section_collapsed(name, true);
-                                                    });
-                                                }
-                                                "ArrowRight" => {
-                                                    event.prevent_default();
-                                                    event.stop_propagation();
-                                                    project.with_value(|name| {
-                                                        today.set_section_collapsed(name, false);
-                                                    });
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    >
-                                        <span class="proj-section__chevron">
-                                            <Icon name=IconName::Next size=12 />
-                                        </span>
-                                        {move || project.with_value(|name| today.project_color(name)).map(|c| view! {
-                                            <ProjectDot color=c />
-                                        })}
-                                        <span class="proj-section__name">{project.get_value()}</span>
-                                        <span class="proj-section__count">
-                                            {move || project.with_value(|name| notes_of(Some(name)).len())}
-                                        </span>
-                                    </button>
-                                    <Show when=expanded>
-                                        <ul
-                                            class=move || {
-                                                if project.with_value(|name| today.project_color(name)).is_some() {
-                                                    "today__rows today__rows--project today__rows--colored"
-                                                } else {
-                                                    "today__rows today__rows--project"
-                                                }
-                                            }
-                                            data-color=move || project.with_value(|name| today.project_color(name))
-                                        >
-                                            {move || project.with_value(|name| today.project_color(name)).map(|c| view! {
-                                                <svg
-                                                    class="today__rail"
-                                                    viewBox="0 0 2 10"
-                                                    preserveAspectRatio="none"
-                                                    aria-hidden="true"
-                                                    focusable="false"
-                                                >
-                                                    <rect width="2" height="10" rx="1" fill=c />
-                                                </svg>
-                                            })}
-                                            <For
-                                                each=move || project.with_value(|name| notes_of(Some(name)))
-                                                key=row_key
-                                                let:note
-                                            >
-                                                <Row today=today i18n=i18n locale=locale note=note />
-                                            </For>
-                                        </ul>
-                                    </Show>
-                                </div>
-                            }
-                            .into_any()
-                        }
-                        None => view! {
-                            <div class="proj-section proj-section--plain today__section">
-                                <ul class="today__rows">
-                                    <For each=move || notes_of(None) key=row_key let:note>
-                                        <Row today=today i18n=i18n locale=locale note=note />
-                                    </For>
-                                </ul>
-                            </div>
-                        }
-                        .into_any(),
-                    }}
-                </For>
-            </section>
-        </Show>
-    }
-}
-
-/// The words for where a carried note came from: what is shown beside it,
-/// and the day alone for the button's accessible name.
-fn origin_words(origin: Origin, today: Day, locale: &str, t: Translator) -> (String, String) {
-    match origin {
-        Origin::Yesterday => {
-            let text = t.text(key::TODAY_ORIGIN_YESTERDAY).to_owned();
-            (text.clone(), text)
-        }
-        Origin::Earlier { day, days_ago } => {
-            let style = DateStyle {
-                weekday: Some(Width::Short),
-                month: Some(Width::Short),
-                day: true,
-                year: day.year != today.year,
-            };
-            let date = time::format_day(day, locale, style).replace(',', "");
-            let shown = match days_ago {
-                Some(count) => t.format(
-                    key::TODAY_ORIGIN_DAYS_AGO,
-                    &[("date", &date), ("count", &count.to_string())],
-                ),
-                None => date.clone(),
-            };
-            (shown, date)
-        }
-    }
-}
-
-#[component]
-fn Row(today: Today, i18n: I18n, locale: Memo<String>, note: Note) -> impl IntoView {
-    let item = NodeRef::<html::Li>::new();
-    let note = StoredValue::new(note);
-    let id = note.with_value(|note| note.id.clone());
-    let captured = note.with_value(|note| time::day_of(note.created_at));
-    let selected = Memo::new(move |_| today.selected.with(|s| s.as_deref() == Some(id.as_str())));
-    let read_only = move || !today.viewing_today();
-    // Done as of the viewed day, which on a past day may differ from status.
-    let done = Memo::new(move |_| {
-        let viewing_today = today.viewing_today();
-        let day_end = time::bounds(today.shown_day()).1;
-        note.with_value(|note| is_done(note, viewing_today, day_end))
-    });
-
-    // Moving with the keyboard must never leave the selection off screen.
-    Effect::new(move |_| {
-        if let (true, Some(item)) = (selected.get(), item.get()) {
-            let options = web_sys::ScrollIntoViewOptions::new();
-            options.set_block(web_sys::ScrollLogicalPosition::Nearest);
-            item.scroll_into_view_with_scroll_into_view_options(&options);
-        }
-    });
-
-    let check_label = move || {
-        let key = match (read_only(), done.get()) {
-            (true, true) => key::TODAY_ROW_DONE_BY_END,
-            (true, false) => key::TODAY_ROW_NOT_DONE_BY_END,
-            (false, true) => key::TODAY_ROW_MARK_NOT_COMPLETED,
-            (false, false) => key::TODAY_ROW_MARK_COMPLETED,
-        };
-        i18n.translator().text(key)
-    };
-    let came_from = move || {
-        let today_is = today.today.get();
-        origin(captured, today.shown_day(), today_is)
-            .map(|origin| origin_words(origin, today_is, &locale.get(), i18n.translator()))
-    };
-
-    view! {
-        <li
-            node_ref=item
-            class="today__row"
-            data-selected=move || selected.get().to_string()
-            data-status=move || if done.get() { "completed" } else { "inbox" }
-            aria-current=move || selected.get().then_some("true")
-        >
-            <button
-                type="button"
-                role="checkbox"
-                class="check"
-                aria-checked=move || done.get().to_string()
-                aria-label=check_label
-                disabled=read_only
-                on:click=move |_| note.with_value(|note| today.toggle(note))
-            >
-                <Icon name=IconName::Check size=12 />
-            </button>
-            <div class="today__main">
-                <p class="today__text selectable">{note.with_value(|note| note.content.clone())}</p>
-                <div class="today__meta">
-                    {move || came_from().map(|(shown, day)| view! {
-                        <button
-                            type="button"
-                            class="today__origin"
-                            aria-label=i18n.translator().format(key::TODAY_ROW_SHOW_CAPTURED, &[("day", &day)])
-                            title=i18n.text(key::TODAY_ROW_SHOW_CAPTURED_TIP)
-                            on:click=move |_| note.with_value(|note| today.show_captured_day(note))
-                        >
-                            {shown}
-                        </button>
-                    })}
-                    <NoteBadges note=note.get_value() i18n=i18n />
-                </div>
-            </div>
-            <IconButton
-                icon=IconName::Open
-                class="today__open"
-                label=Signal::derive(move || i18n.translator().text(key::TODAY_ROW_OPEN_DETAILS).to_owned())
-                on_click=move |()| note.with_value(|note| today.open_details(note))
-            />
-        </li>
-    }
-}
-
-/// The keys that do things, along the bottom.
-#[component]
-fn Hints(today: Today, i18n: I18n) -> impl IntoView {
-    let hint = move |keys: &[&str], label| {
-        view! {
-            <span class="today__hint">
-                <Kbd keys=caps(keys) />
-                " "
-                {i18n.text(label)}
-            </span>
-        }
-    };
-    view! {
-        <footer class="today__hints" aria-hidden="true">
-            <Show when=move || !today.viewing_today()>
-                <span class="today__hint today__past">{i18n.text(key::TODAY_HINT_PAST)}</span>
-            </Show>
-            <span class="today__hint">
-                <Kbd keys=caps(&["↑", "↓"]) />
-            </span>
-            {hint(&["←", "→"], key::TODAY_HINT_DAY)}
-            {move || {
-                if today.viewing_today() {
-                    view! {
-                        {hint(&["X"], key::TODAY_HINT_DONE)}
-                        {hint(&["L"], key::TODAY_HINT_LATER)}
-                        {hint(&["P"], key::TODAY_HINT_PROJECT)}
-                    }
-                    .into_any()
-                } else {
-                    hint(&["T"], key::TODAY_HINT_TODAY).into_any()
-                }
-            }}
-            {hint(&["↵"], key::TODAY_HINT_DETAILS)}
-            {hint(&["esc"], key::TODAY_HINT_CLOSE)}
-        </footer>
     }
 }

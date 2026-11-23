@@ -26,8 +26,12 @@
   --font-nunito: "Nunito", var(--font-rounded);
   --font-quicksand: "Quicksand", var(--font-rounded);
   --font: var(--font-system);
-  --t-xs: 11.5px;
-  --t-sm: 12.5px;
+  /* Body weight; a thin face raises it so small sizes keep their strokes. */
+  --w-text: 400;
+  /* Whole pixels only: WebKit snaps text to whole sizes and blurs text at
+     half-pixel positions on standard-resolution screens. */
+  --t-xs: 12px;
+  --t-sm: 13px;
   --t-md: 14px;
   --t-lg: 16px;
   --t-xl: 18px;
@@ -88,7 +92,9 @@
   --border-strong: rgba(255, 255, 255, 0.14);
   --text: #f2f2f2;
   --text-muted: #9c9c9c;
-  --text-faint: #6e6e6e;
+  --text-faint: #7c7c7c;
+  /* Grayscale smoothing keeps light text on dark from bloating. */
+  --font-smoothing: antialiased;
   /* The one accent: pure white, matching the Ink look. */
   --accent: #ffffff;
   /* The accent pulled to readable strength, for text and focus indicators. */
@@ -121,7 +127,9 @@
   --border-strong: rgba(0, 0, 0, 0.18);
   --text: #1a1a1a;
   --text-muted: #616161;
-  --text-faint: #8a8a8a;
+  --text-faint: #707070;
+  /* Dark text on light keeps the system's full stroke weight. */
+  --font-smoothing: auto;
   /* Ink on paper: the same monochrome accent, dark enough to read. */
   --accent: #1a1a1a;
   --accent-ink: #1a1a1a;
@@ -156,6 +164,7 @@
 }
 :root[data-font="quicksand"] {
   --font: var(--font-quicksand);
+  --w-text: 450;
 }
 :root[data-shape="sharp"] {
   --r-sm: 2px;
@@ -170,17 +179,17 @@
 
 /* Text size preference: `medium` is the default above. */
 :root[data-text-size="small"] {
-  --t-xs: 10.5px;
-  --t-sm: 11.5px;
-  --t-md: 12.5px;
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-md: 13px;
   --t-lg: 14px;
-  --t-xl: 15.5px;
+  --t-xl: 16px;
   --t-title: 18px;
 }
 :root[data-text-size="large"] {
-  --t-xs: 12.5px;
+  --t-xs: 13px;
   --t-sm: 14px;
-  --t-md: 15.5px;
+  --t-md: 16px;
   --t-lg: 18px;
   --t-xl: 20px;
   --t-title: 24px;

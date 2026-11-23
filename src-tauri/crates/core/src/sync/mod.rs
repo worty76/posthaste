@@ -5,6 +5,7 @@ pub mod hlc;
 pub mod merge;
 pub(crate) mod record;
 pub mod session;
+mod steps;
 pub mod store;
 
 pub use hlc::Hlc;

@@ -414,15 +414,21 @@ impl Db {
     }
 
     pub fn counts_at(&self, today_from: i64, today_to: i64, now: i64) -> Result<Counts> {
-        Ok(self.conn.query_row(
+        let mut stmt = self.conn.prepare_cached(
             "SELECT
-               COALESCE(SUM(live AND status = 'inbox' AND later_at IS NULL), 0),
-               COALESCE(SUM(live AND created_at >= ?1 AND created_at < ?2
-                            AND later_at IS NULL), 0),
-               COALESCE(SUM(live AND status = 'inbox' AND later_at IS NOT NULL), 0),
-               COALESCE(SUM(live AND status IN ('completed', 'archived')), 0),
-               COALESCE(SUM(NOT live AND deleted_at >= ?3), 0)
-             FROM (SELECT *, deleted_at IS NULL AS live FROM notes)",
+               (SELECT COUNT(*) FROM notes
+                WHERE deleted_at IS NULL AND status = 'inbox' AND later_at IS NULL),
+               (SELECT COUNT(*) FROM notes
+                WHERE deleted_at IS NULL AND created_at >= ?1 AND created_at < ?2
+                  AND later_at IS NULL),
+               (SELECT COUNT(*) FROM notes
+                WHERE deleted_at IS NULL AND status = 'inbox' AND later_at IS NOT NULL),
+               (SELECT COUNT(*) FROM notes
+                WHERE deleted_at IS NULL AND status IN ('completed', 'archived')),
+               (SELECT COUNT(*) FROM notes
+                WHERE deleted_at IS NOT NULL AND deleted_at >= ?3)",
+        )?;
+        Ok(stmt.query_row(
             params![today_from, today_to, now - TRASH_RETENTION_MS],
             |r| {
                 Ok(Counts {

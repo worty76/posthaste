@@ -2467,3 +2467,26 @@ fn upgrading_from_v5_keeps_looks_and_adds_the_asset_table() {
         .unwrap();
     assert_eq!(a, 0, "the new table exists and starts empty");
 }
+
+#[test]
+fn upgrading_from_v11_keeps_notes_and_adds_query_indexes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("posthaste.db");
+    {
+        let mut conn = Connection::open(&path).unwrap();
+        migrations::migrate_with(&mut conn, Some(&path), &MIGRATIONS[..11]).unwrap();
+        conn.execute(
+            "INSERT INTO notes (id, content, status, category, created_at, updated_at)
+             VALUES ('n1', 'hello', 'inbox', 'Work', 1000, 1000)",
+            [],
+        )
+        .unwrap();
+    }
+    let db = Db::open(&path).unwrap();
+    assert_eq!(
+        db.info().unwrap().schema_version,
+        MIGRATIONS.last().unwrap().version
+    );
+    assert_eq!(db.projects(true).unwrap().len(), 1);
+    assert_eq!(db.counts_at(0, 2000, 1500).unwrap().inbox, 1);
+}

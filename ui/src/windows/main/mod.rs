@@ -2,11 +2,13 @@
 //! the search that looks through every note.
 
 mod date_filter;
+mod header;
 mod help;
 mod manage_projects;
 mod notes;
 mod project_page;
 mod settings;
+mod sidebar;
 mod trash;
 
 use std::collections::HashSet;
@@ -20,16 +22,12 @@ use posthaste_i18n::{key, Key};
 use posthaste_model::{AppInfo, CommandError, Counts, DetailsFrom, Note, Os, Project, Status};
 use wasm_bindgen::JsCast;
 
-use crate::browser::{self, bind_text};
-use crate::components::{
-    Button, Icon, IconButton, IconName, Kbd, ProjectDot, ProjectPicker, SceneHost, Segmented,
-    Toaster, Toasts,
-};
+use crate::browser;
+use crate::components::{Button, ProjectPicker, SceneHost, Toaster, Toasts};
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{
-    build_query, group_by_day, key_action, Filters, KeyAction, KeyContext, KeyPress, StatusFilter,
-    View,
+    build_query, group_by_day, key_action, Filters, KeyAction, KeyContext, KeyPress, View,
 };
 use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
@@ -41,35 +39,13 @@ use crate::state::{
 use crate::time;
 use posthaste_model::Window as SceneWindow;
 
+use header::{ContentHeader, FilterBar};
+use sidebar::Sidebar;
+
 /// How many notes a section shows before "Show older notes".
 const PAGE: usize = 200;
 /// A short pause while typing keeps a fast typist from queueing queries.
 const SEARCH_PAUSE: Duration = Duration::from_millis(90);
-
-fn view_title(view: &View) -> Key {
-    match view {
-        View::Inbox => key::INBOX_NAV_INBOX,
-        View::Today => key::INBOX_NAV_TODAY,
-        View::Later => key::INBOX_NAV_LATER,
-        View::Archive => key::INBOX_NAV_ARCHIVE,
-        View::Trash => key::INBOX_NAV_TRASH,
-        View::Settings => key::INBOX_NAV_SETTINGS,
-        View::ManageProjects => key::INBOX_NAV_MANAGE_PROJECTS,
-        View::Project(_) => key::INBOX_NAV_PROJECTS,
-    }
-}
-
-fn view_icon(view: &View) -> IconName {
-    match view {
-        View::Inbox => IconName::Inbox,
-        View::Today => IconName::Sun,
-        View::Later => IconName::Later,
-        View::Archive => IconName::Archive,
-        View::Trash => IconName::Trash,
-        View::Settings => IconName::Settings,
-        View::Project(_) | View::ManageProjects => IconName::Lines,
-    }
-}
 
 /// Everything the window's actions read and write. `Copy`, so each handler
 /// and each part of the window takes it by value.
@@ -702,76 +678,11 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             Pane::Notes
         }
     });
-    let title = move || {
-        let t = i18n.translator();
-        if main.searching() {
-            t.text(key::INBOX_SEARCH_TITLE).to_owned()
-        } else {
-            match main.view.get() {
-                View::Project(name) => name,
-                view => t.text(view_title(&view)).to_owned(),
-            }
-        }
-    };
-    let count = move |view: &View| {
-        main.counts.with(|counts| {
-            let counts = counts.as_ref()?;
-            let count = match view {
-                View::Inbox => counts.inbox,
-                View::Today => counts.today,
-                View::Later => counts.later,
-                View::Trash => counts.trash,
-                View::Archive | View::Settings | View::Project(_) | View::ManageProjects => {
-                    return None
-                }
-            };
-            (count > 0).then_some(count)
-        })
-    };
     let sidebar_collapsed = Memo::new(move |_| {
         settings
             .settings
             .with(|s| s.as_ref().is_some_and(|s| s.sidebar_collapsed))
     });
-    let sidebar_shortcut = format!("{}+B", mod_cap(os));
-    let sidebar_toggle_label = Signal::derive(move || {
-        let key = if sidebar_collapsed.get() {
-            key::INBOX_SIDEBAR_EXPAND
-        } else {
-            key::INBOX_SIDEBAR_COLLAPSE
-        };
-        i18n.translator()
-            .format(key, &[("keys", &sidebar_shortcut)])
-    });
-    let nav_item = move |view: View| {
-        let view_cur = view.clone();
-        let view_click = view.clone();
-        let view_count = view.clone();
-        let title_key = view_title(&view);
-        let icon = view_icon(&view);
-        // A search is its own place: no section is the current one then.
-        let current = move || {
-            let here = main.view.with(|v| *v == view_cur)
-                && (view_cur == View::Settings || !main.searching());
-            here.then_some("page")
-        };
-        let label = i18n.label(title_key);
-        view! {
-            <button
-                type="button"
-                class="nav__item"
-                data-collapsed=move || sidebar_collapsed.get().then_some("")
-                aria-current=current
-                aria-label=move || sidebar_collapsed.get().then(|| label.get())
-                title=move || sidebar_collapsed.get().then(|| label.get())
-                on:click=move |_| main.go(view_click.clone())
-            >
-                <Icon name=icon />
-                <span class="nav__label">{i18n.text(title_key)}</span>
-                {move || count(&view_count).map(|count| view! { <span class="nav__count">{count}</span> })}
-            </button>
-        }
-    };
     let shortcut_broken = move || {
         settings.shortcuts.with(|report| {
             report
@@ -795,256 +706,15 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
 
     view! {
         <div class=class data-collapsed=move || sidebar_collapsed.get().then_some("")>
-            <aside
-                class="sidebar"
-                data-collapsed=move || sidebar_collapsed.get().then_some("")
-                on:keydown=move |event| {
-                    let key = event.key();
-                    if key != "ArrowDown" && key != "ArrowUp" {
-                        return;
-                    }
-                    let Some(aside) = event
-                        .current_target()
-                        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-                    else {
-                        return;
-                    };
-                    fn collect(el: &web_sys::Element, out: &mut Vec<web_sys::HtmlElement>) {
-                        if el.class_list().contains("nav__item") {
-                            if let Ok(btn) = el.clone().dyn_into::<web_sys::HtmlElement>() {
-                                out.push(btn);
-                            }
-                        }
-                        let children = el.children();
-                        for i in 0..children.length() {
-                            if let Some(child) = children.item(i) {
-                                collect(&child, out);
-                            }
-                        }
-                    }
-                    let mut buttons = Vec::new();
-                    collect(&aside, &mut buttons);
-                    let active = document().active_element();
-                    let Some(pos) = buttons
-                        .iter()
-                        .position(|b| active.as_ref().is_some_and(|a| a.loose_eq(b.unchecked_ref())))
-                    else {
-                        return;
-                    };
-                    let next = if key == "ArrowDown" {
-                        (pos + 1).min(buttons.len().saturating_sub(1))
-                    } else {
-                        pos.saturating_sub(1)
-                    };
-                    if let Some(target) = buttons.get(next) {
-                        event.prevent_default();
-                        event.stop_propagation();
-                        let _ = target.focus();
-                    }
-                }
-            >
-                <div class="sidebar__header">
-                    <div class="sidebar__brand">"Posthaste"</div>
-                    <IconButton
-                        class="sidebar__toggle"
-                        icon=IconName::Sidebar
-                        label=sidebar_toggle_label
-                        expanded=Signal::derive(move || !sidebar_collapsed.get())
-                        on_click=move |()| main.toggle_sidebar()
-                    />
-                </div>
-                <nav class="nav" aria-label=i18n.text(key::INBOX_SECTIONS)>
-                    {View::LISTS.into_iter().map(nav_item).collect_view()}
-                </nav>
-                <div class="sidebar__projects-wrap">
-                    <div class="sidebar__group-header">
-                        <span class="sidebar__group-label">{i18n.text(key::INBOX_NAV_PROJECTS)}</span>
-                        <button
-                            type="button"
-                            class="nav__item sidebar__manage"
-                            aria-label=i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)
-                            title=i18n.text(key::INBOX_NAV_MANAGE_PROJECTS)
-                            aria-current=move || {
-                                (main.view.get() == View::ManageProjects && !main.searching())
-                                    .then_some("page")
-                            }
-                            on:click=move |_| main.go(View::ManageProjects)
-                        >
-                            <Icon name=IconName::Settings size=13 />
-                        </button>
-                    </div>
-                    <nav class="nav sidebar__projects" aria-label=i18n.text(key::INBOX_NAV_PROJECTS)>
-                        <For
-                            each=move || {
-                                main.projects.with(|list| {
-                                    list.iter()
-                                        .filter(|p| !p.archived)
-                                        .cloned()
-                                        .collect::<Vec<_>>()
-                                })
-                            }
-                            key=|p| (p.name.clone(), p.color.clone(), p.total)
-                            let:project
-                        >
-                            {
-                                let name = project.name.clone();
-                                let name_cur = name.clone();
-                                let name_click = name.clone();
-                                let color = project.color.clone();
-                                let total = project.total;
-                                let current = move || {
-                                    let here = main.view.with(|v| {
-                                        matches!(v, View::Project(cur) if cur == &name_cur)
-                                    }) && !main.searching();
-                                    here.then_some("page")
-                                };
-                                view! {
-                                    <button
-                                        type="button"
-                                        class="nav__item"
-                                        aria-current=current
-                                        on:click=move |_| main.go(View::Project(name_click.clone()))
-                                    >
-                                        {color.map(|c| view! { <ProjectDot color=c /> })}
-                                        <span class="nav__label">{name}</span>
-                                        {(total > 0).then(|| view! {
-                                            <span class="nav__count">{total}</span>
-                                        })}
-                                    </button>
-                                }
-                            }
-                        </For>
-                    </nav>
-                </div>
-                <div class="sidebar__spacer"></div>
-                <button
-                    type="button"
-                    class="btn sidebar__new"
-                    data-collapsed=move || sidebar_collapsed.get().then_some("")
-                    aria-label=move || sidebar_collapsed.get().then(|| i18n.translator().text(key::INBOX_NEW_NOTE).to_owned())
-                    title=move || sidebar_collapsed.get().then(|| i18n.translator().text(key::INBOX_NEW_NOTE).to_owned())
-                    on:click=move |_| main.new_note()
-                >
-                    <span class="sidebar__new__icon">
-                        <Icon name=IconName::Plus />
-                    </span>
-                    <span class="sidebar__new__label">
-                        {i18n.text(key::INBOX_NEW_NOTE)}
-                    </span>
-                    <Show when=move || !sidebar_collapsed.get() && capture_keys.with(|keys| !keys.is_empty())>
-                        <Kbd keys=capture_keys />
-                    </Show>
-                </button>
-                {nav_item(View::Settings)}
-            </aside>
+            <Sidebar
+                main=main
+                sidebar_collapsed=sidebar_collapsed
+                capture_keys=capture_keys
+            />
 
             <SceneHost window=SceneWindow::Main>
                 <main class="content">
-                <header class="content__header" data-tauri-drag-region=(os == Os::Macos).then_some("")>
-                    <div class="content__heading">
-                        {move || {
-                            if main.searching() {
-                                return None;
-                            }
-                            if let View::Project(name) = main.view.get() {
-                                main.project_color(&name)
-                                    .map(|c| view! { <ProjectDot color=c /> })
-                            } else {
-                                None
-                            }
-                        }}
-                        <h1 class="content__title">{title}</h1>
-                        {move || {
-                            if main.searching() {
-                                return None;
-                            }
-                            let View::Project(name) = main.view.get() else {
-                                return None;
-                            };
-                            let archive_target = StoredValue::new(name);
-                            Some(view! {
-                                <div class="proj-page__menu-wrap">
-                                    <IconButton
-                                        icon=IconName::More
-                                        label=i18n.label(key::INBOX_PROJECT_PAGE_MENU)
-                                        expanded=Signal::derive(move || main.project_menu_open.get())
-                                        on_click=move |()| {
-                                            main.project_menu_open.update(|open| *open = !*open);
-                                        }
-                                    />
-                                    <Show when=move || main.project_menu_open.get()>
-                                        <div class="proj-page__menu" role="menu">
-                                            <button
-                                                type="button"
-                                                role="menuitem"
-                                                class="proj-page__menu-item"
-                                                on:click=move |_| {
-                                                    main.project_menu_open.set(false);
-                                                    main.project_renaming.set(true);
-                                                }
-                                            >
-                                                {i18n.text(key::INBOX_PROJECT_PAGE_RENAME)}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                role="menuitem"
-                                                class="proj-page__menu-item"
-                                                on:click=move |_| {
-                                                    let target = archive_target.get_value();
-                                                    main.project_menu_open.set(false);
-                                                    spawn_local(async move {
-                                                        match api::project_set_archived(&target, true).await {
-                                                            Ok(()) => {
-                                                                main.toaster.info(Message::Plain(
-                                                                    key::INBOX_PROJECT_PAGE_ARCHIVED_TOAST,
-                                                                ));
-                                                                main.go(View::Inbox);
-                                                            }
-                                                            Err(error) => main.fail(error),
-                                                        }
-                                                    });
-                                                }
-                                            >
-                                                {i18n.text(key::INBOX_PROJECT_PAGE_ARCHIVE)}
-                                            </button>
-                                        </div>
-                                    </Show>
-                                </div>
-                            })
-                        }}
-                    </div>
-                    <Show when=move || !in_settings()>
-                        <div class="search" role="search">
-                            <span class="search__icon">
-                                <Icon name=IconName::Search size=14 />
-                            </span>
-                            <input
-                                node_ref=main.search
-                                class="field"
-                                type="text"
-                                aria-label=i18n.text(key::INBOX_SEARCH_LABEL)
-                                placeholder=i18n.text(key::INBOX_SEARCH_LABEL)
-                                use:bind_text=Signal::derive(move || main.filters.with(|filters| filters.text.clone()))
-                                on:input=move |event| main.set_search_text(event_target_value(&event))
-                                spellcheck="false"
-                            />
-                            <Show when=move || main.searching()>
-                                <IconButton
-                                    class="search__clear"
-                                    icon=IconName::Close
-                                    label=i18n.label(key::INBOX_SEARCH_CLEAR)
-                                    on_click=move |()| main.clear_search()
-                                />
-                            </Show>
-                        </div>
-                        <IconButton
-                            icon=IconName::Filter
-                            label=i18n.label(key::INBOX_FILTER_TOGGLE)
-                            expanded=Signal::derive(move || main.searching() || main.filters_open.get())
-                            on_click=move |()| main.filters_open.update(|open| *open = !*open)
-                        />
-                    </Show>
-                </header>
+                <ContentHeader main=main />
 
                 {move || (!in_settings()).then(shortcut_broken).flatten().map(|reason| view! {
                     <div class="banner" role="alert">
@@ -1152,53 +822,6 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
                 open=main.help_open
                 mod_key=mod_cap(os)
             />
-        </div>
-    }
-}
-
-/// The controls that narrow a search: status and the day of capture.
-#[component]
-fn FilterBar(main: Main) -> impl IntoView {
-    let i18n = main.i18n;
-    let found = move || {
-        (main.searching() && main.loaded.get()).then(|| {
-            let limit = main.limit.get();
-            let (shown, more) = main
-                .notes
-                .with(|notes| (notes.len().min(limit) as u64, notes.len() > limit));
-            let t = i18n.translator();
-            match (shown, more) {
-                (0, _) => t.text(key::INBOX_FILTER_NO_MATCHES).to_owned(),
-                (shown, false) => t.plural(key::INBOX_FILTER_COUNT, shown, &[]),
-                (shown, true) => t.plural(key::INBOX_FILTER_COUNT_MORE, shown, &[]),
-            }
-        })
-    };
-    view! {
-        <div class="filters">
-            <Segmented
-                i18n=i18n
-                label=key::INBOX_FILTER_STATUS
-                value=Signal::derive(move || main.filters.with(|filters| filters.status))
-                // The status narrows a search; on its own it searches nothing.
-                disabled=Signal::derive(move || !main.searching())
-                options=vec![
-                    (StatusFilter::All, key::INBOX_FILTER_ALL),
-                    (StatusFilter::Open, key::INBOX_FILTER_OPEN),
-                    (StatusFilter::Completed, key::INBOX_FILTER_COMPLETED),
-                    (StatusFilter::Archived, key::INBOX_FILTER_ARCHIVED),
-                ]
-                on_change=move |status| main.filters.update(|filters| filters.status = status)
-            />
-            <date_filter::DateFilter
-                i18n=i18n
-                locale=main.locale
-                value=Signal::derive(move || main.filters.with(|filters| filters.date))
-                on_change=move |day| main.set_date(day)
-            />
-            {move || found().map(|text| view! {
-                <span class="filters__count" aria-live="polite">{text}</span>
-            })}
         </div>
     }
 }
