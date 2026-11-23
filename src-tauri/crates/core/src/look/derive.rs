@@ -10,7 +10,11 @@ use crate::look::color::{contrast, mix, Rgb};
 use crate::look::{validate_theme, Base, FontFace, ThemeEdit, TEXT_CONTRAST_MIN};
 
 /// Faint text is for hints, so it only has to stay noticeable, not readable.
-const FAINT_CONTRAST_MIN: f64 = 3.0;
+/// Hints sit at the smallest sizes, so they still need real contrast. A light
+/// look's muted text already sits near 4.5:1, so faint stops at 4.0 there to
+/// stay distinguishable from muted; a dark look has room for 4.5.
+const FAINT_CONTRAST_MIN_DARK: f64 = 4.5;
+const FAINT_CONTRAST_MIN_LIGHT: f64 = 4.0;
 
 /// The preset stack a font face names in the stylesheet; a custom font
 /// is drawn in front of it, so the preset doubles as the fallback.
@@ -52,7 +56,7 @@ pub fn resolve(id: &str, edit: &ThemeEdit) -> Result<ResolvedLook> {
     sunken(&mut tokens, c, dark, bg);
     raised(&mut tokens, c, dark, surface);
     muted(&mut tokens, text, bg, surface);
-    faint(&mut tokens, text, bg);
+    faint(&mut tokens, text, bg, dark);
     borders(&mut tokens, text, dark);
     accent_ink(&mut tokens, accent, text, bg, surface);
     tokens.insert(
@@ -131,12 +135,17 @@ fn muted(tokens: &mut BTreeMap<String, String>, text: Rgb, bg: Rgb, surface: Rgb
 }
 
 /// Hints and timestamps.
-fn faint(tokens: &mut BTreeMap<String, String>, text: Rgb, bg: Rgb) {
+fn faint(tokens: &mut BTreeMap<String, String>, text: Rgb, bg: Rgb, dark: bool) {
+    let floor = if dark {
+        FAINT_CONTRAST_MIN_DARK
+    } else {
+        FAINT_CONTRAST_MIN_LIGHT
+    };
     let value = (0..=58)
         .rev()
         .step_by(2)
         .map(|k| mix(text, bg, k as f64 / 100.0))
-        .find(|&c| contrast(c, bg) >= FAINT_CONTRAST_MIN)
+        .find(|&c| contrast(c, bg) >= floor)
         .unwrap_or(text);
     tokens.insert("--text-faint".into(), value.to_hex());
 }
