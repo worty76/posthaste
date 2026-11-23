@@ -30,7 +30,7 @@ export function StarChip({ baked }: { baked: number | null }) {
   if (count === null) return null;
 
   return (
-    <a className="site-head__stars" href={`${PRODUCT.repoUrl}/stargazers`}>
+    <a className="site-head__stars" href={PRODUCT.repoUrl}>
       <StarIcon />
       {count}
     </a>
