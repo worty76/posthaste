@@ -19,8 +19,8 @@ export function DemoVideo() {
       </h2>
       <p className="watch__lede">
         {vi
-          ? "Ghi nhanh khi đang code, xem việc Hôm nay, mở chi tiết ghi chú và đổi giao diện."
-          : "Capture from a code editor, check Today, open note details, and switch looks."}
+          ? "Ghi nhanh vào dự án, xem việc Hôm nay theo dự án, đánh dấu các bước, ghi chú ở lại trên máy bạn, đổi giao diện. Ứng dụng điện thoại đang được phát triển."
+          : "Write into a project, check Today by project, tick off steps, keep notes on your computer, and switch looks. The phone app is in development."}
       </p>
       <div className="watch__frame">
         <video
@@ -29,7 +29,7 @@ export function DemoVideo() {
           playsInline
           preload="none"
           poster={DEMO_VIDEO.poster}
-          aria-label="Posthaste demo: capturing notes while coding and in a call, then Today, a note's details, the inbox, search and the looks"
+          aria-label="Posthaste demo: writing notes into projects, Today grouped by project, steps in a note, a preview of phone sync (in development), and the looks"
         >
           <source src={DEMO_VIDEO.src} type="video/mp4" />
           <a href={DEMO_VIDEO.src}>Download the demo video (MP4)</a>
