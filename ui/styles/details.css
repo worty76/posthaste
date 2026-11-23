@@ -448,38 +448,13 @@ html.is-linux.is-details .details__panel {
 .details__cat-editor {
   position: relative;
   display: inline-flex;
+  flex: none;
 }
+/* CategoryChip sits on the right side of the header, so anchor the picker's
+   right edge to the chip and open inward — never clipped by .details__panel. */
 .details__cat-editor .proj-picker {
   top: calc(100% + var(--s-1));
-  left: 0;
-}
-.details__cat-editor .field {
-  width: 160px;
-  height: 26px;
-}
-.details__suggestions {
-  position: absolute;
-  top: calc(100% + var(--s-1));
-  left: 0;
-  z-index: 10;
-  list-style: none;
-  margin: 0;
-  padding: var(--s-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-float);
-}
-.details__suggestions button {
-  display: block;
-  width: 100%;
-  padding: var(--s-1) var(--s-2);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.details__suggestions button:hover {
-  background: var(--hover);
+  right: 0;
+  left: auto;
+  z-index: 20;
 }
