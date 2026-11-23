@@ -32,6 +32,16 @@ export interface CompareRow {
 
 export const COMPARE_ROWS: CompareRow[] = [
   {
+    label: "Footprint",
+    cells: {
+      posthaste: "~15 MB app · ~50 MB RAM (Rust + system webview)",
+      "apple-notes": "Built into macOS · ~80–200 MB RAM (native)",
+      notion: "~250 MB app · ~300–600+ MB RAM (Electron)",
+      obsidian: "~150 MB app · ~250–400+ MB RAM (Electron)",
+      todoglow: "Not stated",
+    },
+  },
+  {
     label: "Account",
     cells: {
       posthaste: "None",
@@ -105,6 +115,16 @@ export const COMPARE_VI: {
   pickOthers: string[];
 } = {
   rows: [
+    {
+      label: "Dung lượng & RAM",
+      cells: {
+        posthaste: "App ~15 MB · RAM ~50 MB (Rust + webview hệ thống)",
+        "apple-notes": "Có sẵn trên macOS · RAM ~80–200 MB (native)",
+        notion: "App ~250 MB · RAM ~300–600+ MB (Electron)",
+        obsidian: "App ~150 MB · RAM ~250–400+ MB (Electron)",
+        todoglow: "Không công bố",
+      },
+    },
     {
       label: "Tài khoản",
       cells: {
