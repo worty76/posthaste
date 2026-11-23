@@ -130,8 +130,8 @@ export function Compare() {
         </div>
         <p className="quiet bench__foot">
           {vi
-            ? "Đo trên bản phát hành v0.7.1 (macOS Apple Silicon, cơ sở dữ liệu 20.000 ghi chú)."
-            : "Measured on v0.7.1 release build (macOS Apple Silicon, 20,000-note database)."}
+            ? "Đo trên bản phát hành v0.7.2 (macOS Apple Silicon, cơ sở dữ liệu 20.000 ghi chú)."
+            : "Measured on v0.7.2 release build (macOS Apple Silicon, 20,000-note database)."}
         </p>
       </div>
 
