@@ -36,6 +36,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       ["Move", () => ["↑", "↓"]],
       ["Edit / Details", () => ["E", "O"]],
       ["Done / Later", () => ["X", "L"]],
+      ["Focus pill", () => ["F"]],
       ["Set project", () => ["P"]],
       ["Search", () => ["/"]],
       ["All shortcuts", () => ["?"]],

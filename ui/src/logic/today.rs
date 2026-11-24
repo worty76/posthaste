@@ -45,6 +45,8 @@ pub enum KeyAction {
     Move(isize),
     /// Mark the selected note done, or not done.
     Toggle,
+    /// Pin or unpin the selected note in the floating focus pill.
+    Focus,
     /// Park the selected note in Later.
     SendToLater,
     /// Open the project picker for the selected note.
@@ -71,6 +73,7 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<KeyAction>
         "ArrowDown" | "j" => Some(KeyAction::Move(1)),
         "ArrowUp" | "k" => Some(KeyAction::Move(-1)),
         "x" | "X" if acts_on_note => Some(KeyAction::Toggle),
+        "f" | "F" if acts_on_note => Some(KeyAction::Focus),
         "l" | "L" if acts_on_note => Some(KeyAction::SendToLater),
         "p" | "P" if acts_on_note => Some(KeyAction::SetProject),
         "Enter" if context.has_selection && !context.on_button => Some(KeyAction::OpenDetails),

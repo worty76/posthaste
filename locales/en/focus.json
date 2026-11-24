@@ -1,0 +1,8 @@
+{
+  "label": "Current focus",
+  "badge": "Focusing",
+  "mark_done": "Mark as completed",
+  "open_details": "Open note details",
+  "clear": "Clear focus",
+  "steps": "{done} of {total} steps done"
+}

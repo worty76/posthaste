@@ -249,6 +249,7 @@ pub enum KeyAction {
     ClearSelection,
     Edit,
     ToggleComplete,
+    ToggleFocus,
     Archive,
     Restore,
     ToggleLater,
@@ -359,6 +360,7 @@ pub fn key_action(press: KeyPress<'_>, context: &KeyContext) -> Option<Keyed> {
         "Enter" | "e" => plain(KeyAction::Edit),
         " " if context.on_control => None,
         " " | "x" => keyed(KeyAction::ToggleComplete, leaves(View::Inbox)),
+        "f" | "F" if status == Status::Inbox => plain(KeyAction::ToggleFocus),
         "a" if status != Status::Archived => keyed(KeyAction::Archive, leaves(View::Inbox)),
         "r" if status != Status::Inbox => keyed(KeyAction::Restore, leaves(View::Archive)),
         "l" => keyed(

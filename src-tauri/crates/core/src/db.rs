@@ -13,6 +13,7 @@ use posthaste_model::*;
 
 const DRAFT_SLOT: &str = "capture";
 pub(crate) const SETTINGS_KEY: &str = "settings";
+const FOCUSED_NOTE_KEY: &str = "focused_note";
 const DEFAULT_LIMIT: u32 = 200;
 const MAX_LIMIT: u32 = 1000;
 const MAX_CATEGORY_CHARS: usize = 40;
@@ -726,6 +727,56 @@ impl Db {
         self.conn
             .execute("DELETE FROM settings WHERE key = ?1", [secret_key(name)])?;
         Ok(())
+    }
+
+    // ---- focus ---------------------------------------------------------------
+
+    /// The open note currently pinned to the floating focus pill, if any.
+    /// Clears the stored id if that note was completed, archived, parked in
+    /// Later, or deleted.
+    pub fn focused_note(&mut self) -> Result<Option<Note>> {
+        let id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                [FOCUSED_NOTE_KEY],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(id) = id else {
+            return Ok(None);
+        };
+        match self.get_note(&id) {
+            Ok(note) if note.status == Status::Inbox && note.later_at.is_none() => Ok(Some(note)),
+            Ok(_) | Err(CoreError::NotFound) => {
+                self.conn
+                    .execute("DELETE FROM settings WHERE key = ?1", [FOCUSED_NOTE_KEY])?;
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Pins an open, non-later note to the floating focus pill, or clears it
+    /// when `id` is `None`.
+    pub fn set_focused_note(&mut self, id: Option<&str>) -> Result<Option<Note>> {
+        let Some(id) = id else {
+            self.conn
+                .execute("DELETE FROM settings WHERE key = ?1", [FOCUSED_NOTE_KEY])?;
+            return Ok(None);
+        };
+        let note = self.get_note(id)?;
+        if note.status != Status::Inbox || note.later_at.is_some() {
+            self.conn
+                .execute("DELETE FROM settings WHERE key = ?1", [FOCUSED_NOTE_KEY])?;
+            return Ok(None);
+        }
+        self.conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            params![FOCUSED_NOTE_KEY, &note.id],
+        )?;
+        Ok(Some(note))
     }
 
     // ---- data management -------------------------------------------------

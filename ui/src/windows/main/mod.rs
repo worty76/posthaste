@@ -77,6 +77,7 @@ struct Main {
     limit: RwSignal<usize>,
     counts: RwSignal<Option<Counts>>,
     selected: RwSignal<Option<String>>,
+    focused_id: RwSignal<Option<String>>,
     editing: RwSignal<Option<String>>,
     /// Project sections collapsed in this window while the app runs.
     collapsed_sections: RwSignal<HashSet<String>>,
@@ -109,6 +110,7 @@ impl Main {
             limit: RwSignal::new(PAGE),
             counts: RwSignal::new(None),
             selected: RwSignal::new(None),
+            focused_id: RwSignal::new(None),
             editing: RwSignal::new(None),
             collapsed_sections: RwSignal::new(HashSet::new()),
             help_open: RwSignal::new(false),
@@ -486,6 +488,27 @@ impl Main {
         });
     }
 
+    fn toggle_focus(self, note: &Note) {
+        if note.status != Status::Inbox || note.later_at.is_some() {
+            return;
+        }
+        let already = self
+            .focused_id
+            .with_untracked(|id| id.as_deref() == Some(note.id.as_str()));
+        let id = note.id.clone();
+        spawn_local(async move {
+            let result = if already {
+                api::focus_clear().await.map(|()| None)
+            } else {
+                api::focus_set(&id).await.map(|n| n.map(|n| n.id))
+            };
+            match result {
+                Ok(next) => self.focused_id.set(next),
+                Err(error) => self.fail(error),
+            }
+        });
+    }
+
     /// Stores an edit. `false` when it could not be stored; the editor then
     /// stays open with the text in it.
     async fn save_edit(self, id: &str, content: &str, category: Option<&str>) -> bool {
@@ -569,6 +592,7 @@ impl Main {
             (KeyAction::ClearSelection, _) => self.selected.set(None),
             (KeyAction::Edit, Some(note)) => self.start_edit(&note.id),
             (KeyAction::ToggleComplete, Some(note)) => self.toggle_complete(&note),
+            (KeyAction::ToggleFocus, Some(note)) => self.toggle_focus(&note),
             (KeyAction::Archive, Some(note)) => self.archive(&note),
             (KeyAction::Restore, Some(note)) => self.restore(&note),
             (KeyAction::ToggleLater, Some(note)) => self.toggle_later(&note),
@@ -579,6 +603,7 @@ impl Main {
             (
                 KeyAction::Edit
                 | KeyAction::ToggleComplete
+                | KeyAction::ToggleFocus
                 | KeyAction::Archive
                 | KeyAction::Restore
                 | KeyAction::ToggleLater
@@ -618,6 +643,14 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
     Effect::new(move |_| main.load());
     Effect::new(move |_| main.load_counts());
     Effect::new(move |_| main.load_projects());
+    spawn_local(async move {
+        if let Ok(note) = api::focus_get().await {
+            main.focused_id.set(note.map(|n| n.id));
+        }
+    });
+    events::on::<events::FocusChanged>(move |note| {
+        main.focused_id.set(note.map(|n| n.id));
+    });
     events::on::<events::NotesChanged>(move |()| main.refresh());
     events::on::<events::Navigate>(move |target| {
         if let Some(view) = View::parse(&target) {

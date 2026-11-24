@@ -28,6 +28,7 @@ pub enum IconName {
     Sidebar,
     Plus,
     More,
+    Focus,
 }
 
 impl IconName {
@@ -71,6 +72,9 @@ impl IconName {
             IconName::Plus => "M8 3.500v9M3.500 8h9",
             IconName::More => {
                 "M3.500 8a.6.6 0 1 0 .001 0M8 8a.6.6 0 1 0 .001 0M12.500 8a.6.6 0 1 0 .001 0"
+            }
+            IconName::Focus => {
+                "M8 2.500a5.500 5.500 0 1 0 0 11 5.500 5.500 0 1 0 0-11M8 6.500a1.500 1.500 0 1 0 0 3 1.500 1.500 0 1 0 0-3"
             }
         }
     }

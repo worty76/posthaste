@@ -4,7 +4,7 @@
 
 use leptos::prelude::on_cleanup;
 use leptos::task::spawn_local;
-use posthaste_model::{CaptureShown as CaptureShownPayload, DetailsTarget, Settings};
+use posthaste_model::{CaptureShown as CaptureShownPayload, DetailsTarget, Note, Settings};
 use send_wrapper::SendWrapper;
 use serde::{de::DeserializeOwned, Deserialize};
 use wasm_bindgen::prelude::*;
@@ -100,6 +100,12 @@ event!(
     SyncChanged,
     "sync-changed",
     ()
+);
+event!(
+    /// The note pinned to the floating focus pill changed or was cleared.
+    FocusChanged,
+    "focus-changed",
+    Option<Note>
 );
 
 #[derive(Deserialize)]

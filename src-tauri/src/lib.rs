@@ -164,6 +164,9 @@ pub fn run() {
             commands::details_open,
             commands::details_dismiss,
             commands::details_current,
+            commands::focus_get,
+            commands::focus_set,
+            commands::focus_clear,
             commands::note_detail_get,
             commands::note_details_set,
             commands::attachment_add_files,
@@ -230,6 +233,7 @@ pub fn run() {
             let settings = state.settings();
 
             windows::create(&handle)?;
+            commands::sync_focus(&handle);
 
             // Copies written when an attachment was opened last session.
             if let Ok(dir) = commands::opened_dir(&handle) {

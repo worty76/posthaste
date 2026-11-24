@@ -29,6 +29,9 @@ pub struct AppState {
     /// The details window is placed once; after that it keeps the size and
     /// spot the user gave it.
     pub details_placed: AtomicBool,
+    /// The floating focus pill is placed once at top-center; after that it
+    /// keeps wherever the user dragged it.
+    pub focus_placed: AtomicBool,
     /// A look file that passed every check and waits for the user's OK.
     /// One at a time: opening another file replaces it.
     pub pending_look: Mutex<Option<posthaste_core::look::package::PendingLook>>,
@@ -56,6 +59,7 @@ impl AppState {
             tray_available: AtomicBool::new(false),
             details_target: Mutex::new(None),
             details_placed: AtomicBool::new(false),
+            focus_placed: AtomicBool::new(false),
             pending_look: Mutex::new(None),
         }
     }

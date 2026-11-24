@@ -253,6 +253,18 @@ pub async fn details_current() -> Response<Option<DetailsTarget>> {
     invoke("details_current", &NoArgs {}).await
 }
 
+pub async fn focus_get() -> Response<Option<Note>> {
+    invoke("focus_get", &NoArgs {}).await
+}
+
+pub async fn focus_set(id: &str) -> Response<Option<Note>> {
+    invoke("focus_set", &ById { id }).await
+}
+
+pub async fn focus_clear() -> Response<()> {
+    invoke("focus_clear", &NoArgs {}).await
+}
+
 #[derive(Serialize)]
 struct ById<'a> {
     id: &'a str,
