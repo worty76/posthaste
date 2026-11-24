@@ -1,0 +1,318 @@
+/* The floating focus pill: one open note kept quietly in view. */
+
+html.is-focus,
+html.is-focus body,
+html.is-focus #root {
+  background: transparent;
+  overflow: hidden;
+}
+
+.focus-shell {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-2) var(--s-3);
+}
+
+.focus-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  cursor: grab;
+  animation: focus-pill-in var(--quick) var(--ease) both;
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    opacity var(--quick) var(--ease);
+}
+
+.focus-pill:active {
+  cursor: grabbing;
+}
+
+/* Alive ambient pulse on the checkbox ring so you can tell focus is active. */
+.focus-pill__check {
+  position: relative;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.focus-pill__check::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  pointer-events: none;
+  animation: focus-pulse 3.2s var(--ease) infinite;
+}
+
+.focus-pill__check:hover::before,
+.focus-pill__check:focus-visible::before,
+.focus-pill[data-completing="true"] .focus-pill__check::before {
+  animation: none;
+  opacity: 0;
+}
+
+.focus-pill__check:hover,
+.focus-pill__check:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.focus-pill__check:active {
+  transform: scale(0.92);
+}
+
+/* Satisfying completion pop before the pill hides. */
+.focus-pill[data-completing="true"] .focus-pill__check {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--accent-ink);
+  transform: scale(1.08);
+}
+
+.focus-pill[data-completing="true"] .focus-pill__title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.focus-pill__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: var(--w-text);
+  line-height: var(--lh-tight);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: inherit;
+  transition:
+    color var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
+}
+
+/* Smooth running text (marquee) only when the title actually overflows. */
+.focus-pill__track {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.focus-pill__copy {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.focus-pill__title[data-overflow="false"] .focus-pill__copy {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.focus-pill__title[data-overflow="true"] {
+  text-overflow: clip;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 10px,
+    black calc(100% - 10px),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 10px,
+    black calc(100% - 10px),
+    transparent
+  );
+}
+
+.focus-pill__title[data-overflow="true"] .focus-pill__track {
+  max-width: none;
+  will-change: transform;
+  animation: focus-marquee 14s linear infinite;
+}
+
+.focus-pill__title[data-overflow="true"] .focus-pill__copy {
+  padding-right: var(--s-6);
+}
+
+/* Pause on hover or while completing so reading and clicking stay effortless. */
+.focus-pill:hover .focus-pill__track,
+.focus-pill:focus-within .focus-pill__track,
+.focus-pill[data-completing="true"] .focus-pill__track {
+  animation-play-state: paused;
+}
+
+.focus-pill__steps {
+  flex: 0 0 auto;
+  font-family: var(--font-mono-ui);
+  font-size: var(--t-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-pill__clear {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  opacity: 0;
+  transition:
+    opacity var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.focus-pill:hover .focus-pill__clear,
+.focus-pill:focus-within .focus-pill__clear {
+  opacity: 1;
+}
+
+@keyframes focus-pill-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes focus-pulse {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  35% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes focus-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Under reduced motion, keep long titles static with crisp ellipsis. */
+@media (prefers-reduced-motion: reduce) {
+  .focus-pill__check::before,
+  .focus-pill__copy--dup {
+    display: none;
+  }
+  .focus-pill__title[data-overflow="true"] {
+    mask-image: none;
+    -webkit-mask-image: none;
+    text-overflow: ellipsis;
+  }
+  .focus-pill__title[data-overflow="true"] .focus-pill__track {
+    max-width: 100%;
+    animation: none;
+  }
+  .focus-pill__title[data-overflow="true"] .focus-pill__copy {
+    max-width: 100%;
+    padding-right: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Linux (WebKitGTK) cannot reliably composite transparent floating windows,
+   so paint the pill solid edge-to-edge without a blurred backdrop. */
+html.is-linux.is-focus .focus-shell {
+  padding: 0;
+}
+
+html.is-linux.is-focus .focus-pill {
+  height: 100%;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Clear visual indicator on the currently focused row in Today and Inbox. */
+.note[data-focused="true"],
+.today__row[data-focused="true"] {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.note[data-focused="true"] .check,
+.today__row[data-focused="true"] .check {
+  border-color: var(--accent);
+}
+
+.focus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 1px var(--s-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: var(--t-xs);
+  line-height: var(--lh-tight);
+}
+
+.focus-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: focus-dot-pulse 2.4s var(--ease) infinite;
+}
+
+@keyframes focus-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

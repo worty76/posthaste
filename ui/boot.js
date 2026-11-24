@@ -10,6 +10,7 @@ import "./styles/ui.css";
 import "./styles/capture.css";
 import "./styles/today.css";
 import "./styles/details.css";
+import "./styles/focus.css";
 import "./styles/main.css";
 import init from "./pkg/posthaste_ui.js";
 

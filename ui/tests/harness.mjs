@@ -546,6 +546,33 @@ export async function open({
         },
         ai_test: () => "Fixed text.",
         update_check: () => store.update,
+        focus_get: () => {
+          const id = store.focusedId ?? null;
+          if (!id) return null;
+          const found = store.notes.find(
+            (n) => n.id === id && n.status === "inbox" && n.later_at == null,
+          );
+          if (!found) {
+            store.focusedId = null;
+            return null;
+          }
+          return { ...found };
+        },
+        focus_set: ({ id }) => {
+          const found = store.notes.find(
+            (n) => n.id === id && n.status === "inbox" && n.later_at == null,
+          );
+          if (!found) return Promise.reject({ code: "not_found", message: "gone" });
+          store.focusedId = found.id;
+          const copy = { ...found };
+          mock.emit("focus-changed", copy);
+          return copy;
+        },
+        focus_clear: () => {
+          store.focusedId = null;
+          mock.emit("focus-changed", null);
+          return null;
+        },
         sync_status: () => ({
           enabled: store.sync.enabled,
           device_id: store.sync.device_id,

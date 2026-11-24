@@ -348,6 +348,12 @@ fn Row(today: Today, i18n: I18n, locale: Memo<String>, note: Note) -> impl IntoV
             class="today__row"
             data-selected=move || selected.get().to_string()
             data-status=move || if done.get() { "completed" } else { "inbox" }
+            data-focused=move || {
+                today
+                    .focused_id
+                    .with(|id| note.with_value(|n| id.as_deref() == Some(n.id.as_str())))
+                    .then_some("true")
+            }
             aria-current=move || selected.get().then_some("true")
         >
             <button
@@ -364,6 +370,16 @@ fn Row(today: Today, i18n: I18n, locale: Memo<String>, note: Note) -> impl IntoV
             <div class="today__main">
                 <p class="today__text selectable">{note.with_value(|note| note.content.clone())}</p>
                 <div class="today__meta">
+                    <Show when=move || {
+                        today.focused_id.with(|id| {
+                            note.with_value(|n| id.as_deref() == Some(n.id.as_str()))
+                        })
+                    }>
+                        <span class="focus-badge">
+                            <span class="focus-badge__dot" aria-hidden="true" />
+                            {i18n.text(key::FOCUS_BADGE)}
+                        </span>
+                    </Show>
                     {move || came_from().map(|(shown, day)| view! {
                         <button
                             type="button"
@@ -413,6 +429,7 @@ pub(super) fn Hints(today: Today, i18n: I18n) -> impl IntoView {
                 if today.viewing_today() {
                     view! {
                         {hint(&["X"], key::TODAY_HINT_DONE)}
+                        {hint(&["F"], key::TODAY_HINT_FOCUS)}
                         {hint(&["L"], key::TODAY_HINT_LATER)}
                         {hint(&["P"], key::TODAY_HINT_PROJECT)}
                     }

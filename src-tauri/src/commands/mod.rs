@@ -6,6 +6,7 @@
 //! - `steps`: ordered one-line steps inside a note
 //! - `projects`: project CRUD, colors, archive state, note assignment
 //! - `details`: Note details window, descriptions, and file attachments
+//! - `focus`: floating focus pill for the one note currently in progress
 //! - `settings`: preferences, launch at login, global shortcut application
 //! - `data`: database info, Markdown/JSON export & import, backup, full reset
 //! - `looks`: look gallery, live preview, share codes, `.phlook` packages
@@ -14,6 +15,7 @@
 mod capture;
 mod data;
 mod details;
+mod focus;
 mod looks;
 mod notes;
 mod projects;
@@ -24,6 +26,7 @@ mod sync;
 pub use capture::*;
 pub use data::*;
 pub use details::*;
+pub use focus::*;
 pub use looks::*;
 pub use notes::*;
 pub use projects::*;
@@ -54,6 +57,7 @@ pub(super) fn notes_changed(app: &AppHandle) {
             }
         }
     }
+    focus::sync_focus(app);
     if let Some(svc) = app.try_state::<crate::sync::SyncService>() {
         svc.notify_note_changed();
     }

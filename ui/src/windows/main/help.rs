@@ -11,11 +11,12 @@ pub(super) fn ShortcutHelp(
     open: RwSignal<bool>,
     mod_key: &'static str,
 ) -> impl IntoView {
-    let rows: [(Key, &[&str]); 18] = [
+    let rows: [(Key, &[&str]); 19] = [
         (key::INBOX_HELP_MOVE, &["↑", "↓"]),
         (key::INBOX_HELP_EDIT, &["E"]),
         (key::INBOX_HELP_DETAILS, &["O"]),
         (key::INBOX_HELP_COMPLETE, &["X"]),
+        (key::INBOX_HELP_FOCUS, &["F"]),
         (key::INBOX_HELP_ARCHIVE, &["A"]),
         (key::INBOX_HELP_RESTORE, &["R"]),
         (key::INBOX_HELP_LATER, &["L"]),

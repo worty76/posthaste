@@ -38,6 +38,8 @@ pub(super) struct Today {
     pub(super) error: RwSignal<Option<CommandError>>,
     /// The id of the selected row.
     pub(super) selected: RwSignal<Option<String>>,
+    /// The id of the note currently pinned to the floating focus pill.
+    pub(super) focused_id: RwSignal<Option<String>>,
     /// The day being looked at. `None` follows today, across midnight too.
     pub(super) view_day: RwSignal<Option<Day>>,
     /// Today's date as of the last load, so a window left open overnight
@@ -59,6 +61,7 @@ impl Today {
             glance: RwSignal::new(None),
             error: RwSignal::new(None),
             selected: RwSignal::new(None),
+            focused_id: RwSignal::new(None),
             view_day: RwSignal::new(None),
             today: RwSignal::new(time::today()),
             calendar_open: RwSignal::new(false),
@@ -314,6 +317,27 @@ impl Today {
         });
     }
 
+    pub(super) fn toggle_focus(self, note: &Note) {
+        if note.status != Status::Inbox {
+            return;
+        }
+        let already = self
+            .focused_id
+            .with_untracked(|id| id.as_deref() == Some(note.id.as_str()));
+        let id = note.id.clone();
+        spawn_local(async move {
+            let result = if already {
+                api::focus_clear().await.map(|()| None)
+            } else {
+                api::focus_set(&id).await.map(|n| n.map(|n| n.id))
+            };
+            match result {
+                Ok(next) => self.focused_id.set(next),
+                Err(error) => self.fail(error),
+            }
+        });
+    }
+
     fn on_key(self, event: KeyboardEvent) {
         if self.picker_open.get_untracked() {
             return;
@@ -350,12 +374,14 @@ impl Today {
             }),
             (KeyAction::Move(delta), _) => self.move_selection(delta),
             (KeyAction::Toggle, Some(note)) => self.toggle(&note),
+            (KeyAction::Focus, Some(note)) => self.toggle_focus(&note),
             (KeyAction::SendToLater, Some(note)) => self.send_to_later(&note),
             (KeyAction::SetProject, Some(_)) => self.open_picker(),
             (KeyAction::OpenDetails, Some(note)) => self.open_details(&note),
             // `key_action` only asks for these with a note selected.
             (
                 KeyAction::Toggle
+                | KeyAction::Focus
                 | KeyAction::SendToLater
                 | KeyAction::SetProject
                 | KeyAction::OpenDetails,
@@ -384,6 +410,14 @@ pub fn TodayWindow(os: Os) -> impl IntoView {
     let locale = Memo::new(move |_| time::locale_for(i18n.translator().language().code));
 
     spawn_local(today.load(false));
+    spawn_local(async move {
+        if let Ok(note) = api::focus_get().await {
+            today.focused_id.set(note.map(|n| n.id));
+        }
+    });
+    events::on::<events::FocusChanged>(move |note| {
+        today.focused_id.set(note.map(|n| n.id));
+    });
     Effect::new(move |_| {
         // Once the list exists, keys should work without a click.
         if today.list.get().is_some() {

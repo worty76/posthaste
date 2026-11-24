@@ -5,6 +5,7 @@
 mod capture;
 mod details;
 mod fatal;
+mod focus;
 mod main;
 mod note_badges;
 mod today;
@@ -20,6 +21,7 @@ const MAIN: &str = "main";
 const CAPTURE: &str = "capture";
 const TODAY: &str = "today";
 const DETAILS: &str = "details";
+const FOCUS: &str = "focus";
 
 pub fn mount() {
     let label = ipc::window_label().unwrap_or_default();
@@ -62,6 +64,7 @@ pub fn mount() {
                     </SceneHost>
                 }
             }),
+            FOCUS => show(|| view! { <focus::FocusWindow /> }),
             MAIN => show_main(info),
             // The shell makes no other window.
             _ => {}

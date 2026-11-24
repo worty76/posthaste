@@ -119,6 +119,20 @@ mod mac {
         true
     }
 
+    /// Shows the panel without taking keyboard focus. Used by the floating
+    /// focus pill so pinning a task never interrupts what the user is typing.
+    pub fn show_passive_now(app: &AppHandle, window: &WebviewWindow) -> bool {
+        let label = window.label();
+        let Ok(panel) = app.get_webview_panel(label) else {
+            return false;
+        };
+        set_visible(label, true);
+        panel.set_ignores_mouse_events(false);
+        panel.set_alpha_value(1.0);
+        panel.order_front_regardless();
+        true
+    }
+
     /// Brings the panel forward with the keyboard, without activating the
     /// application. False when `window` is not a panel.
     pub fn show(app: &AppHandle, window: &WebviewWindow) -> bool {
@@ -185,6 +199,17 @@ pub fn show_on_main_thread(app: &AppHandle, window: &WebviewWindow) -> tauri::Re
     let _ = app;
     window.show()?;
     Ok(false)
+}
+
+/// Shows a floating window from the main thread without stealing keyboard focus.
+pub fn show_passive_on_main_thread(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    if mac::show_passive_now(app, window) {
+        return Ok(());
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    window.show()
 }
 
 /// Shows a floating window. Returns true when it also has the keyboard

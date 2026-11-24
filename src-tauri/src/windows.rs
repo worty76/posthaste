@@ -21,6 +21,12 @@ const UI: &str = "index.html";
 pub const CAPTURE: &str = "capture";
 pub const TODAY: &str = "today";
 pub const DETAILS: &str = "details";
+pub const FOCUS: &str = "focus";
+
+/// Logical size of the floating focus pill, including the transparent margin
+/// its shadow is drawn in.
+const FOCUS_WIDTH: f64 = 340.0;
+const FOCUS_HEIGHT: f64 = 56.0;
 
 /// Logical size of the capture window, including the transparent margin its
 /// shadow is drawn in.
@@ -181,6 +187,30 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             api.prevent_close();
             // The page saves first, then asks to be dismissed.
             let _ = handle.emit_to(DETAILS, "details-close-requested", ());
+        }
+    });
+
+    // Always-on-top floating pill for the single task currently in focus.
+    // Passive: never steals keyboard focus when shown.
+    let focus = WebviewWindowBuilder::new(app, FOCUS, WebviewUrl::App(UI.into()))
+        .title("Posthaste Focus")
+        .inner_size(FOCUS_WIDTH, FOCUS_HEIGHT)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .maximizable(false)
+        .minimizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible_on_all_workspaces(true)
+        .visible(false)
+        .build()?;
+    panels::adopt(app, &focus);
+    let handle = app.clone();
+    focus.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            hide_focus(&handle);
         }
     });
     Ok(())
@@ -548,6 +578,63 @@ fn release_focus(app: &AppHandle) {
 #[cfg(not(target_os = "macos"))]
 fn release_focus(_app: &AppHandle) {}
 
+/// Shows the floating focus pill without stealing keyboard focus. Places it
+/// at top-center on first show; after that it stays wherever the user moved it.
+pub fn show_focus(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(FOCUS) else {
+        log::error!("focus window is missing");
+        return;
+    };
+    let state = app.state::<AppState>();
+    let first = !state.focus_placed.swap(true, Ordering::Relaxed);
+    let handle = app.clone();
+    let result = app.run_on_main_thread(move || {
+        let placed = if first {
+            place_panel(
+                &handle,
+                &window,
+                CapturePosition::Top,
+                |_| FOCUS_WIDTH,
+                FOCUS_HEIGHT,
+            )
+        } else {
+            None
+        };
+        if let Err(e) = panels::show_passive_on_main_thread(&handle, &window) {
+            log::error!("focus window could not be shown: {e}");
+            return;
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(pos) = placed {
+                let _ = window.set_position(pos);
+            }
+            let _ = window.set_always_on_top(true);
+        }
+        #[cfg(target_os = "macos")]
+        let _ = placed;
+    });
+    if let Err(e) = result {
+        log::error!("could not schedule showing the focus window: {e}");
+    }
+}
+
+/// Hides the floating focus pill without disturbing focus.
+pub fn hide_focus(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(FOCUS) else {
+        return;
+    };
+    let handle = app.clone();
+    let result = app.run_on_main_thread(move || {
+        if let Err(e) = panels::hide_on_main_thread(&handle, &window) {
+            log::error!("focus window could not be hidden: {e}");
+        }
+    });
+    if let Err(e) = result {
+        log::error!("could not schedule hiding the focus window: {e}");
+    }
+}
+
 /// Shows and focuses the inbox, optionally switching to a view
 /// ("inbox", "today", "archive", "settings").
 pub fn show_main(app: &AppHandle, view: Option<&str>) {
@@ -628,8 +715,12 @@ fn compute_layout(
     let width = width_for(area.w);
     let width = width.min(area.w - 16.0).max(280.0);
     let w = width.round();
-    // A tall window on a short display stays on it.
-    let h = logical_height.min(area.h - 16.0).max(200.0).round();
+    // A tall window on a short display stays on it; compact panels like the
+    // focus pill keep their own height.
+    let h = logical_height
+        .min(area.h - 16.0)
+        .max(logical_height.min(200.0))
+        .round();
 
     // One spot of a 3×3 grid: against an edge with a small gap, or centred.
     let gap = if area.units_physical {

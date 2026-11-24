@@ -1,0 +1,8 @@
+{
+  "label": "Đang tập trung",
+  "badge": "Đang tập trung",
+  "mark_done": "Đánh dấu đã xong",
+  "open_details": "Mở chi tiết ghi chú",
+  "clear": "Bỏ tập trung",
+  "steps": "Xong {done} trên {total} bước"
+}

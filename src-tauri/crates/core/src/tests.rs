@@ -2490,3 +2490,64 @@ fn upgrading_from_v11_keeps_notes_and_adds_query_indexes() {
     assert_eq!(db.projects(true).unwrap().len(), 1);
     assert_eq!(db.counts_at(0, 2000, 1500).unwrap().inbox, 1);
 }
+
+// ---- focus -----------------------------------------------------------------
+
+#[test]
+fn focus_sets_replaces_and_clears_an_open_note() {
+    let mut db = db();
+    assert_eq!(db.focused_note().unwrap(), None);
+
+    let a = db.create_note(note("write tests")).unwrap();
+    let b = db.create_note(note("ship build")).unwrap();
+
+    let focused = db.set_focused_note(Some(&a.id)).unwrap().unwrap();
+    assert_eq!(focused.id, a.id);
+    assert_eq!(db.focused_note().unwrap().unwrap().id, a.id);
+
+    let replaced = db.set_focused_note(Some(&b.id)).unwrap().unwrap();
+    assert_eq!(replaced.id, b.id);
+    assert_eq!(db.focused_note().unwrap().unwrap().id, b.id);
+
+    assert_eq!(db.set_focused_note(None).unwrap(), None);
+    assert_eq!(db.focused_note().unwrap(), None);
+}
+
+#[test]
+fn focus_clears_automatically_when_note_leaves_open_inbox() {
+    let mut db = db();
+
+    let a = db.create_note(note("complete me")).unwrap();
+    db.set_focused_note(Some(&a.id)).unwrap();
+    db.set_status(&a.id, Status::Completed).unwrap();
+    assert_eq!(db.focused_note().unwrap(), None);
+
+    let b = db.create_note(note("archive me")).unwrap();
+    db.set_focused_note(Some(&b.id)).unwrap();
+    db.set_status(&b.id, Status::Archived).unwrap();
+    assert_eq!(db.focused_note().unwrap(), None);
+
+    let c = db.create_note(note("park me")).unwrap();
+    db.set_focused_note(Some(&c.id)).unwrap();
+    db.set_later(&c.id, true).unwrap();
+    assert_eq!(db.focused_note().unwrap(), None);
+
+    let d = db.create_note(note("trash me")).unwrap();
+    db.set_focused_note(Some(&d.id)).unwrap();
+    db.trash_note(&d.id).unwrap();
+    assert_eq!(db.focused_note().unwrap(), None);
+}
+
+#[test]
+fn focusing_a_missing_or_inactive_note_does_not_pin_it() {
+    let mut db = db();
+    assert!(matches!(
+        db.set_focused_note(Some("missing")),
+        Err(CoreError::NotFound)
+    ));
+
+    let done = db.create_note(note("already done")).unwrap();
+    db.set_status(&done.id, Status::Completed).unwrap();
+    assert_eq!(db.set_focused_note(Some(&done.id)).unwrap(), None);
+    assert_eq!(db.focused_note().unwrap(), None);
+}

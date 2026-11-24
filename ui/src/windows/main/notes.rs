@@ -289,6 +289,10 @@ pub(super) fn NoteCard(main: Main, note: Note) -> impl IntoView {
         let is_this = is_this.clone();
         move |_| main.selected.with(&is_this)
     });
+    let focused = Memo::new({
+        let is_this = is_this.clone();
+        move |_| main.focused_id.with(&is_this)
+    });
     let editing = Memo::new(move |_| main.editing.with(&is_this));
 
     // Moving with the keyboard must never leave the selection off screen.
@@ -313,6 +317,7 @@ pub(super) fn NoteCard(main: Main, note: Note) -> impl IntoView {
             node_ref=item
             class="note"
             data-selected=move || selected.get().to_string()
+            data-focused=move || focused.get().then_some("true")
             data-status=status.as_str()
             aria-current=move || selected.get().then_some("true")
             on:click=move |_| note.with_value(|note| main.selected.set(Some(note.id.clone())))
@@ -430,10 +435,41 @@ fn NoteBody(
                 {parked.then(|| tag(key::INBOX_NOTE_LATER))}
                 {(status == Status::Archived).then(|| tag(key::INBOX_NOTE_ARCHIVED))}
                 {(status == Status::Completed).then(|| tag(key::INBOX_NOTE_COMPLETED))}
+                <Show when=move || {
+                    main.focused_id
+                        .with(|id| note.with_value(|n| id.as_deref() == Some(n.id.as_str())))
+                }>
+                    <span class="focus-badge">
+                        <span class="focus-badge__dot" aria-hidden="true" />
+                        {i18n.text(key::FOCUS_BADGE)}
+                    </span>
+                </Show>
                 <NoteBadges note=note.get_value() i18n=i18n />
             </div>
         </div>
         <div class="note__actions" on:click=move |event| event.stop_propagation()>
+            {(status == Status::Inbox && !parked).then(|| {
+                let id_check = note.with_value(|n| n.id.clone());
+                let label = Signal::derive(move || {
+                    let focused = main
+                        .focused_id
+                        .with(|id| id.as_deref() == Some(id_check.as_str()));
+                    i18n.translator()
+                        .text(if focused {
+                            key::INBOX_NOTE_UNFOCUS
+                        } else {
+                            key::INBOX_NOTE_FOCUS
+                        })
+                        .to_owned()
+                });
+                view! {
+                    <IconButton
+                        icon=IconName::Focus
+                        label=label
+                        on_click=move |()| note.with_value(|note| main.toggle_focus(note))
+                    />
+                }
+            })}
             {action(IconName::Edit, key::INBOX_NOTE_EDIT, |main, note| main.start_edit(&note.id))}
             {action(IconName::Open, key::INBOX_NOTE_OPEN_DETAILS, |main, note| main.open_details(note))}
             {action(IconName::Copy, key::INBOX_NOTE_COPY, |main, note| main.copy(note))}
