@@ -1,0 +1,70 @@
+name: Discord daily downloads
+
+# GitHub already counts every installer download, so nothing is added to the
+# app or the website. Each run posts how many installers were downloaded since
+# the previous run, plus the all-time total.
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 08:00 in Vietnam
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore yesterday's total
+        uses: actions/cache/restore@v4
+        with:
+          path: downloads-total.txt
+          key: downloads-total-none
+          restore-keys: downloads-total-
+
+      - name: Count installer downloads
+        id: count
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          total=$(gh api --paginate "repos/$REPO/releases?per_page=100" \
+            --jq '.[].assets[] | select(.name | test("\\.(dmg|exe|AppImage|deb|rpm)$")) | .download_count' \
+            | awk '{s+=$1} END {print s+0}')
+          previous=$(cat downloads-total.txt 2>/dev/null || echo "")
+          echo "$total" > downloads-total.txt
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
+      - name: Save today's total
+        uses: actions/cache/save@v4
+        with:
+          path: downloads-total.txt
+          key: downloads-total-${{ github.run_id }}
+
+      - name: Send Discord report
+        env:
+          TOTAL: ${{ steps.count.outputs.total }}
+          PREVIOUS: ${{ steps.count.outputs.previous }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COLOR: "16756401"
+        run: |
+          if [ -z "$PREVIOUS" ]; then
+            line="First report: **$TOTAL** installer downloads so far."
+          else
+            line="**$((TOTAL - PREVIOUS))** installer downloads in the last 24 hours. **$TOTAL** in total."
+          fi
+          jq -n \
+            --arg line "$line" \
+            --arg color "$COLOR" \
+            --arg avatar "https://posthaste.ink/logo-256.png" \
+            '{
+              username: "Posthaste",
+              avatar_url: $avatar,
+              embeds: [{
+                title: "⬇️ Daily downloads",
+                description: $line,
+                color: ($color | tonumber)
+              }]
+            }' | curl -sf -H "Content-Type: application/json" -d @- "$WEBHOOK"
