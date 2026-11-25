@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { PRODUCT } from "@/config";
+import { Analytics } from "@/components/Analytics";
 import { themeCss } from "@/lib/theme";
 import { DEFAULT_LOOK_ID, lookById } from "@/lib/looks";
 import { jsonLdString, softwareJsonLd } from "@/lib/seo";
@@ -53,7 +54,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: jsonLdString(softwareJsonLd()) }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

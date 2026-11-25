@@ -1,8 +1,8 @@
 name: Discord daily downloads
 
-# GitHub already counts every installer download, so nothing is added to the
-# app or the website. Each run posts how many installers were downloaded since
-# the previous run, plus the all-time total.
+# Reads the aggregate visit and download counters from posthaste.ink/stats.json
+# (which excludes bots and the maintainer's own test browsers) and posts the
+# daily summary to Discord.
 
 on:
   schedule:
@@ -16,55 +16,64 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - name: Restore yesterday's total
-        uses: actions/cache/restore@v4
-        with:
-          path: downloads-total.txt
-          key: downloads-total-none
-          restore-keys: downloads-total-
-
-      - name: Count installer downloads
-        id: count
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-        run: |
-          total=$(gh api --paginate "repos/$REPO/releases?per_page=100" \
-            --jq '.[].assets[] | select(.name | test("\\.(dmg|exe|AppImage|deb|rpm)$")) | .download_count' \
-            | awk '{s+=$1} END {print s+0}')
-          previous=$(cat downloads-total.txt 2>/dev/null || echo "")
-          echo "$total" > downloads-total.txt
-          echo "total=$total" >> "$GITHUB_OUTPUT"
-          echo "previous=$previous" >> "$GITHUB_OUTPUT"
-
-      - name: Save today's total
-        uses: actions/cache/save@v4
-        with:
-          path: downloads-total.txt
-          key: downloads-total-${{ github.run_id }}
-
       - name: Send Discord report
         env:
-          TOTAL: ${{ steps.count.outputs.total }}
-          PREVIOUS: ${{ steps.count.outputs.previous }}
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          EVENT_NAME: ${{ github.event_name }}
           COLOR: "16756401"
         run: |
-          if [ -z "$PREVIOUS" ]; then
-            line="First report: **$TOTAL** installer downloads so far."
-          else
-            line="**$((TOTAL - PREVIOUS))** installer downloads in the last 24 hours. **$TOTAL** in total."
-          fi
-          jq -n \
-            --arg line "$line" \
-            --arg color "$COLOR" \
-            --arg avatar "https://posthaste.ink/logo-256.png" \
-            '{
-              username: "Posthaste",
-              avatar_url: $avatar,
-              embeds: [{
-                title: "⬇️ Daily downloads",
-                description: $line,
-                color: ($color | tonumber)
-              }]
-            }' | curl -sf -H "Content-Type: application/json" -d @- "$WEBHOOK"
+          curl -sf --max-time 20 "https://posthaste.ink/stats.json" -o stats.json
+          python3 - << 'PY' > payload.json
+          import datetime, json, os
+
+          with open("stats.json", "r", encoding="utf-8") as f:
+              stats = json.load(f)
+
+          days = stats.get("days", {})
+          totals = stats.get("totals", {})
+          now = datetime.datetime.now(datetime.timezone.utc)
+          yesterday = (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+          today = now.strftime("%Y-%m-%d")
+
+          day = yesterday
+          if os.environ.get("EVENT_NAME") == "workflow_dispatch" and yesterday not in days and today in days:
+              day = today
+
+          d = days.get(day, {})
+          visits = d.get("visits", 0)
+          downloads = d.get("downloads", 0)
+          kinds = d.get("kinds", {})
+          countries = d.get("countries") or d.get("visit_countries") or {}
+          sources = d.get("sources") or d.get("visit_sources") or {}
+
+          def top(mapping):
+              if not mapping:
+                  return "none"
+              items = sorted(mapping.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
+              return " · ".join(f"{k} {v}" for k, v in items)
+
+          platforms = {}
+          for k, n in kinds.items():
+              p = "macOS" if k == "dmg" else ("Windows" if k == "exe" else "Linux")
+              platforms[p] = platforms.get(p, 0) + n
+
+          lines = [
+              f"**{downloads}** installer downloads · **{visits}** site visits on `{day}` (UTC).",
+              f"**Platforms:** {top(platforms)}",
+              f"**Countries:** {top(countries)}",
+              f"**Sources:** {top(sources)}",
+              f"**Total counted:** {totals.get('downloads', 0)} downloads · {totals.get('visits', 0)} visits",
+          ]
+
+          out = {
+              "username": "Posthaste",
+              "avatar_url": "https://posthaste.ink/logo-256.png",
+              "embeds": [{
+                  "title": "⬇️ Daily visits & downloads",
+                  "description": "\n".join(lines),
+                  "color": int(os.environ.get("COLOR", "16756401")),
+              }],
+          }
+          print(json.dumps(out))
+          PY
+          curl -sf -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"

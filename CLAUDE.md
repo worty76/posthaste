@@ -79,7 +79,9 @@ harness are the only JavaScript. Do not add more.
    paired devices (directly or through the configured relay, which cannot read
    it), the update check, and AI polish the user turned on.** No telemetry,
    analytics, remote fonts, or CDN assets. The CSP in `tauri.conf.json` stays
-   as strict as it is.
+   as strict as it is. This is the app's promise. The website measures its own
+   visits and downloads in aggregate under `landing-page/AGENTS.md`; nothing
+   from the app is ever sent to those counters.
 3. **Never log note content**, drafts, or search text. Log events and error
    kinds only.
 4. **Never edit a shipped migration.** Add a new numbered one.

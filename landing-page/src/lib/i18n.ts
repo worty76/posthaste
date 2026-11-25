@@ -197,7 +197,8 @@ export const COPY: Record<Lang, SiteCopy> = {
       buildSummary: "Comfortable with a terminal? Build it yourself",
     },
     footer: {
-      privacy: "No analytics, no cookies, no third-party requests.",
+      privacy:
+        "This site counts visits and downloads in aggregate, with no cookies and no ads. The app itself sends no telemetry.",
       why: "Why Posthaste",
       source: "Source on GitHub",
     },
@@ -309,7 +310,8 @@ export const COPY: Record<Lang, SiteCopy> = {
       buildSummary: "Quen dùng terminal? Tự build từ mã nguồn",
     },
     footer: {
-      privacy: "Không analytics, không cookie, không gọi tài nguyên ngoài.",
+      privacy:
+        "Trang này đếm lượt truy cập và lượt tải ở dạng tổng hợp, không cookie, không quảng cáo. Bản thân ứng dụng không gửi dữ liệu theo dõi.",
       why: "Vì sao có Posthaste",
       source: "Mã nguồn trên GitHub",
     },

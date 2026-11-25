@@ -3,12 +3,16 @@
 // One big button for the visitor's system, the others as rows. Without
 // JavaScript (or before hydration) all three are rows, none guessed.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOs, OS_LABEL, type Os } from "./os";
 import type { Download } from "@/config";
+import { trackedUrl } from "@/lib/tracking";
 
 const ORDER: Os[] = ["mac", "windows", "linux"];
 const MAC_FIX_CMD = "xattr -cr /Applications/Posthaste.app";
+// Set at build time (`NEXT_PUBLIC_DL_COUNTER=/dl npm run build`): installer
+// links then go through our own download counter. Off in development.
+const COUNTER = process.env.NEXT_PUBLIC_DL_COUNTER;
 
 export function Downloads({
   downloads,
@@ -21,6 +25,13 @@ export function Downloads({
 }) {
   const os = useOs();
   const [copied, setCopied] = useState(false);
+  // A campaign tag from the page's own address (?ref=…), read once and kept
+  // in memory only: nothing is stored in the browser.
+  const [ref, setRef] = useState<string | null>(null);
+  useEffect(() => {
+    setRef(new URLSearchParams(window.location.search).get("ref"));
+  }, []);
+  const link = (url: string) => trackedUrl(url, COUNTER, ref);
   const main = os ? downloads[os] : null;
   const rest = ORDER.filter((p) => !(main && p === os));
 
@@ -37,7 +48,7 @@ export function Downloads({
   return (
     <div className="downloads">
       {main && os && (
-        <a className="btn btn--big" href={main.url}>
+        <a className="btn btn--big" href={link(main.url)}>
           Download for {OS_LABEL[os]}
           <span className="btn__sub">{main.label}</span>
         </a>
@@ -87,7 +98,7 @@ export function Downloads({
           {linuxExtras.map((x, i) => (
             <span key={x.url}>
               {i > 0 && " or "}
-              <a href={x.url}>{x.label}</a>
+              <a href={link(x.url)}>{x.label}</a>
             </span>
           ))}
           .
@@ -100,13 +111,13 @@ export function Downloads({
             <li className="downloads__row" key={p}>
               <span className="downloads__os">{OS_LABEL[p]}</span>
               {d ? (
-                <a href={d.url}>{d.label}</a>
+                <a href={link(d.url)}>{d.label}</a>
               ) : (
                 <a href={releasesUrl}>Not in this release yet</a>
               )}
               {p === "linux" &&
                 linuxExtras.map((x) => (
-                  <a key={x.url} href={x.url}>
+                  <a key={x.url} href={link(x.url)}>
                     {x.label}
                   </a>
                 ))}
@@ -114,6 +125,12 @@ export function Downloads({
           );
         })}
       </ul>
+      {COUNTER && (
+        <p className="downloads__hint">
+          Downloads are counted in aggregate (platform, version and country). Nothing about you is
+          stored.
+        </p>
+      )}
       <p className="downloads__hint">
         Free Windows code signing provided by{" "}
         <a href="https://signpath.io" rel="noreferrer">

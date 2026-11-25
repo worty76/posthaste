@@ -17,8 +17,8 @@ Platform claims follow `docs/platform-notes.md`. Privacy wording must match
 what the app does: no account, no analytics, no telemetry; AI polish sends
 the one note you polish to the provider you chose, with your key; the app
 checks GitHub for updates at launch and every six hours. No features beyond
-the shipped app. The page itself makes no third-party requests: no
-analytics, no cookies, no CDN fonts or embeds.
+the shipped app. The app's promise (no analytics, no telemetry) is about the
+app only; the site measures itself, see "Site measurement" below.
 
 Looks: the single source of look data is `src/lib/looks.ts`. `src/lib/theme.ts`
 turns every look into a CSS block keyed by `[data-look="<id>"]` (through
@@ -85,13 +85,31 @@ Demo state lives in `src/lib/demo.ts` (a pure reducer) and
 `src/components/SiteState.tsx`. It is memory only: nothing typed into the
 demo is stored or sent.
 
+Site measurement (`src/components/Analytics.tsx`, `src/lib/tracking.ts`,
+`src/lib/analytics.ts`): the maintainer
+needs to know how many people visit, where they come from and how many
+download, so when built with `NEXT_PUBLIC_DL_COUNTER=/dl` the site sends a
+first-party `POST /visit` and routes installer links through `/dl` on the
+origin server. Only daily aggregates are kept (day, file kind,
+version, two-letter country, and source/referrer host), published to
+`stats.json` alongside `stars.json` and reported to Discord each day. Nothing
+identifies a visitor: no IP address, no user agent, no visitor cookie, no id is
+stored. Allowed: counts, referrers, countries, per day or page. Not allowed: ad
+or social trackers, fingerprinting, per-person profiles, session replay,
+selling or sharing the data, CDN fonts or embeds, and anything typed into the
+demo. The footer (`footer.privacy`, English and Vietnamese) must say what is
+measured and that the app itself sends nothing; keep it true. Both `/visit` and
+`/dl` skip a browser carrying the maintainer's opt-out (`ph_skip`, set at
+`/dl/skip?key=…`, never for a visitor). `tests/download-counter.test.ts` pins
+this.
+
 The GitHub star count in the header is fetched from the GitHub API at build
 time and baked into the static HTML. On the mini PC, an hourly cron
 (~/bin/update-stars.sh) writes the live count to stars.json inside the
 served folder, and StarChip re-reads that file from the visitor's browser —
-a same-origin request, so the page still makes no third-party requests.
-Deploy with `rsync -az --delete --exclude=stars.json out/ …` so the hourly
-refresh survives re-uploads.
+a same-origin request.
+Deploy with `rsync -az --delete --exclude=stars.json --exclude=stats.json out/ …`
+so the hourly star refresh and live stats survive re-uploads.
 
 Copy tone: plain language, short sentences, and every sentence names a key,
 a number or a behaviour of the product. No stock phrases ("seamless",
