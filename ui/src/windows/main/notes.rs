@@ -293,6 +293,10 @@ pub(super) fn NoteCard(main: Main, note: Note) -> impl IntoView {
         let is_this = is_this.clone();
         move |_| main.focused_id.with(&is_this)
     });
+    let menu_open = Memo::new({
+        let is_this = is_this.clone();
+        move |_| main.note_menu.with(&is_this)
+    });
     let editing = Memo::new(move |_| main.editing.with(&is_this));
 
     // Moving with the keyboard must never leave the selection off screen.
@@ -318,9 +322,17 @@ pub(super) fn NoteCard(main: Main, note: Note) -> impl IntoView {
             class="note"
             data-selected=move || selected.get().to_string()
             data-focused=move || focused.get().then_some("true")
+            data-menu-open=move || menu_open.get().then_some("true")
             data-status=status.as_str()
             aria-current=move || selected.get().then_some("true")
             on:click=move |_| note.with_value(|note| main.selected.set(Some(note.id.clone())))
+            on:contextmenu=move |event| {
+                event.prevent_default();
+                note.with_value(|note| {
+                    main.selected.set(Some(note.id.clone()));
+                    main.note_menu.set(Some(note.id.clone()));
+                });
+            }
         >
             <button
                 type="button"
@@ -359,14 +371,36 @@ fn NoteBody(
     let (created_at, status, parked) =
         note.with_value(|note| (note.created_at, note.status, note.later_at.is_some()));
     let in_archive = status != Status::Inbox;
+    let menu_id = note.with_value(|note| note.id.clone());
+    let menu_open = Signal::derive(move || {
+        main.note_menu
+            .with(|open| open.as_deref() == Some(menu_id.as_str()))
+    });
     let tag = move |key| view! { <span>{i18n.text(key)}</span> };
-    let action = move |icon, label, run: fn(Main, &Note)| {
+    let menu_item = move |icon,
+                          label_key,
+                          aria_key,
+                          shortcut: &'static str,
+                          danger: bool,
+                          run: fn(Main, &Note)| {
         view! {
-            <IconButton
-                icon=icon
-                label=i18n.label(label)
-                on_click=move |()| note.with_value(|note| run(main, note))
-            />
+            <button
+                type="button"
+                role="menuitem"
+                class="note__menu-item"
+                data-danger=danger.then_some("true")
+                aria-label=i18n.text(aria_key)
+                on:click=move |_| {
+                    main.note_menu.set(None);
+                    note.with_value(|note| run(main, note));
+                }
+            >
+                <span class="note__menu-icon">
+                    <Icon name=icon size=14 />
+                </span>
+                <span class="note__menu-label">{i18n.text(label_key)}</span>
+                <Kbd keys=caps(&[shortcut]) />
+            </button>
         }
     };
 
@@ -470,29 +504,103 @@ fn NoteBody(
                     />
                 }
             })}
-            {action(IconName::Edit, key::INBOX_NOTE_EDIT, |main, note| main.start_edit(&note.id))}
-            {action(IconName::Open, key::INBOX_NOTE_OPEN_DETAILS, |main, note| main.open_details(note))}
-            {action(IconName::Copy, key::INBOX_NOTE_COPY, |main, note| main.copy(note))}
-            {if in_archive {
-                action(IconName::Restore, key::INBOX_NOTE_RESTORE, |main, note| main.restore(note)).into_any()
-            } else {
-                let (icon, label) = if parked {
-                    (IconName::Inbox, key::INBOX_NOTE_TO_INBOX)
-                } else {
-                    (IconName::Later, key::INBOX_NOTE_TO_LATER)
-                };
-                view! {
-                    {action(icon, label, |main, note| main.toggle_later(note))}
-                    {action(IconName::Archive, key::INBOX_NOTE_ARCHIVE, |main, note| main.archive(note))}
-                }
-                .into_any()
-            }}
             <IconButton
-                icon=IconName::Trash
-                label=i18n.label(key::INBOX_NOTE_DELETE)
-                danger=true
-                on_click=move |()| note.with_value(|note| main.remove(note))
+                icon=IconName::Open
+                label=i18n.label(key::INBOX_NOTE_OPEN_DETAILS)
+                on_click=move |()| note.with_value(|note| main.open_details(note))
             />
+            <div class="note__menu-wrap">
+                <IconButton
+                    icon=IconName::More
+                    label=i18n.label(key::INBOX_NOTE_MORE_ACTIONS)
+                    expanded=menu_open
+                    on_click=move |()| {
+                        note.with_value(|note| {
+                            main.selected.set(Some(note.id.clone()));
+                            main.note_menu.update(|open| {
+                                if open.as_deref() == Some(note.id.as_str()) {
+                                    *open = None;
+                                } else {
+                                    *open = Some(note.id.clone());
+                                }
+                            });
+                        });
+                    }
+                />
+                <Show when=move || menu_open.get()>
+                    <div class="note__menu" role="menu">
+                        {menu_item(
+                            IconName::Edit,
+                            key::INBOX_HELP_EDIT,
+                            key::INBOX_NOTE_EDIT,
+                            "E",
+                            false,
+                            |main, note| main.start_edit(&note.id),
+                        )}
+                        {menu_item(
+                            IconName::Copy,
+                            key::INBOX_HELP_COPY,
+                            key::INBOX_NOTE_COPY,
+                            "C",
+                            false,
+                            |main, note| main.copy(note),
+                        )}
+                        {if in_archive {
+                            menu_item(
+                                IconName::Restore,
+                                key::INBOX_HELP_RESTORE,
+                                key::INBOX_NOTE_RESTORE,
+                                "R",
+                                false,
+                                |main, note| main.restore(note),
+                            )
+                            .into_any()
+                        } else {
+                            let (icon, label_key, aria_key) = if parked {
+                                (
+                                    IconName::Inbox,
+                                    key::INBOX_NOTE_MENU_TO_INBOX,
+                                    key::INBOX_NOTE_TO_INBOX,
+                                )
+                            } else {
+                                (
+                                    IconName::Later,
+                                    key::INBOX_NOTE_LATER,
+                                    key::INBOX_NOTE_TO_LATER,
+                                )
+                            };
+                            view! {
+                                {menu_item(
+                                    icon,
+                                    label_key,
+                                    aria_key,
+                                    "L",
+                                    false,
+                                    |main, note| main.toggle_later(note),
+                                )}
+                                {menu_item(
+                                    IconName::Archive,
+                                    key::INBOX_HELP_ARCHIVE,
+                                    key::INBOX_NOTE_ARCHIVE,
+                                    "A",
+                                    false,
+                                    |main, note| main.archive(note),
+                                )}
+                            }
+                            .into_any()
+                        }}
+                        <div class="note__menu-sep" role="separator" />
+                        {menu_item(
+                            IconName::Trash,
+                            key::INBOX_HELP_DELETE,
+                            key::INBOX_NOTE_DELETE,
+                            "Del",
+                            true,
+                            |main, note| main.remove(note),
+                        )}
+                    </div>
+                </Show>
+            </div>
         </div>
     }
 }
