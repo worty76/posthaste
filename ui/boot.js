@@ -4,14 +4,20 @@
 import "./styles/fonts.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
-import "./styles/ui.css";
+import "./styles/components/controls.css";
+import "./styles/components/overlays.css";
+import "./styles/components/scene.css";
 // Every window loads every stylesheet: shared pieces such as the tick box
 // live in whichever sheet first needed them.
-import "./styles/capture.css";
-import "./styles/today.css";
-import "./styles/details.css";
-import "./styles/focus.css";
-import "./styles/main.css";
+import "./styles/windows/capture.css";
+import "./styles/windows/today.css";
+import "./styles/windows/details.css";
+import "./styles/windows/focus.css";
+import "./styles/main/layout.css";
+import "./styles/main/notes.css";
+import "./styles/main/looks.css";
+import "./styles/main/settings.css";
+import "./styles/main/projects.css";
 import init from "./pkg/posthaste_ui.js";
 
 await init();

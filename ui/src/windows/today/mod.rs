@@ -22,8 +22,8 @@ use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
 use crate::logic::shortcut::format_accelerator;
 use crate::logic::today::{
-    clamp_to_past, key_action, moved_selection, neighbour, selection_after_load, visible_ids,
-    KeyAction, KeyContext, KeyPress,
+    clamp_to_past, key_action, moved_selection, neighbour, selection_after_load, split_completed,
+    visible_ids_with_completed, KeyAction, KeyContext, KeyPress, COMPLETED_AUTO_COLLAPSE,
 };
 use crate::state::{use_appearance, use_i18n, use_settings};
 use crate::time::{self, DateStyle, Width};
@@ -48,6 +48,8 @@ pub(super) struct Today {
     pub(super) calendar_open: RwSignal<bool>,
     pub(super) marks: RwSignal<DayMarks>,
     pub(super) collapsed_sections: RwSignal<HashSet<String>>,
+    /// Explicit user toggle for the Completed drawer (`None` = auto).
+    pub(super) completed_override: RwSignal<Option<bool>>,
     pub(super) picker_open: RwSignal<bool>,
     pub(super) picker_projects: RwSignal<Vec<Project>>,
     pub(super) list: NodeRef<html::Div>,
@@ -67,6 +69,7 @@ impl Today {
             calendar_open: RwSignal::new(false),
             marks: RwSignal::new(DayMarks::new()),
             collapsed_sections: RwSignal::new(HashSet::new()),
+            completed_override: RwSignal::new(None),
             picker_open: RwSignal::new(false),
             picker_projects: RwSignal::new(Vec::new()),
             list: NodeRef::new(),
@@ -153,14 +156,41 @@ impl Today {
         });
     }
 
+    pub(super) fn completed_expanded(self, count: usize) -> bool {
+        self.completed_override
+            .get()
+            .unwrap_or(count < COMPLETED_AUTO_COLLAPSE)
+    }
+
+    pub(super) fn toggle_completed(self, count: usize) {
+        let next = !self
+            .completed_override
+            .get_untracked()
+            .unwrap_or(count < COMPLETED_AUTO_COLLAPSE);
+        self.completed_override.set(Some(next));
+    }
+
     /// The ids of every visible row, carried notes first, skipping collapsed
-    /// project sections.
+    /// project sections and a collapsed Completed drawer.
     fn with_ids<T>(self, read: impl FnOnce(&[&str]) -> T) -> T {
+        let viewing_today = self.view_day.with_untracked(Option::is_none);
+        let day = self
+            .view_day
+            .get_untracked()
+            .unwrap_or_else(|| self.today.get_untracked());
+        let (_, day_end) = time::bounds(day);
         self.glance.with_untracked(|glance| {
             let ids = match glance {
-                Some(g) => self
-                    .collapsed_sections
-                    .with_untracked(|collapsed| visible_ids(&g.carried, &g.today, collapsed)),
+                Some(g) => {
+                    let (open, done) = split_completed(&g.today, viewing_today, day_end);
+                    let show_done = self
+                        .completed_override
+                        .get_untracked()
+                        .unwrap_or(done.len() < COMPLETED_AUTO_COLLAPSE);
+                    self.collapsed_sections.with_untracked(|collapsed| {
+                        visible_ids_with_completed(&g.carried, &open, &done, collapsed, show_done)
+                    })
+                }
                 None => Vec::new(),
             };
             let refs: Vec<&str> = ids.iter().map(String::as_str).collect();
@@ -430,6 +460,7 @@ pub fn TodayWindow(os: Os) -> impl IntoView {
         today.view_day.set(None);
         today.calendar_open.set(false);
         today.picker_open.set(false);
+        today.completed_override.set(None);
         spawn_local(today.load(true));
         today.focus_list();
     });

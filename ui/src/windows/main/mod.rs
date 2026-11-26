@@ -19,16 +19,19 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key};
-use posthaste_model::{AppInfo, CommandError, Counts, DetailsFrom, Note, Os, Project, Status};
+use posthaste_model::{
+    AppInfo, CommandError, Counts, DetailsFrom, LookSummary, Note, Os, Project, Status,
+};
 use wasm_bindgen::JsCast;
 
 use crate::browser;
-use crate::components::{Button, ProjectPicker, SceneHost, Toaster, Toasts};
+use crate::components::{Button, CommandPalette, ProjectPicker, SceneHost, Toaster, Toasts};
 use crate::ipc::{api, events};
 use crate::logic::dates::Day;
 use crate::logic::inbox::{
     build_query, group_by_day, key_action, Filters, KeyAction, KeyContext, KeyPress, View,
 };
+use crate::logic::palette::{PaletteGroup, PaletteItem};
 use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::sections;
 use crate::logic::selection::neighbour;
@@ -84,6 +87,8 @@ struct Main {
     /// Project sections collapsed in this window while the app runs.
     collapsed_sections: RwSignal<HashSet<String>>,
     help_open: RwSignal<bool>,
+    palette_open: RwSignal<bool>,
+    palette_looks: RwSignal<Vec<LookSummary>>,
     /// Bumped to run the list query again: data changed, or a new day began.
     revision: RwSignal<u32>,
     /// Counts queries, so a slow answer to an old one cannot replace a newer.
@@ -117,6 +122,8 @@ impl Main {
             note_menu: RwSignal::new(None),
             collapsed_sections: RwSignal::new(HashSet::new()),
             help_open: RwSignal::new(false),
+            palette_open: RwSignal::new(false),
+            palette_looks: RwSignal::new(Vec::new()),
             revision: RwSignal::new(0),
             request: StoredValue::new(0),
             search: NodeRef::new(),
@@ -529,7 +536,7 @@ impl Main {
     }
 
     fn on_key(self, event: KeyboardEvent) {
-        if settings::is_recording_shortcut() {
+        if settings::is_recording_shortcut() || self.palette_open.get_untracked() {
             return;
         }
         let key = event.key();
@@ -575,6 +582,14 @@ impl Main {
             (KeyAction::FocusSearch, _) => self.focus_search(),
             (KeyAction::NewNote, _) => self.new_note(),
             (KeyAction::ToggleSidebar, _) => self.toggle_sidebar(),
+            (KeyAction::OpenPalette, _) => {
+                self.palette_open.set(true);
+                spawn_local(async move {
+                    if let Ok(looks) = api::look_list().await {
+                        self.palette_looks.set(looks);
+                    }
+                });
+            }
             (KeyAction::Help, _) => self.help_open.set(true),
             (KeyAction::LeaveSearch, _) => {
                 self.clear_search();
@@ -684,6 +699,7 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             main.picker.set(None);
             main.project_menu_open.set(false);
             main.note_menu.set(None);
+            main.palette_open.set(false);
         }
     });
     let close_menu = window_event_listener(leptos::ev::click, move |event| {
@@ -869,6 +885,179 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
             </SceneHost>
 
             <Toasts toaster=main.toaster i18n=i18n />
+            <CommandPalette
+                open=main.palette_open
+                i18n=i18n
+                items=Signal::derive(move || {
+                    let t = i18n.translator();
+                    let mod_key = mod_cap(os).to_owned();
+                    let mut items = vec![
+                        PaletteItem {
+                            id: "view:inbox".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_INBOX).to_owned(),
+                            subtitle: None,
+                            shortcut: vec!["1".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:today".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_TODAY).to_owned(),
+                            subtitle: None,
+                            shortcut: vec!["2".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:later".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_LATER).to_owned(),
+                            subtitle: None,
+                            shortcut: vec!["3".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:archive".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_ARCHIVE).to_owned(),
+                            subtitle: None,
+                            shortcut: vec!["4".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:trash".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_TRASH).to_owned(),
+                            subtitle: None,
+                            shortcut: vec!["5".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:settings".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_SETTINGS).to_owned(),
+                            subtitle: None,
+                            shortcut: vec![mod_key.clone(), ",".into()],
+                            color: None,
+                        },
+                        PaletteItem {
+                            id: "view:projects".into(),
+                            group: PaletteGroup::Navigate,
+                            title: t.text(key::INBOX_NAV_MANAGE_PROJECTS).to_owned(),
+                            subtitle: None,
+                            shortcut: Vec::new(),
+                            color: None,
+                        },
+                    ];
+                    for project in main.projects.get() {
+                        items.push(PaletteItem {
+                            id: format!("project:{}", project.name),
+                            group: PaletteGroup::Project,
+                            title: project.name,
+                            subtitle: None,
+                            shortcut: Vec::new(),
+                            color: project.color,
+                        });
+                    }
+                    items.push(PaletteItem {
+                        id: "action:new".into(),
+                        group: PaletteGroup::Action,
+                        title: t.text(key::INBOX_NEW_NOTE).to_owned(),
+                        subtitle: None,
+                        shortcut: vec!["N".into()],
+                        color: None,
+                    });
+                    items.push(PaletteItem {
+                        id: "action:sidebar".into(),
+                        group: PaletteGroup::Action,
+                        title: t.text(key::INBOX_HELP_SIDEBAR).to_owned(),
+                        subtitle: None,
+                        shortcut: vec![mod_key, "B".into()],
+                        color: None,
+                    });
+                    if os == Os::Macos {
+                        let glass_on = settings
+                            .settings
+                            .with(|s| s.as_ref().is_some_and(|s| s.macos_glass));
+                        items.push(PaletteItem {
+                            id: "action:glass".into(),
+                            group: PaletteGroup::Action,
+                            title: t.text(key::LOOKS_GLASS).to_owned(),
+                            subtitle: Some(if glass_on { "On".into() } else { "Off".into() }),
+                            shortcut: Vec::new(),
+                            color: None,
+                        });
+                    }
+                    items.push(PaletteItem {
+                        id: "action:help".into(),
+                        group: PaletteGroup::Action,
+                        title: t.text(key::INBOX_HELP_TITLE).to_owned(),
+                        subtitle: None,
+                        shortcut: vec!["?".into()],
+                        color: None,
+                    });
+                    let current_look = settings
+                        .settings
+                        .with(|s| s.as_ref().map(|s| s.look_id.clone()));
+                    for look in main.palette_looks.get() {
+                        let active_sub = (current_look.as_deref() == Some(look.id.as_str()))
+                            .then(|| t.text(key::LOOKS_DARK).to_owned())
+                            .or_else(|| {
+                                Some(
+                                    t.text(match look.base {
+                                        posthaste_model::Base::Light => key::LOOKS_LIGHT,
+                                        posthaste_model::Base::Dark => key::LOOKS_DARK,
+                                    })
+                                    .to_owned(),
+                                )
+                            });
+                        items.push(PaletteItem {
+                            id: format!("look:{}", look.id),
+                            group: PaletteGroup::Look,
+                            title: look.name,
+                            subtitle: active_sub,
+                            shortcut: Vec::new(),
+                            color: Some(look.preview.accent),
+                        });
+                    }
+                    items
+                })
+                on_select=move |id: String| {
+                    if let Some(name) = id.strip_prefix("project:") {
+                        main.go(View::Project(name.to_owned()));
+                    } else if let Some(look_id) = id.strip_prefix("look:") {
+                        let look_id = look_id.to_owned();
+                        spawn_local(async move {
+                            if let Err(error) = settings.update(|s| s.look_id = look_id).await {
+                                main.fail(error);
+                            }
+                        });
+                    } else {
+                        match id.as_str() {
+                            "view:inbox" => main.go(View::Inbox),
+                            "view:today" => main.go(View::Today),
+                            "view:later" => main.go(View::Later),
+                            "view:archive" => main.go(View::Archive),
+                            "view:trash" => main.go(View::Trash),
+                            "view:settings" => main.go(View::Settings),
+                            "view:projects" => main.go(View::ManageProjects),
+                            "action:new" => main.new_note(),
+                            "action:sidebar" => main.toggle_sidebar(),
+                            "action:help" => main.help_open.set(true),
+                            "action:glass" => {
+                                spawn_local(async move {
+                                    if let Err(error) =
+                                        settings.update(|s| s.macos_glass = !s.macos_glass).await
+                                    {
+                                        main.fail(error);
+                                    }
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            />
             <help::ShortcutHelp
                 i18n=i18n
                 open=main.help_open

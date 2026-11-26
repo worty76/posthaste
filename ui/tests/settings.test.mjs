@@ -81,11 +81,29 @@ describe("settings", () => {
   it("turns Simple looks on and saves the setting", async () => {
     const w = await settings();
     await w.tab("Appearance");
+    assert.equal(await w.page.getByRole("switch", { name: "Translucent glass" }).count(), 0);
     await w.page.getByRole("switch", { name: "Simple looks" }).click();
     await eventually(
       async () => (await w.saved()).simple_looks,
       (on) => on === true,
       "Simple looks to be saved on",
+    );
+    await w.close();
+  });
+
+  it("shows Translucent glass on macOS and applies data-glass", async () => {
+    const w = await settings({ os: "macos" });
+    await w.tab("Appearance");
+    await w.page.getByRole("switch", { name: "Translucent glass" }).click();
+    await eventually(
+      async () => (await w.saved()).macos_glass,
+      (on) => on === true,
+      "Translucent glass to be saved on",
+    );
+    await eventually(
+      () => w.page.evaluate(() => document.documentElement.getAttribute("data-glass")),
+      (v) => v === "true",
+      "data-glass to turn on",
     );
     await w.close();
   });

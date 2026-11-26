@@ -5,7 +5,7 @@ use leptos::ev::KeyboardEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::key;
-use posthaste_model::{CommandError, LookPreview, LookSummary, ThemeEdit};
+use posthaste_model::{Base, CommandError, LookPreview, LookSummary, Os, ThemeEdit};
 
 use super::look_editor::LookEditor;
 use super::Context;
@@ -25,7 +25,7 @@ struct Editing {
 }
 
 #[component]
-pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> impl IntoView {
+pub(super) fn AppearanceSection(context: Context, appearance: Appearance, os: Os) -> impl IntoView {
     let i18n = context.i18n;
     let toaster = context.toaster;
     let looks = RwSignal::new(Vec::<LookSummary>::new());
@@ -215,96 +215,151 @@ pub(super) fn AppearanceSection(context: Context, appearance: Appearance) -> imp
         });
     };
 
-    let look_button = move |id: String, name: Signal<String>, colors: Option<LookPreview>| {
-        let checked = {
-            let id = id.clone();
-            move || look_id.with(|current| *current == id)
+    let look_button =
+        move |id: String, name: Signal<String>, base: Base, colors: Option<LookPreview>| {
+            let checked = {
+                let id = id.clone();
+                move || look_id.with(|current| *current == id)
+            };
+            let is_checked = checked.clone();
+            let base_key = match base {
+                Base::Light => key::LOOKS_LIGHT,
+                Base::Dark => key::LOOKS_DARK,
+            };
+            view! {
+                <button
+                    type="button"
+                    role="radio"
+                    class="look"
+                    aria-checked=move || checked().to_string()
+                    tabindex=move || if is_checked() { "0" } else { "-1" }
+                    on:click=move |_| select(id.clone())
+                >
+                    <Swatch colors=colors />
+                    <span class="look__info">
+                        <span class="look__name">{move || name.get()}</span>
+                        <span class="look__meta" aria-hidden="true">{i18n.text(base_key)}</span>
+                    </span>
+                </button>
+            }
         };
-        let is_checked = checked.clone();
-        view! {
-            <button
-                type="button"
-                role="radio"
-                class="look"
-                aria-checked=move || checked().to_string()
-                tabindex=move || if is_checked() { "0" } else { "-1" }
-                on:click=move |_| select(id.clone())
-            >
-                <Swatch colors=colors />
-                <span>{move || name.get()}</span>
-            </button>
-        }
-    };
 
     view! {
-        <div class="row">
-            <div class="row__text">
-                <div class="row__label">{i18n.text(key::LOOKS_SIMPLE)}</div>
-                <div class="row__help">{i18n.text(key::LOOKS_SIMPLE_HELP)}</div>
+        <section class="settings__section" aria-labelledby="s-appearance">
+            <h2 class="settings__heading" id="s-appearance">
+                {i18n.text(key::SETTINGS_TABS_APPEARANCE)}
+            </h2>
+            {(os == Os::Macos).then(|| view! {
+                <div class="row">
+                    <div class="row__text">
+                        <div class="row__label">{i18n.text(key::LOOKS_GLASS)}</div>
+                        <div class="row__help">{i18n.text(key::LOOKS_GLASS_HELP)}</div>
+                    </div>
+                    <div class="row__control">
+                        <Switch
+                            label=i18n.label(key::LOOKS_GLASS)
+                            checked=context.read(|s| s.macos_glass)
+                            on_change=move |on| context.set(move |s| s.macos_glass = on)
+                        />
+                    </div>
+                </div>
+            })}
+            <div class="row">
+                <div class="row__text">
+                    <div class="row__label">{i18n.text(key::LOOKS_SIMPLE)}</div>
+                    <div class="row__help">{i18n.text(key::LOOKS_SIMPLE_HELP)}</div>
+                </div>
+                <div class="row__control">
+                    <Switch
+                        label=i18n.label(key::LOOKS_SIMPLE)
+                        checked=context.read(|s| s.simple_looks)
+                        on_change=move |on| context.set(move |s| s.simple_looks = on)
+                    />
+                </div>
             </div>
-            <div class="row__control">
-                <Switch
-                    label=i18n.label(key::LOOKS_SIMPLE)
-                    checked=context.read(|s| s.simple_looks)
-                    on_change=move |on| context.set(move |s| s.simple_looks = on)
-                />
+        </section>
+
+        <section class="settings__section" aria-labelledby="s-looks">
+            <div class="looks__header">
+                <h2 class="settings__heading" id="s-looks">
+                    {i18n.text(key::LOOKS_GALLERY_HEADING)}
+                </h2>
+                <div class="looks__header-actions">
+                    <Button on_click=open_file>
+                        {i18n.text(key::LOOKS_OPEN_FILE)}
+                    </Button>
+                    <Button on_click=move |()| import_open.set(true)>
+                        {i18n.text(key::LOOKS_ADD)}
+                    </Button>
+                    <Button
+                        variant=Variant::Primary
+                        disabled=editing
+                        on_click=move |()| open_editor(selected.get_untracked())
+                    >
+                        {i18n.text(key::LOOKS_MAKE)}
+                    </Button>
+                </div>
             </div>
-        </div>
-        <div class="row row--stack">
+
             <div class="looks" role="radiogroup" aria-label=i18n.text(key::LOOKS_GALLERY) on:keydown=on_key>
-                <For each=move || looks.get() key=|look| (look.id.clone(), look.name.clone(), look.preview.clone()) let:look>
-                    {look_button(look.id, Signal::stored(look.name), Some(look.preview))}
+                <For
+                    each=move || looks.get()
+                    key=|look| (look.id.clone(), look.name.clone(), look.preview.clone())
+                    let:look
+                >
+                    {look_button(look.id, Signal::stored(look.name), look.base, Some(look.preview))}
                 </For>
             </div>
-            <div class="looks__actions">
-                <Button on_click=open_file>
-                    {i18n.text(key::LOOKS_OPEN_FILE)}
-                </Button>
-                {move || selected.get().map(|look| {
-                    let builtin = look.builtin;
-                    let (to_share, to_edit, to_delete) = (look.clone(), look.clone(), look);
-                    view! {
-                        <Button on_click=move |()| share(to_share.clone())>
-                            {i18n.text(key::LOOKS_SHARE)}
-                        </Button>
-                        {if builtin {
-                            view! {
-                                <Button disabled=editing on_click=move |()| open_editor(Some(to_edit.clone()))>
-                                    {i18n.text(key::LOOKS_COPY)}
-                                </Button>
-                            }
-                            .into_any()
-                        } else {
-                            view! {
-                                <Button disabled=editing on_click=move |()| open_editor(Some(to_edit.clone()))>
-                                    {i18n.text(key::LOOKS_EDIT)}
-                                </Button>
-                                <Button
-                                    variant=Variant::Danger
-                                    disabled=editing
-                                    on_click=move |()| delete_target.set(Some(to_delete.clone()))
-                                >
-                                    {i18n.text(key::LOOKS_DELETE)}
-                                </Button>
-                            }
-                            .into_any()
-                        }}
-                    }
-                })}
-                {move || selected.get().filter(|look| !look.builtin).map(|look| {
-                    let to_export = look.clone();
-                    view! {
-                        <Button on_click=move |()| export_file(to_export.clone())>
-                            {i18n.text(key::LOOKS_EXPORT_FILE)}
-                        </Button>
-                    }
-                })}
-                <Button on_click=move |()| import_open.set(true)>{i18n.text(key::LOOKS_ADD)}</Button>
-                <Button disabled=editing on_click=move |()| open_editor(selected.get_untracked())>
-                    {i18n.text(key::LOOKS_MAKE)}
-                </Button>
-            </div>
-        </div>
+
+            {move || selected.get().map(|look| {
+                let builtin = look.builtin;
+                let name = look.name.clone();
+                let base_key = match look.base {
+                    Base::Light => key::LOOKS_LIGHT,
+                    Base::Dark => key::LOOKS_DARK,
+                };
+                let (to_share, to_edit, to_export, to_delete) =
+                    (look.clone(), look.clone(), look.clone(), look);
+                view! {
+                    <div class="looks__selected">
+                        <div class="looks__selected-info">
+                            <span class="looks__selected-name">{name}</span>
+                            <span class="looks__selected-meta">{i18n.text(base_key)}</span>
+                        </div>
+                        <div class="looks__actions">
+                            <Button on_click=move |()| share(to_share.clone())>
+                                {i18n.text(key::LOOKS_SHARE)}
+                            </Button>
+                            {if builtin {
+                                view! {
+                                    <Button disabled=editing on_click=move |()| open_editor(Some(to_edit.clone()))>
+                                        {i18n.text(key::LOOKS_COPY)}
+                                    </Button>
+                                }
+                                .into_any()
+                            } else {
+                                view! {
+                                    <Button disabled=editing on_click=move |()| open_editor(Some(to_edit.clone()))>
+                                        {i18n.text(key::LOOKS_EDIT)}
+                                    </Button>
+                                    <Button on_click=move |()| export_file(to_export.clone())>
+                                        {i18n.text(key::LOOKS_EXPORT_FILE)}
+                                    </Button>
+                                    <Button
+                                        variant=Variant::Danger
+                                        disabled=editing
+                                        on_click=move |()| delete_target.set(Some(to_delete.clone()))
+                                    >
+                                        {i18n.text(key::LOOKS_DELETE)}
+                                    </Button>
+                                }
+                                .into_any()
+                            }}
+                        </div>
+                    </div>
+                }
+            })}
+        </section>
 
         <Dialog
             open=import_open

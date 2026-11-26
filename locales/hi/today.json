@@ -17,7 +17,8 @@
   "group": {
     "carried": "पिछले दिनों से",
     "today": "आज",
-    "that_day": "उस दिन"
+    "that_day": "उस दिन",
+    "completed": "पूर्ण"
   },
   "more_in_inbox": "और {count} इनबॉक्स में",
   "more": "और {count}",

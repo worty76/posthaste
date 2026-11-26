@@ -7,6 +7,7 @@ pub mod dates;
 pub mod details;
 pub mod inbox;
 pub mod look;
+pub mod palette;
 pub mod position;
 pub mod project_picker;
 pub mod sections;

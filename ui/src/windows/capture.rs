@@ -83,6 +83,8 @@ struct Capture {
     /// The app the user came from, when the shell knows it.
     source: RwSignal<Option<String>>,
     polishing: RwSignal<bool>,
+    /// Text right before the last AI polish, so one press of Undo reverts it.
+    pre_polish: RwSignal<Option<String>>,
     shake: RwSignal<bool>,
     /// A save is in flight; a second Enter must not file the note twice.
     saving: StoredValue<bool>,
@@ -112,6 +114,7 @@ impl Capture {
             status,
             source: RwSignal::new(None),
             polishing: RwSignal::new(false),
+            pre_polish: RwSignal::new(None),
             shake: RwSignal::new(false),
             saving: StoredValue::new(false),
             touched: StoredValue::new(false),
@@ -149,6 +152,7 @@ impl Capture {
 
     fn clear(self) {
         self.touched.set_value(false);
+        self.pre_polish.set(None);
         self.content.set(String::new());
         self.category.set(String::new());
     }
@@ -313,12 +317,25 @@ impl Capture {
         self.status.set(Status::Busy(key::CAPTURE_STATUS_POLISHING));
         match api::ai_polish(&content).await {
             Ok(polished) => {
+                let changed = polished != content;
                 self.edit(polished, self.category.get_untracked());
+                if changed {
+                    self.pre_polish.set(Some(content));
+                }
                 self.status.set(Status::Done(key::CAPTURE_STATUS_POLISHED));
             }
             Err(error) => self.status.set(Status::Failed(Failure::Plain(error))),
         }
         self.polishing.set(false);
+    }
+
+    fn undo_polish(self) {
+        let Some(previous) = self.pre_polish.get_untracked() else {
+            return;
+        };
+        self.edit(previous, self.category.get_untracked());
+        self.status.set(Status::Idle);
+        self.focus();
     }
 
     async fn dismiss(self) {
@@ -440,6 +457,16 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
             primary: has_mod(event.meta_key(), event.ctrl_key(), os),
             composing: event.is_composing(),
         };
+        if press.primary
+            && !press.shift
+            && !press.composing
+            && matches!(press.key, "z" | "Z")
+            && capture.pre_polish.with_untracked(Option::is_some)
+        {
+            event.prevent_default();
+            capture.undo_polish();
+            return;
+        }
         if is_paste_chord(press, os) {
             let in_textarea = capture.input.get_untracked().is_some_and(|input| {
                 document()
@@ -474,7 +501,18 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                 on:animationend=move |_| capture.shake.set(false)
             >
                 <header class="capture__header" data-tauri-drag-region>
-                    <span class="capture__mark" aria-hidden="true"></span>
+                    {move || match capture.project_color() {
+                        Some(color) => view! {
+                            <svg class="capture__mark" viewBox="0 0 3 14" aria-hidden="true" focusable="false">
+                                <rect width="3" height="14" rx="1.5" fill=color />
+                            </svg>
+                        }
+                        .into_any(),
+                        None => view! {
+                            <span class="capture__mark" aria-hidden="true"></span>
+                        }
+                        .into_any(),
+                    }}
                     <span class="capture__title">{i18n.text(key::CAPTURE_TITLE)}</span>
                     {move || {
                         capture.source.get().map(|app| {
@@ -495,6 +533,7 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
                     placeholder=i18n.text(key::CAPTURE_PLACEHOLDER)
                     use:bind_text=Signal::derive(move || capture.content.get())
                     on:input=move |event| {
+                        capture.pre_polish.set(None);
                         capture.edit(event_target_value(&event), capture.category.get_untracked())
                     }
                     // Typing during a polish would be overwritten by the result.
@@ -653,6 +692,15 @@ fn StatusBar(
                         on:click=move |_| spawn_local(capture.discard())
                     >
                         {i18n.text(key::CAPTURE_DISCARD)}
+                    </button>
+                </Show>
+                <Show when=move || capture.pre_polish.with(Option::is_some)>
+                    <button
+                        type="button"
+                        class="capture__link"
+                        on:click=move |_| capture.undo_polish()
+                    >
+                        {i18n.text(key::INBOX_TOAST_UNDO)}
                     </button>
                 </Show>
             </span>

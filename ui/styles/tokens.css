@@ -195,6 +195,23 @@
   --t-title: 24px;
 }
 
+/* macOS translucent glass surfaces: only active when the shell applies
+   native NSVisualEffectView vibrancy on macOS. */
+:root.is-macos[data-glass="true"] {
+  --glass-bg: color-mix(in srgb, var(--bg) 52%, transparent);
+  --glass-sidebar: color-mix(in srgb, var(--bg-sunken) 42%, transparent);
+  --glass-surface: color-mix(in srgb, var(--surface-raised) 48%, transparent);
+  --glass-card: color-mix(in srgb, var(--surface) 46%, transparent);
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+:root.is-macos[data-glass="true"][data-theme="light"] {
+  --glass-bg: color-mix(in srgb, var(--bg) 56%, transparent);
+  --glass-sidebar: color-mix(in srgb, var(--bg-sunken) 46%, transparent);
+  --glass-surface: color-mix(in srgb, var(--surface-raised) 52%, transparent);
+  --glass-card: color-mix(in srgb, var(--surface) 50%, transparent);
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.72), inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --fast: 0ms;

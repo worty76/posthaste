@@ -174,5 +174,12 @@
     "check_updates": "Nach Updates suchen",
     "update_to": "Auf {version} aktualisieren",
     "no_update": "Es wurde automatisch keine neuere Version gefunden. Lade das neueste Posthaste von der Release-Seite herunter und öffne es."
+  },
+  "palette": {
+    "title": "Befehlspalette",
+    "placeholder": "Befehl, Ansicht oder Projekt eingeben…",
+    "empty": "Keine passenden Befehle.",
+    "group_jump": "Wechseln zu",
+    "group_actions": "Aktionen"
   }
 }

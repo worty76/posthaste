@@ -233,6 +233,7 @@ pub enum KeyAction {
     FocusSearch,
     NewNote,
     ToggleSidebar,
+    OpenPalette,
     Help,
     /// Esc in the search box: end the search and leave the box.
     LeaveSearch,
@@ -307,6 +308,7 @@ pub fn key_action(press: KeyPress<'_>, context: &KeyContext) -> Option<Keyed> {
             "f" | "F" => plain(KeyAction::FocusSearch),
             "n" | "N" => plain(KeyAction::NewNote),
             "b" | "B" => plain(KeyAction::ToggleSidebar),
+            "k" | "K" => plain(KeyAction::OpenPalette),
             _ => None,
         };
     }

@@ -7,7 +7,7 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use posthaste_i18n::key;
-use posthaste_model::{Note, Status};
+use posthaste_model::{DetailsFrom, Note, Status};
 
 use crate::components::{Icon, IconButton, IconName};
 use crate::ipc::{api, events};
@@ -70,6 +70,12 @@ impl Focus {
         });
     }
 
+    fn open_details(self, id: String) {
+        spawn_local(async move {
+            let _ = api::details_open(&id, DetailsFrom::Inbox).await;
+        });
+    }
+
     /// Measures whether the title overflows its viewport so the pill only
     /// scrolls long titles.
     fn measure_overflow(self) {
@@ -121,10 +127,15 @@ pub fn FocusWindow() -> impl IntoView {
             {move || {
                 let note = focus.note.get()?;
                 let id_complete = note.id.clone();
+                let id_open = note.id.clone();
+                let id_open_btn = note.id.clone();
                 let title = first_line(&note.content).to_owned();
                 let title_dup = title.clone();
                 let step_total = note.step_total;
                 let step_done = note.step_done;
+                let step_pct = (step_total > 0).then(|| {
+                    ((step_done.min(step_total) as f64 / step_total as f64) * 100.0).round() as u32
+                });
                 let steps_label = (step_total > 0).then(|| {
                     i18n.translator().format(
                         key::FOCUS_STEPS,
@@ -157,6 +168,7 @@ pub fn FocusWindow() -> impl IntoView {
                             class="focus-pill__title"
                             data-overflow=move || focus.overflowing.get().to_string()
                             data-tauri-drag-region=""
+                            on:dblclick=move |_| focus.open_details(id_open.clone())
                         >
                             <span class="focus-pill__track" data-tauri-drag-region="">
                                 <span
@@ -187,11 +199,28 @@ pub fn FocusWindow() -> impl IntoView {
                             </span>
                         })}
                         <IconButton
+                            class="focus-pill__open"
+                            icon=IconName::Open
+                            label=i18n.label(key::INBOX_HELP_DETAILS)
+                            on_click=move |_| focus.open_details(id_open_btn.clone())
+                        />
+                        <IconButton
                             class="focus-pill__clear"
                             icon=IconName::Close
                             label=i18n.label(key::FOCUS_CLEAR)
                             on_click=move |_| focus.clear()
                         />
+                        {step_pct.map(|pct| view! {
+                            <svg
+                                class="focus-pill__progress"
+                                viewBox="0 0 100 2"
+                                preserveAspectRatio="none"
+                                aria-hidden="true"
+                                focusable="false"
+                            >
+                                <rect class="focus-pill__progress-fill" width=pct height="2" />
+                            </svg>
+                        })}
                     </div>
                 })
             }}

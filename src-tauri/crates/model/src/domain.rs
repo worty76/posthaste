@@ -399,6 +399,9 @@ pub struct Settings {
     /// Applied in storage, so no window can forget to obey it.
     #[serde(default)]
     pub simple_looks: bool,
+    /// Translucent frosted glass surfaces on macOS (ignored on other OSes).
+    #[serde(default)]
+    pub macos_glass: bool,
     /// Whether the main window's sidebar is collapsed to its icon rail.
     #[serde(default)]
     pub sidebar_collapsed: bool,
@@ -438,6 +441,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             simple_looks: false,
+            macos_glass: false,
             sidebar_collapsed: false,
             launch_at_login: false,
             start_minimized: false,

@@ -17,7 +17,8 @@
   "group": {
     "carried": "이월됨",
     "today": "오늘",
-    "that_day": "그날"
+    "that_day": "그날",
+    "completed": "완료됨"
   },
   "more_in_inbox": "외 수신함에 {count}개 더 있음",
   "more": "외 {count}개 더 있음",

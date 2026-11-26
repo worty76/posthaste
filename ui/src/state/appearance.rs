@@ -154,5 +154,18 @@ pub fn use_appearance(settings: SettingsHandle) -> Appearance {
             }
         }
     });
+    let macos_glass = Memo::new(move |_| {
+        settings
+            .settings
+            .with(|s| s.as_ref().is_some_and(|s| s.macos_glass))
+    });
+    Effect::new(move |_| {
+        let Some(root) = root() else { return };
+        if macos_glass.get() {
+            let _ = root.set_attribute("data-glass", "true");
+        } else {
+            let _ = root.remove_attribute("data-glass");
+        }
+    });
     Appearance { preview }
 }

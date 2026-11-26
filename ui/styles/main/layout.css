@@ -1,0 +1,411 @@
+/* The main window: sidebar + one reading column. */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  /* minmax(0, …) lets the row be shorter than its content, so the note list
+     scrolls inside the window instead of stretching it. */
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+}
+.app[data-collapsed] {
+  --sidebar: 56px;
+}
+/* macOS: keep the collapsed rail wide enough to frame the traffic lights. */
+.os-macos[data-collapsed] {
+  --sidebar: 80px;
+}
+
+/* ---- macOS translucent glass ---- */
+html.is-macos.is-main[data-glass="true"],
+html.is-macos.is-main[data-glass="true"] body {
+  background: transparent;
+}
+html.is-macos.is-main[data-glass="true"] .sidebar {
+  background: var(--glass-sidebar);
+}
+html.is-macos.is-main[data-glass="true"] .content {
+  background: var(--glass-bg);
+}
+html.is-macos.is-main[data-glass="true"] .settings__section,
+html.is-macos.is-main[data-glass="true"] .settings__tabs,
+html.is-macos.is-main[data-glass="true"] .look {
+  background: var(--glass-card);
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-4) var(--s-3);
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+/* macOS: leave room for the traffic lights in the overlaid title bar. */
+.os-macos .sidebar,
+.os-macos .content__header {
+  padding-top: 40px;
+}
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+}
+.sidebar[data-collapsed] .sidebar__header {
+  justify-content: center;
+}
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  font-weight: 600;
+}
+.sidebar[data-collapsed] .sidebar__brand {
+  display: none;
+}
+.sidebar__brand::before {
+  content: "";
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.nav {
+  display: grid;
+  gap: 2px;
+}
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+.nav__item[data-collapsed] {
+  justify-content: center;
+  padding: 0;
+}
+.nav__item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.nav__item:active {
+  background: var(--active);
+}
+.nav__item[aria-current="page"] {
+  background: var(--active);
+  color: var(--text);
+  font-weight: 500;
+}
+.nav__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav__count {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
+.nav__item[data-collapsed] .nav__label,
+.nav__item[data-collapsed] .nav__count {
+  display: none;
+}
+.sidebar__projects-wrap {
+  margin-top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.sidebar[data-collapsed] .sidebar__projects-wrap {
+  display: none;
+}
+.sidebar__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1);
+  padding: 0 var(--s-1) 0 var(--s-2);
+}
+.sidebar__group-label {
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.sidebar__manage {
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+.sidebar__spacer {
+  flex: 1;
+}
+.sidebar__new {
+  justify-content: space-between;
+  gap: var(--s-2);
+  width: 100%;
+  margin-bottom: var(--s-2);
+  padding: 0 var(--s-2) 0 var(--s-3);
+  overflow: hidden;
+}
+.sidebar__new__icon {
+  display: none;
+}
+.sidebar__new[data-collapsed] {
+  justify-content: center;
+  padding: 0;
+}
+.sidebar__new[data-collapsed] .sidebar__new__icon {
+  display: inline-flex;
+}
+.sidebar__new[data-collapsed] .sidebar__new__label {
+  display: none;
+}
+/* System fonts on Linux and Windows run wider than the macOS metrics the
+   sizes assume, so the label yields and the key cap never clips. */
+.sidebar__new__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.sidebar__new .kbd {
+  flex: none;
+}
+.sidebar__new .kbd kbd {
+  padding-inline: 0.3em;
+  min-width: 1.3em;
+}
+
+/* ---- Content ---- */
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The scene wrapper is the grid cell now; the pane fills it. */
+.scene > .content {
+  height: 100%;
+}
+.content__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-4);
+  padding: var(--s-5) var(--s-6) var(--s-3);
+}
+.content__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.content__title {
+  font-size: var(--t-title);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+}
+.content__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 var(--s-6) var(--s-7);
+}
+.content__column {
+  width: 100%;
+  max-width: var(--measure);
+}
+
+/* ---- Search ---- */
+.search {
+  position: relative;
+  flex: 1 1 160px;
+  max-width: 320px;
+  margin-left: auto;
+}
+.search .field {
+  padding-left: 30px;
+  padding-right: 30px;
+}
+.search__icon {
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.search__clear {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+}
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  padding: 0 var(--s-6) var(--s-3);
+}
+.filters .field {
+  width: auto;
+  height: 30px;
+}
+.datefilter {
+  position: relative;
+}
+.datefilter__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+}
+.datefilter__button[data-empty] {
+  color: var(--text-faint);
+}
+.datefilter__pop {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  left: 0;
+  z-index: 10;
+}
+.filters__count {
+  color: var(--text-faint);
+  font-size: var(--t-sm);
+}
+
+/* ---- Category filter and picker ---- */
+.catfilter {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-6) var(--s-3);
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+}
+.cat-anchor {
+  position: relative;
+  height: 0;
+}
+.cat-picker {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-6);
+  z-index: 10;
+  width: 280px;
+  padding: var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+  animation: pop var(--quick) var(--ease);
+}
+.cat-picker .field {
+  width: 100%;
+  height: 30px;
+}
+.cat-picker__list {
+  list-style: none;
+  margin: var(--s-1) 0 0;
+  padding: 0;
+}
+.cat-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.cat-picker__item[data-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.cat-picker__count {
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+}
+.cat-picker__empty {
+  margin: var(--s-2) 0 0;
+  padding: 0 var(--s-2) var(--s-1);
+  color: var(--text-faint);
+  font-size: var(--t-sm);
+}
+
+/* ---- Banner ---- */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin: 0 var(--s-6) var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+  font-size: var(--t-sm);
+  line-height: var(--lh);
+}
+.banner--info {
+  background: var(--accent-soft);
+}
+.banner__text {
+  flex: 1;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.banner__title {
+  font-weight: 600;
+}
+
+/* ---- Narrow windows: keep the vertical sidebar, tighten horizontal room ---- */
+@media (max-width: 700px) {
+  .app:not([data-collapsed]) {
+    --sidebar: 180px;
+  }
+  .sidebar__new .kbd {
+    display: none;
+  }
+  .content__header,
+  .filters {
+    padding-left: var(--s-4);
+    padding-right: var(--s-4);
+  }
+  .content__scroll {
+    padding: 0 var(--s-4) var(--s-6);
+  }
+  .banner {
+    margin-left: var(--s-4);
+    margin-right: var(--s-4);
+  }
+}

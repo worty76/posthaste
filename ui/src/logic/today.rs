@@ -81,6 +81,44 @@ pub fn key_action(press: KeyPress<'_>, context: KeyContext) -> Option<KeyAction>
     }
 }
 
+/// Completed drawer auto-collapses once there are at least this many finished
+/// notes on the day, keeping the active list calm.
+pub const COMPLETED_AUTO_COLLAPSE: usize = 4;
+
+/// Splits a day's notes into `(open, completed)` preserving original order.
+pub fn split_completed(
+    notes: &[Note],
+    viewing_today: bool,
+    day_end_ms: i64,
+) -> (Vec<Note>, Vec<Note>) {
+    let mut open = Vec::new();
+    let mut done = Vec::new();
+    for note in notes {
+        if is_done(note, viewing_today, day_end_ms) {
+            done.push(note.clone());
+        } else {
+            open.push(note.clone());
+        }
+    }
+    (open, done)
+}
+
+/// Visible note ids across Carried over, open Today notes, and (when expanded)
+/// completed Today notes.
+pub fn visible_ids_with_completed(
+    carried: &[Note],
+    today_open: &[Note],
+    today_done: &[Note],
+    collapsed: &HashSet<String>,
+    show_done: bool,
+) -> Vec<String> {
+    let mut ids = visible_ids(carried, today_open, collapsed);
+    if show_done {
+        ids.extend(today_done.iter().map(|n| n.id.clone()));
+    }
+    ids
+}
+
 /// Visible note ids across Carried over and Today, each grouped by project
 /// separately (so Carried over projects always precede Today projects).
 pub fn visible_ids(carried: &[Note], today: &[Note], collapsed: &HashSet<String>) -> Vec<String> {

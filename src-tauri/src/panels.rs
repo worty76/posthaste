@@ -153,6 +153,19 @@ mod mac {
         true
     }
 
+    /// Toggles the native macOS drop shadow on a floating panel. Used when
+    /// switching between translucent glass (which uses the OS shadow around
+    /// its rounded vibrancy view) and matte panels (which draw a CSS shadow).
+    pub fn set_shadow(app: &AppHandle, window: &WebviewWindow, shadow: bool) {
+        let label = window.label().to_string();
+        let Ok(panel) = app.get_webview_panel(&label) else {
+            return;
+        };
+        let _ = app.run_on_main_thread(move || {
+            panel.set_has_shadow(shadow);
+        });
+    }
+
     /// Warm-hides the panel without ordering it out, keeping its WKWebView
     /// backing store alive. Must be called on the main thread. False when
     /// `window` is not a panel.
@@ -167,6 +180,12 @@ mod mac {
         panel.resign_key_window();
         true
     }
+}
+
+/// Toggles the native drop shadow on a floating panel (macOS only).
+#[cfg(target_os = "macos")]
+pub fn set_shadow(app: &AppHandle, window: &WebviewWindow, shadow: bool) {
+    mac::set_shadow(app, window, shadow);
 }
 
 /// Call once per floating window, right after it is built.

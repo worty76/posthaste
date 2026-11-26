@@ -17,7 +17,8 @@
   "group": {
     "carried": "Übernommen",
     "today": "Heute",
-    "that_day": "An diesem Tag"
+    "that_day": "An diesem Tag",
+    "completed": "Erledigt"
   },
   "more_in_inbox": "und {count} weitere im Eingang",
   "more": "und {count} weitere",

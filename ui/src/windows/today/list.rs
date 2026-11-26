@@ -10,7 +10,7 @@ use super::Today;
 use crate::components::{caps, EmptyState, Icon, IconButton, IconName, Kbd, ProjectDot};
 use crate::logic::dates::Day;
 use crate::logic::sections;
-use crate::logic::today::{is_done, origin, Origin};
+use crate::logic::today::{is_done, origin, split_completed, Origin};
 use crate::state::I18n;
 use crate::time::{self, DateStyle, Width};
 use crate::windows::note_badges::NoteBadges;
@@ -80,11 +80,16 @@ pub(super) fn Notes(today: Today, i18n: I18n, locale: Memo<String>) -> impl Into
             .glance
             .with(|g| g.as_ref().map(|g| g.carried.clone()).unwrap_or_default())
     };
-    let captured = move || {
-        today
-            .glance
-            .with(|g| g.as_ref().map(|g| g.today.clone()).unwrap_or_default())
-    };
+    let captured_split = Memo::new(move |_| {
+        let viewing_today = today.viewing_today();
+        let (_, day_end) = time::bounds(today.shown_day());
+        today.glance.with(|g| match g {
+            Some(g) => split_completed(&g.today, viewing_today, day_end),
+            None => (Vec::new(), Vec::new()),
+        })
+    });
+    let captured_open = move || captured_split.with(|(open, _)| open.clone());
+    let captured_done = move || captured_split.with(|(_, done)| done.clone());
     let more = Memo::new(move |_| {
         today.glance.with(|g| {
             g.as_ref()
@@ -104,8 +109,9 @@ pub(super) fn Notes(today: Today, i18n: I18n, locale: Memo<String>) -> impl Into
         <div node_ref=today.list class="today__list" tabindex="-1">
             <Group today=today i18n=i18n locale=locale notes=Signal::derive(carried)
                 label=Signal::derive(move || i18n.translator().text(key::TODAY_GROUP_CARRIED).to_owned()) />
-            <Group today=today i18n=i18n locale=locale notes=Signal::derive(captured)
+            <Group today=today i18n=i18n locale=locale notes=Signal::derive(captured_open)
                 label=Signal::derive(move || i18n.translator().text(own_group()).to_owned()) />
+            <CompletedDrawer today=today i18n=i18n locale=locale notes=Signal::derive(captured_done) />
         </div>
         <Show when=has_more>
             <p class="today__more">
@@ -114,6 +120,47 @@ pub(super) fn Notes(today: Today, i18n: I18n, locale: Memo<String>) -> impl Into
                     i18n.translator().format(key, &[("count", &more.get().to_string())])
                 }}
             </p>
+        </Show>
+    }
+}
+
+/// Collapsible drawer of completed notes at the bottom of Today.
+#[component]
+fn CompletedDrawer(
+    today: Today,
+    i18n: I18n,
+    locale: Memo<String>,
+    notes: Signal<Vec<Note>>,
+) -> impl IntoView {
+    let expanded = move || today.completed_expanded(notes.with(Vec::len));
+    view! {
+        <Show when=move || notes.with(|list| !list.is_empty())>
+            <section
+                class="today__group today__completed"
+                aria-label=i18n.text(key::TODAY_GROUP_COMPLETED)
+            >
+                <button
+                    type="button"
+                    class="today__completed-toggle"
+                    aria-expanded=move || expanded().to_string()
+                    on:click=move |_| today.toggle_completed(notes.with_untracked(Vec::len))
+                >
+                    <span class="proj-section__chevron">
+                        <Icon name=IconName::Next size=12 />
+                    </span>
+                    <span>{i18n.text(key::TODAY_GROUP_COMPLETED)}</span>
+                    <span class="today__group-count" aria-hidden="true">
+                        {move || notes.with(Vec::len)}
+                    </span>
+                </button>
+                <Show when=expanded>
+                    <ul class="today__rows">
+                        <For each=move || notes.get() key=row_key let:note>
+                            <Row today=today i18n=i18n locale=locale note=note />
+                        </For>
+                    </ul>
+                </Show>
+            </section>
         </Show>
     }
 }
@@ -172,7 +219,12 @@ fn Group(
     view! {
         <Show when=move || notes.with(|notes| !notes.is_empty())>
             <section class="today__group" aria-label=move || label.get()>
-                <h2 class="today__group-label">{move || label.get()}</h2>
+                <h2 class="today__group-label">
+                    <span>{move || label.get()}</span>
+                    <span class="today__group-count" aria-hidden="true">
+                        {move || notes.with(Vec::len)}
+                    </span>
+                </h2>
                 <For each=keys key=|project| project.clone() let:project>
                     {match project {
                         Some(name) => {

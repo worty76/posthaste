@@ -20,6 +20,16 @@ html.is-linux.is-today .today__panel {
   animation: none;
 }
 
+/* macOS translucent glass: native vibrancy fills the rounded panel and the OS
+   draws the drop shadow, so drop the CSS shadow margin. */
+html.is-macos.is-today[data-glass="true"] .today {
+  padding: 0;
+}
+html.is-macos.is-today[data-glass="true"] .today__panel {
+  background: var(--glass-surface);
+  box-shadow: var(--glass-rim);
+}
+
 .today {
   height: 100%;
   /* Room for the shadow; the OS window itself is invisible. */
@@ -135,10 +145,61 @@ html.is-linux.is-today .today__panel {
   margin-top: var(--s-3);
 }
 .today__group-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   padding: 0 var(--s-2) var(--s-1);
   color: var(--text-faint);
   font-size: var(--t-xs);
   font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.today__group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.today__group-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+.today__completed {
+  padding-top: var(--s-1);
+}
+.today__completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+.today__completed-toggle::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.today__completed-toggle:hover {
+  background: var(--hover);
+  color: var(--text-muted);
+}
+.today__completed-toggle[aria-expanded="true"] .proj-section__chevron {
+  transform: rotate(90deg);
 }
 .today__rows {
   margin: 0;
@@ -175,6 +236,7 @@ html.is-linux.is-today .today__panel {
   pointer-events: none;
 }
 .today__row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--s-3);
@@ -186,6 +248,16 @@ html.is-linux.is-today .today__panel {
 }
 .today__row[data-selected="true"] {
   background: var(--active);
+}
+.today__row[data-selected="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--s-2);
+  bottom: var(--s-2);
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 .today__row .check {
   flex: none;
