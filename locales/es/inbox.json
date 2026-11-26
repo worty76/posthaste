@@ -1,0 +1,178 @@
+{
+  "sections": "Secciones",
+  "sidebar": {
+    "collapse": "Contraer barra lateral ({keys})",
+    "expand": "Expandir barra lateral ({keys})"
+  },
+  "nav": {
+    "inbox": "Bandeja",
+    "today": "Hoy",
+    "later": "Después",
+    "archive": "Archivo",
+    "trash": "Papelera",
+    "settings": "Configuración",
+    "projects": "Proyectos",
+    "manage_projects": "Administrar proyectos"
+  },
+  "project_page": {
+    "menu": "Acciones del proyecto (M)",
+    "rename": "Renombrar",
+    "archive": "Archivar proyecto",
+    "rename_label": "Nuevo nombre del proyecto",
+    "merge_confirm": "¿Mover {count} notas a {name}?",
+    "merge_action": "Mover",
+    "add_placeholder": "Agregar una nota a {name}",
+    "empty_title": "Aún no hay notas en este proyecto.",
+    "archived_toast": "Proyecto archivado"
+  },
+  "manage_projects": {
+    "empty": "Aún no hay proyectos.",
+    "new_label": "Nuevo proyecto",
+    "new_placeholder": "Nombre del nuevo proyecto",
+    "add": "Agregar",
+    "color_pick": "Elegir color",
+    "archived_group": "Archivados ({count})",
+    "rename": "Renombrar (R)",
+    "archive": "Archivar (A)",
+    "unarchive": "Desarchivar (U)",
+    "remove": "Quitar (Delete)",
+    "remove_title": "¿Quitar el proyecto de {count} notas?",
+    "remove_empty_title": "¿Quitar proyecto?",
+    "remove_text": "Las notas se quedan en tu bandeja, sin proyecto.",
+    "remove_action": "Quitar",
+    "merge_text": "Ambos proyectos se unirán en uno solo."
+  },
+  "new_note": "Nueva nota",
+  "search": {
+    "title": "Buscar",
+    "label": "Buscar en todas las notas",
+    "clear": "Limpiar búsqueda"
+  },
+  "filter": {
+    "toggle": "Filtrar por estado o fecha",
+    "status": "Estado",
+    "all": "Todas",
+    "open": "Pendientes",
+    "completed": "Completadas",
+    "archived": "Archivadas",
+    "captured_on": "Capturada el",
+    "captured_on_day": "Capturada el {date}",
+    "captured_tip": "Mostrar notas capturadas en un día",
+    "no_matches": "Sin coincidencias",
+    "count": {
+      "one": "{count} nota",
+      "other": "{count} notas"
+    },
+    "count_more": {
+      "one": "{count}+ nota",
+      "other": "{count}+ notas"
+    },
+    "category_line": "Categoría: {name}",
+    "category_clear": "Limpiar filtro de categoría"
+  },
+  "cat_picker": {
+    "title": "Elegir una categoría",
+    "placeholder": "Filtrar categorías",
+    "none": "Ninguna categoría coincide.",
+    "empty_hint": "Agrega una con # al capturar una nota.",
+    "notes": {
+      "one": "{count} nota",
+      "other": "{count} notas"
+    }
+  },
+  "banner": {
+    "shortcut_title": "El atajo de captura rápida no está activo.",
+    "shortcut_action": "Cambiar atajo",
+    "update_title": "Posthaste {version} está disponible.",
+    "update_text": "Se instala aquí mismo y la aplicación se reinicia.",
+    "update_action": "Actualizar"
+  },
+  "more": "Mostrar notas anteriores",
+  "empty": {
+    "search_title": "Ninguna nota coincide",
+    "search_text": "Nada contiene “{text}”. La búsqueda revisa todas las notas, incluido el archivo.",
+    "search_text_filtered": "Nada contiene “{text}” con estos filtros. La búsqueda revisa todas las notas, incluido el archivo.",
+    "search_date": "No se capturó nada en esa fecha.",
+    "category_title": "No hay notas en esta categoría aquí.",
+    "category_text": "La categoría es una etiqueta; estas notas pueden estar en otra sección.",
+    "today_title": "Nada capturado hoy",
+    "today_text": "Las notas que captures hoy aparecerán aquí.",
+    "later_title": "Nada guardado para después",
+    "later_text": "Presiona {key} en una nota para guardarla aquí, fuera de Hoy y de la bandeja, hasta que la quieras de vuelta.",
+    "archive_title": "El archivo está vacío",
+    "archive_text": "Las notas que completas o archivas pasan aquí, fuera del camino pero siempre disponibles en la búsqueda.",
+    "inbox_title": "Tu bandeja está limpia",
+    "inbox_text_shortcut": "Presiona {keys} en cualquier aplicación para capturar una idea. Aquí te estará esperando.",
+    "inbox_text_plain": "Usa Nueva nota para capturar una idea. Aquí te estará esperando."
+  },
+  "note": {
+    "mark_completed": "Marcar como completada",
+    "mark_not_completed": "Marcar como pendiente",
+    "show_more": "Mostrar más",
+    "show_less": "Mostrar menos",
+    "from": "de {source}",
+    "category_tip": "Filtrar por {name}",
+    "later": "Después",
+    "archived": "Archivada",
+    "completed": "Completada",
+    "edit": "Editar (E)",
+    "open_details": "Abrir detalles (O)",
+    "focus": "Enfocar (F)",
+    "unfocus": "Quitar enfoque (F)",
+    "copy": "Copiar (C)",
+    "to_later": "Después (L)",
+    "to_inbox": "Mover a la Bandeja (L)",
+    "restore": "Devolver a la Bandeja (R)",
+    "archive": "Archivar (A)",
+    "delete": "Eliminar (Delete)",
+    "more_actions": "Más acciones",
+    "menu_to_inbox": "Mover a la Bandeja"
+  },
+  "edit": {
+    "label": "Editar nota",
+    "category_label": "Proyecto (opcional)",
+    "category_placeholder": "Proyecto",
+    "hint": "Enter guarda, Shift+Enter agrega una línea"
+  },
+  "toast": {
+    "undo": "Deshacer",
+    "completed": "Completada",
+    "not_completed": "Marcada como pendiente",
+    "archived": "Archivada",
+    "to_inbox": "Devuelta a la Bandeja",
+    "to_later": "Movida a Después",
+    "trashed": "Movida a la Papelera",
+    "copied": "Copiada",
+    "copy_failed": "No se pudo copiar al portapapeles"
+  },
+  "help": {
+    "title": "Atajos de teclado",
+    "move": "Moverse entre notas",
+    "edit": "Editar",
+    "details": "Abrir detalles",
+    "complete": "Completar",
+    "focus": "Enfocar en cápsula flotante",
+    "archive": "Archivar",
+    "restore": "Devolver a la Bandeja",
+    "later": "Después, o volver a la Bandeja",
+    "copy": "Copiar",
+    "delete": "Eliminar",
+    "search": "Buscar",
+    "project": "Asignar proyecto",
+    "category": "Ir a proyecto",
+    "sections": "Bandeja, Hoy, Después, Archivo, Papelera",
+    "trash_restore": "Restaurar (en Papelera)",
+    "trash_delete": "Eliminar para siempre (en Papelera)",
+    "new_note": "Nueva nota",
+    "sidebar": "Contraer o expandir barra lateral",
+    "settings": "Configuración"
+  },
+  "fatal": {
+    "title": "Posthaste no puede abrir su base de datos",
+    "text": "No se ha borrado nada. Tu archivo de notas quedó tal como estaba. Corrige el problema anterior (por ejemplo, libera espacio en disco o revisa los permisos del archivo) y vuelve a abrir Posthaste.",
+    "newer_schema_text": "No se ha borrado nada. Actualiza Posthaste a la versión más reciente para volver a abrir tus notas.",
+    "check_updates": "Buscar actualizaciones",
+    "update_to": "Actualizar a {version}",
+    "no_update": "No se encontró una versión más reciente automáticamente. Descarga la última versión de Posthaste desde la página de lanzamientos y ábrela."
+  }
+}

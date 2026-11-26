@@ -1,0 +1,35 @@
+{
+  "empty_title": "휴지통이 비어 있습니다",
+  "empty_text": "삭제된 노트는 영구 삭제되기 전까지 {days}일 동안 이곳에 보관됩니다.",
+  "note": "삭제된 노트는 {days}일 후 영구적으로 삭제됩니다.",
+  "empty_action": "휴지통 비우기",
+  "returns": {
+    "inbox": "수신함",
+    "later": "나중에",
+    "archive": "보관함"
+  },
+  "erased_on": "{date}에 영구 삭제",
+  "restore": "복원 (R)",
+  "delete_forever": "영구 삭제 (Del)",
+  "restored": {
+    "inbox": "수신함으로 복원됨",
+    "later": "나중에로 복원됨",
+    "archive": "보관함으로 복원됨"
+  },
+  "deleted": "영구 삭제됨",
+  "deleted_many": {
+    "other": "노트 {count}개 영구 삭제됨"
+  },
+  "confirm_one": {
+    "title": "이 노트를 영구적으로 삭제할까요?",
+    "text": "첨부 파일과 함께 삭제되며 복원할 수 없습니다.",
+    "action": "영구 삭제"
+  },
+  "confirm_all": {
+    "title": "휴지통을 비울까요?",
+    "text": {
+      "other": "노트 {count}개와 첨부 파일이 모두 삭제되며 복원할 수 없습니다."
+    },
+    "action": "휴지통 비우기"
+  }
+}

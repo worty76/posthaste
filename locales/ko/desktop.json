@@ -1,0 +1,26 @@
+{
+  "tray": {
+    "open": "Posthaste 열기",
+    "capture": "새 빠른 노트",
+    "inbox": "수신함 열기",
+    "settings": "설정…",
+    "quit": "Posthaste 종료"
+  },
+  "dialog": {
+    "attach": "파일 첨부",
+    "save_copy": "사본 저장",
+    "export": "노트 내보내기",
+    "import": "노트 가져오기",
+    "backup": "데이터베이스 백업",
+    "pick_image": "테마 이미지 선택",
+    "export_look": "테마 파일 내보내기",
+    "open_look": "테마 파일 열기"
+  },
+  "filter": {
+    "export": "Posthaste 내보내기",
+    "database": "SQLite 데이터베이스",
+    "images": "이미지",
+    "looks": "Posthaste 테마 파일"
+  },
+  "error_image_too_big": "이미지 크기가 {size}MB입니다. 테마 이미지는 최대 2MB까지 가능합니다."
+}

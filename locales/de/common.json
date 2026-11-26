@@ -1,0 +1,59 @@
+{
+  "unknown_error": "Etwas ist schiefgelaufen.",
+  "badges": {
+    "has_details": "hat Details",
+    "files": {
+      "one": "{count} Datei",
+      "other": "{count} Dateien"
+    },
+    "steps": "{done} von {total} Schritten erledigt"
+  },
+  "calendar": {
+    "choose_day": "Tag wählen",
+    "previous_month": "Vorheriger Monat",
+    "next_month": "Nächster Monat",
+    "today": "Heute",
+    "clear": "Zurücksetzen",
+    "day_open": "{date}, {count} offen",
+    "day_done": "{date}, alles erledigt",
+    "hint": {
+      "day": "Tag",
+      "month": "Monat",
+      "today": "heute"
+    }
+  },
+  "close": "Schließen",
+  "cancel": "Abbrechen",
+  "save": "Speichern",
+  "dismiss": "Ausblenden",
+  "day": {
+    "today": "Heute",
+    "yesterday": "Gestern"
+  },
+  "position": {
+    "top_left": "Oben links",
+    "top": "Oben Mitte",
+    "top_right": "Oben rechts",
+    "left": "Mitte links",
+    "center": "Mitte",
+    "right": "Mitte rechts",
+    "bottom_left": "Unten links",
+    "bottom": "Unten Mitte",
+    "bottom_right": "Unten rechts"
+  },
+  "project_picker": {
+    "title_set": "Projekt festlegen",
+    "title_jump": "Zu Projekt wechseln",
+    "placeholder": "Projekt filtern oder erstellen",
+    "placeholder_jump": "Projekte filtern",
+    "no_project": "Kein Projekt",
+    "create": "„{name}“ erstellen",
+    "unarchive": "„{name}“ wiederherstellen und verwenden",
+    "none": "Keine passenden Projekte.",
+    "empty_hint": "Drücke P auf einer Notiz, um ein Projekt zu erstellen.",
+    "notes": {
+      "one": "{count} Notiz",
+      "other": "{count} Notizen"
+    }
+  }
+}

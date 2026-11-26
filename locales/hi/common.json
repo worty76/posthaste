@@ -1,0 +1,59 @@
+{
+  "unknown_error": "कुछ गड़बड़ हो गई।",
+  "badges": {
+    "has_details": "विवरण है",
+    "files": {
+      "one": "{count} फ़ाइल",
+      "other": "{count} फ़ाइलें"
+    },
+    "steps": "{total} में से {done} चरण पूरे"
+  },
+  "calendar": {
+    "choose_day": "दिन चुनें",
+    "previous_month": "पिछला महीना",
+    "next_month": "अगला महीना",
+    "today": "आज",
+    "clear": "साफ़ करें",
+    "day_open": "{date}, {count} बाकी",
+    "day_done": "{date}, सब पूरा",
+    "hint": {
+      "day": "दिन",
+      "month": "महीना",
+      "today": "आज"
+    }
+  },
+  "close": "बंद करें",
+  "cancel": "रद्द करें",
+  "save": "सहेजें",
+  "dismiss": "छुपाएँ",
+  "day": {
+    "today": "आज",
+    "yesterday": "कल"
+  },
+  "position": {
+    "top_left": "ऊपर बाएँ",
+    "top": "ऊपर बीच में",
+    "top_right": "ऊपर दाएँ",
+    "left": "बीच में बाएँ",
+    "center": "बीच में",
+    "right": "बीच में दाएँ",
+    "bottom_left": "नीचे बाएँ",
+    "bottom": "नीचे बीच में",
+    "bottom_right": "नीचे दाएँ"
+  },
+  "project_picker": {
+    "title_set": "प्रोजेक्ट चुनें",
+    "title_jump": "प्रोजेक्ट पर जाएँ",
+    "placeholder": "प्रोजेक्ट फ़िल्टर करें या बनाएँ",
+    "placeholder_jump": "प्रोजेक्ट फ़िल्टर करें",
+    "no_project": "कोई प्रोजेक्ट नहीं",
+    "create": "“{name}” बनाएँ",
+    "unarchive": "“{name}” को अनआर्काइव कर उपयोग करें",
+    "none": "कोई प्रोजेक्ट मेल नहीं खाता।",
+    "empty_hint": "प्रोजेक्ट बनाने के लिए किसी नोट पर P दबाएँ।",
+    "notes": {
+      "one": "{count} नोट",
+      "other": "{count} नोट्स"
+    }
+  }
+}

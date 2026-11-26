@@ -1,0 +1,178 @@
+{
+  "sections": "Bereiche",
+  "sidebar": {
+    "collapse": "Seitenleiste einklappen ({keys})",
+    "expand": "Seitenleiste ausklappen ({keys})"
+  },
+  "nav": {
+    "inbox": "Eingang",
+    "today": "Heute",
+    "later": "Später",
+    "archive": "Archiv",
+    "trash": "Papierkorb",
+    "settings": "Einstellungen",
+    "projects": "Projekte",
+    "manage_projects": "Projekte verwalten"
+  },
+  "project_page": {
+    "menu": "Projektaktionen (M)",
+    "rename": "Umbenennen",
+    "archive": "Projekt archivieren",
+    "rename_label": "Neuer Projektname",
+    "merge_confirm": "{count} Notizen nach {name} verschieben?",
+    "merge_action": "Verschieben",
+    "add_placeholder": "Notiz zu {name} hinzufügen",
+    "empty_title": "Noch keine Notizen in diesem Projekt.",
+    "archived_toast": "Projekt archiviert"
+  },
+  "manage_projects": {
+    "empty": "Noch keine Projekte.",
+    "new_label": "Neues Projekt",
+    "new_placeholder": "Neuer Projektname",
+    "add": "Hinzufügen",
+    "color_pick": "Farbe wählen",
+    "archived_group": "Archiviert ({count})",
+    "rename": "Umbenennen (R)",
+    "archive": "Archivieren (A)",
+    "unarchive": "Wiederherstellen (U)",
+    "remove": "Entfernen (Delete)",
+    "remove_title": "Projekt von {count} Notizen entfernen?",
+    "remove_empty_title": "Projekt entfernen?",
+    "remove_text": "Die Notizen bleiben ohne Projekt im Eingang.",
+    "remove_action": "Entfernen",
+    "merge_text": "Beide Projekte werden zusammengeführt."
+  },
+  "new_note": "Neue Notiz",
+  "search": {
+    "title": "Suche",
+    "label": "Alle Notizen durchsuchen",
+    "clear": "Suche löschen"
+  },
+  "filter": {
+    "toggle": "Nach Status oder Datum filtern",
+    "status": "Status",
+    "all": "Alle",
+    "open": "Offen",
+    "completed": "Erledigt",
+    "archived": "Archiviert",
+    "captured_on": "Erfasst am",
+    "captured_on_day": "Erfasst am {date}",
+    "captured_tip": "An einem bestimmten Tag erfasste Notizen anzeigen",
+    "no_matches": "Keine Treffer",
+    "count": {
+      "one": "{count} Notiz",
+      "other": "{count} Notizen"
+    },
+    "count_more": {
+      "one": "{count}+ Notiz",
+      "other": "{count}+ Notizen"
+    },
+    "category_line": "Kategorie: {name}",
+    "category_clear": "Kategoriefilter zurücksetzen"
+  },
+  "cat_picker": {
+    "title": "Kategorie wählen",
+    "placeholder": "Kategorien filtern",
+    "none": "Keine passenden Kategorien.",
+    "empty_hint": "Füge beim Erfassen einer Notiz eine mit # hinzu.",
+    "notes": {
+      "one": "{count} Notiz",
+      "other": "{count} Notizen"
+    }
+  },
+  "banner": {
+    "shortcut_title": "Das Tastenkürzel zur Schnellerfassung ist nicht aktiv.",
+    "shortcut_action": "Tastenkürzel ändern",
+    "update_title": "Posthaste {version} ist verfügbar.",
+    "update_text": "Es wird direkt hier installiert und die App startet neu.",
+    "update_action": "Aktualisieren"
+  },
+  "more": "Ältere Notizen anzeigen",
+  "empty": {
+    "search_title": "Keine passenden Notizen",
+    "search_text": "Keine Notiz enthält „{text}“. Die Suche durchsucht alle Notizen, einschließlich des Archivs.",
+    "search_text_filtered": "Keine Notiz enthält „{text}“ mit diesen Filtern. Die Suche durchsucht alle Notizen, einschließlich des Archivs.",
+    "search_date": "An diesem Datum wurde nichts erfasst.",
+    "category_title": "Hier gibt es keine Notizen in dieser Kategorie.",
+    "category_text": "Die Kategorie ist eine Bezeichnung; diese Notizen befinden sich möglicherweise in einem anderen Bereich.",
+    "today_title": "Heute noch nichts erfasst",
+    "today_text": "Notizen, die du heute erfasst, erscheinen hier.",
+    "later_title": "Nichts zurückgestellt",
+    "later_text": "Drücke {key} auf einer Notiz, um sie hier außerhalb von Heute und dem Eingang aufzubewahren, bis du sie wieder brauchst.",
+    "archive_title": "Das Archiv ist leer",
+    "archive_text": "Erledigte oder archivierte Notizen landen hier – aus dem Weg, aber weiterhin durchsuchbar.",
+    "inbox_title": "Dein Eingang ist leer",
+    "inbox_text_shortcut": "Drücke {keys} in einer beliebigen App, um einen Gedanken festzuhalten. Er wartet dann hier auf dich.",
+    "inbox_text_plain": "Nutze Neue Notiz, um einen Gedanken festzuhalten. Er wartet dann hier auf dich."
+  },
+  "note": {
+    "mark_completed": "Als erledigt markieren",
+    "mark_not_completed": "Als unerledigt markieren",
+    "show_more": "Mehr anzeigen",
+    "show_less": "Weniger anzeigen",
+    "from": "aus {source}",
+    "category_tip": "Nach {name} filtern",
+    "later": "Später",
+    "archived": "Archiviert",
+    "completed": "Erledigt",
+    "edit": "Bearbeiten (E)",
+    "open_details": "Details öffnen (O)",
+    "focus": "Fokus (F)",
+    "unfocus": "Fokus beenden (F)",
+    "copy": "Kopieren (C)",
+    "to_later": "Später (L)",
+    "to_inbox": "In den Eingang verschieben (L)",
+    "restore": "Zurück in den Eingang (R)",
+    "archive": "Archivieren (A)",
+    "delete": "Löschen (Delete)",
+    "more_actions": "Weitere Aktionen",
+    "menu_to_inbox": "In den Eingang verschieben"
+  },
+  "edit": {
+    "label": "Notiz bearbeiten",
+    "category_label": "Projekt (optional)",
+    "category_placeholder": "Projekt",
+    "hint": "Enter speichert, Shift+Enter fügt eine Zeile hinzu"
+  },
+  "toast": {
+    "undo": "Rückgängig",
+    "completed": "Erledigt",
+    "not_completed": "Als unerledigt markiert",
+    "archived": "Archiviert",
+    "to_inbox": "Zurück in den Eingang verschoben",
+    "to_later": "Nach Später verschoben",
+    "trashed": "In den Papierkorb verschoben",
+    "copied": "Kopiert",
+    "copy_failed": "Konnte nicht in die Zwischenablage kopiert werden"
+  },
+  "help": {
+    "title": "Tastenkürzel",
+    "move": "Durch Notizen bewegen",
+    "edit": "Bearbeiten",
+    "details": "Details öffnen",
+    "complete": "Erledigen",
+    "focus": "In schwebender Leiste fokussieren",
+    "archive": "Archivieren",
+    "restore": "Zurück in den Eingang",
+    "later": "Später oder zurück in den Eingang",
+    "copy": "Kopieren",
+    "delete": "Löschen",
+    "search": "Suchen",
+    "project": "Projekt festlegen",
+    "category": "Zu Projekt wechseln",
+    "sections": "Eingang, Heute, Später, Archiv, Papierkorb",
+    "trash_restore": "Wiederherstellen (im Papierkorb)",
+    "trash_delete": "Endgültig löschen (im Papierkorb)",
+    "new_note": "Neue Notiz",
+    "sidebar": "Seitenleiste ein- oder ausklappen",
+    "settings": "Einstellungen"
+  },
+  "fatal": {
+    "title": "Posthaste kann seine Datenbank nicht öffnen",
+    "text": "Es wurde nichts gelöscht. Deine Notizdatei blieb unverändert. Behebe das oben genannte Problem (schaffe z. B. freien Speicherplatz oder prüfe die Dateiberechtigungen) und starte Posthaste anschließend neu.",
+    "newer_schema_text": "Es wurde nichts gelöscht. Aktualisiere Posthaste auf die neueste Version, um deine Notizen wieder zu öffnen.",
+    "check_updates": "Nach Updates suchen",
+    "update_to": "Auf {version} aktualisieren",
+    "no_update": "Es wurde automatisch keine neuere Version gefunden. Lade das neueste Posthaste von der Release-Seite herunter und öffne es."
+  }
+}

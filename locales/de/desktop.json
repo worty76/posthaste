@@ -1,0 +1,26 @@
+{
+  "tray": {
+    "open": "Posthaste öffnen",
+    "capture": "Neue Schnellnotiz",
+    "inbox": "Eingang öffnen",
+    "settings": "Einstellungen…",
+    "quit": "Posthaste beenden"
+  },
+  "dialog": {
+    "attach": "Dateien anhängen",
+    "save_copy": "Kopie speichern",
+    "export": "Notizen exportieren",
+    "import": "Notizen importieren",
+    "backup": "Datenbank sichern",
+    "pick_image": "Design-Bild wählen",
+    "export_look": "Design-Datei exportieren",
+    "open_look": "Design-Datei öffnen"
+  },
+  "filter": {
+    "export": "Posthaste-Export",
+    "database": "SQLite-Datenbank",
+    "images": "Bilder",
+    "looks": "Posthaste-Design-Dateien"
+  },
+  "error_image_too_big": "Dieses Bild ist {size} MB groß. Design-Bilder dürfen bis zu 2 MB groß sein."
+}

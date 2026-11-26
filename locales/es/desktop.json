@@ -1,0 +1,26 @@
+{
+  "tray": {
+    "open": "Abrir Posthaste",
+    "capture": "Nueva nota rápida",
+    "inbox": "Abrir Bandeja",
+    "settings": "Configuración…",
+    "quit": "Salir de Posthaste"
+  },
+  "dialog": {
+    "attach": "Adjuntar archivos",
+    "save_copy": "Guardar una copia",
+    "export": "Exportar notas",
+    "import": "Importar notas",
+    "backup": "Respaldar base de datos",
+    "pick_image": "Elegir imagen de estilo",
+    "export_look": "Exportar archivo de estilo",
+    "open_look": "Abrir archivo de estilo"
+  },
+  "filter": {
+    "export": "Exportación de Posthaste",
+    "database": "Base de datos SQLite",
+    "images": "Imágenes",
+    "looks": "Archivos de estilo de Posthaste"
+  },
+  "error_image_too_big": "Esa imagen pesa {size} MB. Las imágenes de estilo pueden pesar hasta 2 MB."
+}

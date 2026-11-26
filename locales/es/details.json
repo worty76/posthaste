@@ -1,0 +1,78 @@
+{
+  "title": "Detalles de la nota",
+  "title_field": "Título",
+  "text_field": "Detalles",
+  "text_placeholder": "Agregar detalles…",
+  "close": "Cerrar (Esc)",
+  "status": {
+    "done": "Listo",
+    "archived": "Archivada",
+    "later": "Después",
+    "inbox": "Bandeja",
+    "mark_completed": "Marcar como completada ({keys})",
+    "mark_not_completed": "Marcar como pendiente ({keys})"
+  },
+  "meta": {
+    "created_today": "Creada hoy, {time}",
+    "created_yesterday": "Creada ayer, {time}",
+    "created_on": "Creada el {date}, {time}",
+    "from": "de {source}",
+    "carried": {
+      "one": "pendiente desde hace {count} día",
+      "other": "pendiente desde hace {count} días"
+    },
+    "edited_today": "editada hoy, {time}",
+    "edited_yesterday": "editada ayer, {time}",
+    "edited_on": "editada el {date}, {time}"
+  },
+  "category": {
+    "label": "Proyecto",
+    "add": "Agregar proyecto",
+    "edit": "Cambiar proyecto"
+  },
+  "files": {
+    "title": "Archivos adjuntos",
+    "add": "Agregar archivos",
+    "drop_now": "Suelta para adjuntar",
+    "drop_hint": "Suelta archivos aquí, pega una imagen o presiona {keys}",
+    "full": "Esta nota ya tiene {max} archivos. Quita uno para agregar otro.",
+    "too_big": "{name}: Este archivo supera los {size} MB. Posthaste adjunta archivos de hasta {size} MB.",
+    "failed": "{name}: {reason}",
+    "attached": "Se adjuntó {name}",
+    "attached_many": {
+      "one": "Se adjuntó {count} archivo",
+      "other": "Se adjuntaron {count} archivos"
+    },
+    "pasted": "Se adjuntó la imagen pegada",
+    "pasted_many": {
+      "one": "Se adjuntó {count} imagen",
+      "other": "Se adjuntaron {count} imágenes"
+    },
+    "removed": "Se quitó {name}",
+    "copy_saved": "Se guardó una copia de {name}",
+    "pasted_name": "Imagen pegada {stamp}"
+  },
+  "tile": {
+    "tip": "Abrir {name} (Enter) · Quitar (Supr)",
+    "label": "{name}, {size}. Enter lo abre, Supr lo quita.",
+    "open": "Abrir {name}",
+    "save_copy": "Guardar una copia de {name}",
+    "remove": "Quitar {name}"
+  },
+  "save": {
+    "saving": "Guardando…",
+    "saved": "Guardado"
+  },
+  "hint": {
+    "close": "cerrar",
+    "done": "listo",
+    "add_file": "agregar archivo"
+  },
+  "steps": {
+    "title": "Pasos",
+    "add": "Agregar un paso",
+    "remove": "Eliminar paso (Delete)",
+    "removed": "Paso eliminado.",
+    "limit": "Esta nota tiene más de 100 pasos. Quita algunos para agregar más."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Posthaste",
+  "from_source": "{app} से",
+  "note_label": "नोट",
+  "placeholder": "आपके मन में क्या है?",
+  "category_label": "प्रोजेक्ट (वैकल्पिक)",
+  "category_placeholder": "# प्रोजेक्ट",
+  "polish_label": "AI से नोट सुधारें",
+  "discard": "हटाएँ",
+  "status": {
+    "draft_restored": "ड्राफ़्ट वापस लाया गया",
+    "saving": "सहेजा जा रहा है…",
+    "saved": "सहेजा गया",
+    "not_saved": "सहेजा नहीं गया: {reason}",
+    "draft_not_saved": "ड्राफ़्ट सहेजा नहीं गया: {reason}",
+    "nothing_to_save": "अभी सहेजने के लिए कुछ नहीं है",
+    "polishing": "सुधारा जा रहा है…",
+    "polished": "सुधारा गया",
+    "nothing_to_polish": "अभी सुधारने के लिए कुछ नहीं है"
+  },
+  "hint": {
+    "save": "सहेजें",
+    "new_line": "नई पंक्ति",
+    "close": "बंद करें",
+    "polish": "सुधारें"
+  }
+}

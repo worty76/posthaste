@@ -1,0 +1,175 @@
+{
+  "sections": "섹션",
+  "sidebar": {
+    "collapse": "사이드바 접기 ({keys})",
+    "expand": "사이드바 펼치기 ({keys})"
+  },
+  "nav": {
+    "inbox": "수신함",
+    "today": "오늘",
+    "later": "나중에",
+    "archive": "보관함",
+    "trash": "휴지통",
+    "settings": "설정",
+    "projects": "프로젝트",
+    "manage_projects": "프로젝트 관리"
+  },
+  "project_page": {
+    "menu": "프로젝트 작업 (M)",
+    "rename": "이름 바꾸기",
+    "archive": "프로젝트 보관",
+    "rename_label": "새 프로젝트 이름",
+    "merge_confirm": "노트 {count}개를 {name}(으)로 이동할까요?",
+    "merge_action": "이동",
+    "add_placeholder": "{name}에 노트 추가",
+    "empty_title": "이 프로젝트에는 아직 노트가 없습니다.",
+    "archived_toast": "프로젝트가 보관되었습니다"
+  },
+  "manage_projects": {
+    "empty": "아직 프로젝트가 없습니다.",
+    "new_label": "새 프로젝트",
+    "new_placeholder": "새 프로젝트 이름",
+    "add": "추가",
+    "color_pick": "색상 선택",
+    "archived_group": "보관됨 ({count})",
+    "rename": "이름 바꾸기 (R)",
+    "archive": "보관 (A)",
+    "unarchive": "보관 해제 (U)",
+    "remove": "제거 (Delete)",
+    "remove_title": "노트 {count}개에서 프로젝트를 제거할까요?",
+    "remove_empty_title": "프로젝트를 제거할까요?",
+    "remove_text": "노트는 프로젝트 없이 수신함에 그대로 남습니다.",
+    "remove_action": "제거",
+    "merge_text": "두 프로젝트가 하나로 합쳐집니다."
+  },
+  "new_note": "새 노트",
+  "search": {
+    "title": "검색",
+    "label": "모든 노트 검색",
+    "clear": "검색 지우기"
+  },
+  "filter": {
+    "toggle": "상태 또는 날짜로 필터링",
+    "status": "상태",
+    "all": "전체",
+    "open": "진행 중",
+    "completed": "완료됨",
+    "archived": "보관됨",
+    "captured_on": "작성일",
+    "captured_on_day": "{date}에 작성됨",
+    "captured_tip": "특정 날짜에 작성된 노트 보기",
+    "no_matches": "일치하는 항목 없음",
+    "count": {
+      "other": "노트 {count}개"
+    },
+    "count_more": {
+      "other": "노트 {count}+개"
+    },
+    "category_line": "카테고리: {name}",
+    "category_clear": "카테고리 필터 지우기"
+  },
+  "cat_picker": {
+    "title": "카테고리 선택",
+    "placeholder": "카테고리 검색",
+    "none": "일치하는 카테고리가 없습니다.",
+    "empty_hint": "노트를 작성할 때 #으로 카테고리를 추가하세요.",
+    "notes": {
+      "other": "노트 {count}개"
+    }
+  },
+  "banner": {
+    "shortcut_title": "빠른 캡처 단축키가 비활성화되어 있습니다.",
+    "shortcut_action": "단축키 변경",
+    "update_title": "Posthaste {version} 버전을 사용할 수 있습니다.",
+    "update_text": "여기서 바로 설치되며 앱이 다시 시작됩니다.",
+    "update_action": "업데이트"
+  },
+  "more": "이전 노트 더 보기",
+  "empty": {
+    "search_title": "일치하는 노트 없음",
+    "search_text": "“{text}”을(를) 포함한 노트가 없습니다. 검색은 보관함을 포함한 모든 노트를 찾습니다.",
+    "search_text_filtered": "현재 필터에서 “{text}”을(를) 포함한 노트가 없습니다. 검색은 보관함을 포함한 모든 노트를 찾습니다.",
+    "search_date": "해당 날짜에 작성된 노트가 없습니다.",
+    "category_title": "여기에 이 카테고리의 노트가 없습니다.",
+    "category_text": "카테고리는 라벨입니다. 해당 노트가 다른 섹션에 있을 수 있습니다.",
+    "today_title": "오늘 작성한 노트가 없습니다",
+    "today_text": "오늘 작성한 노트가 여기에 표시됩니다.",
+    "later_title": "나중으로 미룬 노트가 없습니다",
+    "later_text": "노트에서 {key} 키를 누르면 오늘과 수신함에서 빼서 다시 필요할 때까지 여기에 보관합니다.",
+    "archive_title": "보관함이 비어 있습니다",
+    "archive_text": "완료하거나 보관한 노트가 이곳으로 이동하며, 언제든 검색할 수 있습니다.",
+    "inbox_title": "수신함이 비어 있습니다",
+    "inbox_text_shortcut": "어떤 앱에서든 {keys} 키를 눌러 생각을 기록하세요. 이곳에 저장됩니다.",
+    "inbox_text_plain": "새 노트를 눌러 생각을 기록하세요. 이곳에 저장됩니다."
+  },
+  "note": {
+    "mark_completed": "완료로 표시",
+    "mark_not_completed": "미완료로 표시",
+    "show_more": "더 보기",
+    "show_less": "접기",
+    "from": "{source}에서",
+    "category_tip": "{name}(으)로 필터링",
+    "later": "나중에",
+    "archived": "보관됨",
+    "completed": "완료됨",
+    "edit": "편집 (E)",
+    "open_details": "상세 열기 (O)",
+    "focus": "집중 (F)",
+    "unfocus": "집중 해제 (F)",
+    "copy": "복사 (C)",
+    "to_later": "나중에 (L)",
+    "to_inbox": "수신함으로 이동 (L)",
+    "restore": "수신함으로 되돌리기 (R)",
+    "archive": "보관 (A)",
+    "delete": "삭제 (Delete)",
+    "more_actions": "추가 작업",
+    "menu_to_inbox": "수신함으로 이동"
+  },
+  "edit": {
+    "label": "노트 편집",
+    "category_label": "프로젝트 (선택 사항)",
+    "category_placeholder": "프로젝트",
+    "hint": "Enter로 저장, Shift+Enter로 줄바꿈"
+  },
+  "toast": {
+    "undo": "실행 취소",
+    "completed": "완료됨",
+    "not_completed": "미완료로 표시됨",
+    "archived": "보관됨",
+    "to_inbox": "수신함으로 되돌림",
+    "to_later": "나중에로 이동됨",
+    "trashed": "휴지통으로 이동됨",
+    "copied": "복사됨",
+    "copy_failed": "클립보드에 복사할 수 없습니다"
+  },
+  "help": {
+    "title": "키보드 단축키",
+    "move": "노트 간 이동",
+    "edit": "편집",
+    "details": "상세 열기",
+    "complete": "완료",
+    "focus": "플로팅 캡슐에 고정",
+    "archive": "보관",
+    "restore": "수신함으로 되돌리기",
+    "later": "나중에, 또는 수신함으로 되돌리기",
+    "copy": "복사",
+    "delete": "삭제",
+    "search": "검색",
+    "project": "프로젝트 지정",
+    "category": "프로젝트로 이동",
+    "sections": "수신함, 오늘, 나중에, 보관함, 휴지통",
+    "trash_restore": "복원 (휴지통에서)",
+    "trash_delete": "영구 삭제 (휴지통에서)",
+    "new_note": "새 노트",
+    "sidebar": "사이드바 접기 또는 펼치기",
+    "settings": "설정"
+  },
+  "fatal": {
+    "title": "Posthaste가 데이터베이스를 열 수 없습니다",
+    "text": "삭제된 항목은 없습니다. 노트 파일은 그대로 보존되어 있습니다. 위의 문제(예: 디스크 공간 확보 또는 파일 권한 확인)를 해결한 뒤 Posthaste를 다시 시작하세요.",
+    "newer_schema_text": "삭제된 항목은 없습니다. 노트를 다시 열려면 Posthaste를 최신 버전으로 업데이트하세요.",
+    "check_updates": "업데이트 확인",
+    "update_to": "{version} 버전으로 업데이트",
+    "no_update": "자동으로 새 버전을 찾지 못했습니다. 릴리스 페이지에서 최신 Posthaste를 다운로드하여 실행해 주세요."
+  }
+}

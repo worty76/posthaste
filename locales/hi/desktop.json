@@ -1,0 +1,26 @@
+{
+  "tray": {
+    "open": "Posthaste खोलें",
+    "capture": "नया त्वरित नोट",
+    "inbox": "इनबॉक्स खोलें",
+    "settings": "सेटिंग्स…",
+    "quit": "Posthaste बंद करें"
+  },
+  "dialog": {
+    "attach": "फ़ाइलें संलग्न करें",
+    "save_copy": "प्रति सहेजें",
+    "export": "नोट्स निर्यात करें",
+    "import": "नोट्स आयात करें",
+    "backup": "डेटाबेस का बैकअप लें",
+    "pick_image": "लुक छवि चुनें",
+    "export_look": "लुक फ़ाइल निर्यात करें",
+    "open_look": "लुक फ़ाइल खोलें"
+  },
+  "filter": {
+    "export": "Posthaste निर्यात",
+    "database": "SQLite डेटाबेस",
+    "images": "छवियाँ",
+    "looks": "Posthaste लुक फ़ाइलें"
+  },
+  "error_image_too_big": "यह छवि {size} MB की है। लुक छवियाँ अधिकतम 2 MB तक हो सकती हैं।"
+}
