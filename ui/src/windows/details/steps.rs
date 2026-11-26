@@ -428,14 +428,27 @@ pub(super) fn StepsSection(details: Details, i18n: I18n, os: Os) -> impl IntoVie
             })
     });
 
+    let adding = Memo::new(move |_| {
+        details
+            .step_editor
+            .with(|e| e.as_ref().is_some_and(|e| e.is_add_line))
+    });
+    let show_header = move || any() || adding.get();
+
     view! {
-        <section class="details__steps" aria-label=i18n.text(key::DETAILS_STEPS_TITLE)>
-            <h2 class="details__steps-title">
-                {i18n.text(key::DETAILS_STEPS_TITLE)}
-                <Show when=move || badge.with(|b| b.is_some())>
-                    <span class="details__count">{move || badge.get().unwrap_or_default()}</span>
-                </Show>
-            </h2>
+        <section
+            class="details__steps"
+            data-empty=move || (!show_header()).to_string()
+            aria-label=i18n.text(key::DETAILS_STEPS_TITLE)
+        >
+            <Show when=show_header>
+                <h2 class="details__steps-title">
+                    {i18n.text(key::DETAILS_STEPS_TITLE)}
+                    <Show when=move || badge.with(|b| b.is_some())>
+                        <span class="details__count">{move || badge.get().unwrap_or_default()}</span>
+                    </Show>
+                </h2>
+            </Show>
             <Show when=any>
                 <ul class="steps" role="list">
                     <For each=move || steps.get() key=|s| s.id.clone() let:step>
