@@ -11,7 +11,7 @@ use leptos::task::spawn_local;
 use posthaste_i18n::{key, Key, Translator};
 use posthaste_model::{CommandError, Os, Project};
 
-use crate::browser::bind_text;
+use crate::browser::{bind_text, focus_end, focus_is_on_page};
 use crate::components::{Kbd, ProjectDot, ProjectPicker};
 use crate::draft_sync::DraftSync;
 use crate::ipc::{self, api, events};
@@ -136,6 +136,12 @@ impl Capture {
     fn focus(self) {
         if let Some(input) = self.input.get_untracked() {
             let _ = input.focus();
+        }
+    }
+
+    fn focus_end(self) {
+        if let Some(input) = self.input.get_untracked() {
+            focus_end(&input);
         }
     }
 
@@ -332,11 +338,7 @@ impl Capture {
         self.touched.set_value(false);
         self.picker_open.set(false);
         self.source.set(source);
-        if let Some(input) = self.input.get_untracked() {
-            let _ = input.focus();
-            let end = input.value().encode_utf16().count() as u32;
-            let _ = input.set_selection_range(end, end);
-        }
+        self.focus_end();
         if self.content.get_untracked().trim().is_empty() {
             self.status.set(Status::Idle);
             spawn_local(self.restore_draft());
@@ -368,7 +370,18 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
     // loss, the shortcut again, the OS), make sure the text is on disk.
     events::on::<events::CaptureHidden>(move |()| drop(capture.drafts().flush()));
     let blur = window_event_listener(leptos::ev::blur, move |_| drop(capture.drafts().flush()));
-    on_cleanup(move || blur.remove());
+    // On Linux, `capture-shown` can arrive before the webview actually has
+    // keyboard focus; claim the textarea once the window is focused unless
+    // the user is already in another control or the project picker.
+    let focus = window_event_listener(leptos::ev::focus, move |_| {
+        if !capture.picker_open.get_untracked() && focus_is_on_page() {
+            capture.focus_end();
+        }
+    });
+    on_cleanup(move || {
+        blur.remove();
+        focus.remove();
+    });
 
     let rules = Memo::new(move |_| {
         settings

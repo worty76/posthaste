@@ -41,6 +41,38 @@ describe("capture input", () => {
     await w.close();
   });
 
+  it("focuses the input when the window gains focus and nothing in it is focused", async () => {
+    const w = await capture();
+    await w.note.fill("draft text");
+    const project = w.page.getByLabel("Project (optional)");
+    await project.focus();
+    await w.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    assert.equal(
+      await project.evaluate((el) => el === document.activeElement),
+      true,
+      "focus stays on the project button",
+    );
+
+    await w.page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      window.dispatchEvent(new Event("focus"));
+    });
+    await eventually(
+      () => w.note.evaluate((el) => el === document.activeElement),
+      Boolean,
+      "focus moves to note textarea",
+    );
+    const caret = await w.note.evaluate((el) => [
+      el.selectionStart,
+      el.selectionEnd,
+      el.value.length,
+    ]);
+    assert.deepEqual(caret, [10, 10, 10]);
+    await w.close();
+  });
+
   it("shows the registered shortcut as a hint", async () => {
     const w = await capture();
     await text(w.page.locator(".capture__header .kbd"), "CtrlShiftSpace");
