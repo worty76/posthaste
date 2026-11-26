@@ -15,7 +15,9 @@ use crate::browser::{bind_text, focus_end, focus_is_on_page};
 use crate::components::{Kbd, ProjectDot, ProjectPicker};
 use crate::draft_sync::DraftSync;
 use crate::ipc::{self, api, events};
-use crate::logic::capture::{hints, key_action, HintWeight, KeyAction, KeyPress, KeyRules};
+use crate::logic::capture::{
+    hints, is_paste_chord, key_action, splice_utf16, HintWeight, KeyAction, KeyPress, KeyRules,
+};
 use crate::logic::project_picker::{PickerMode, PickerRow};
 use crate::logic::shortcut::{format_accelerator, has_mod, mod_cap};
 use crate::state::{use_appearance, use_i18n, use_settings, I18n};
@@ -333,6 +335,30 @@ impl Capture {
         self.focus();
     }
 
+    async fn paste(self) {
+        if self.polishing.get_untracked() {
+            return;
+        }
+        let Ok(text) = api::capture_clipboard_read().await else {
+            return;
+        };
+        if text.is_empty() || self.polishing.get_untracked() {
+            return;
+        }
+        let Some(input) = self.input.get_untracked() else {
+            return;
+        };
+        let current = input.value();
+        let start = input.selection_start().ok().flatten().unwrap_or(0) as usize;
+        let end = input.selection_end().ok().flatten().unwrap_or(start as u32) as usize;
+        let (next, caret) = splice_utf16(&current, start, end, &text);
+        // Write to the DOM before updating the signal so `bind_text` sees the
+        // value already matches and does not reset the caret to the end.
+        input.set_value(&next);
+        let _ = input.set_selection_range(caret, caret);
+        self.edit(next, self.category.get_untracked());
+    }
+
     /// The shell just showed the window: take focus and catch up.
     fn shown(self, source: Option<String>) {
         self.touched.set_value(false);
@@ -414,6 +440,18 @@ pub fn CaptureWindow(os: Os) -> impl IntoView {
             primary: has_mod(event.meta_key(), event.ctrl_key(), os),
             composing: event.is_composing(),
         };
+        if is_paste_chord(press, os) {
+            let in_textarea = capture.input.get_untracked().is_some_and(|input| {
+                document()
+                    .active_element()
+                    .is_some_and(|active| active == *input.as_ref())
+            });
+            if in_textarea && !capture.polishing.get_untracked() {
+                event.prevent_default();
+                spawn_local(capture.paste());
+            }
+            return;
+        }
         let Some(action) = key_action(press, rules.get_untracked()) else {
             return;
         };

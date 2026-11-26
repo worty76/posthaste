@@ -190,6 +190,59 @@ describe("keyboard", () => {
     assert.equal(save.args.hide, false);
     await w.close();
   });
+
+  it("pastes clipboard text at the selection on Linux Ctrl+V and Shift+Insert", async () => {
+    const w = await capture({ os: "linux" });
+    await w.mock.answer("capture_clipboard_read", "pasted");
+    await w.note.fill("hello world");
+    await w.note.evaluate((el) => {
+      el.focus();
+      el.setSelectionRange(6, 11);
+    });
+    await w.note.press("Control+v");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "hello pasted",
+      "Ctrl+V replaced selection",
+    );
+    const caret = await w.note.evaluate((el) => [el.selectionStart, el.selectionEnd]);
+    assert.deepEqual(caret, [12, 12]);
+    await eventually(w.mock.draft, (d) => d?.content === "hello pasted", "pasted text drafted");
+
+    await w.mock.answer("capture_clipboard_read", "!");
+    await w.note.press("Shift+Insert");
+    await eventually(
+      () => w.note.inputValue(),
+      (v) => v === "hello pasted!",
+      "Shift+Insert appended at caret",
+    );
+    await w.close();
+  });
+
+  it("leaves the note untouched when clipboard read fails on Linux", async () => {
+    const w = await capture({ os: "linux" });
+    await w.mock.fail("capture_clipboard_read", "Clipboard did not answer.");
+    await w.note.fill("keep me");
+    await w.note.press("Control+v");
+    await eventually(
+      () => w.mock.calls("capture_clipboard_read"),
+      (c) => c.length === 1,
+      "clipboard read attempted",
+    );
+    assert.equal(await w.note.inputValue(), "keep me");
+    await w.close();
+  });
+
+  it("does not intercept paste chords on macOS", async () => {
+    const w = await capture({ os: "macos" });
+    await w.mock.answer("capture_clipboard_read", "should-not-run");
+    await w.note.fill("mac");
+    await w.note.press("Meta+v");
+    await w.note.press("Shift+Insert");
+    await new Promise((r) => setTimeout(r, 150));
+    assert.equal((await w.mock.calls("capture_clipboard_read")).length, 0);
+    await w.close();
+  });
 });
 
 describe("empty input", () => {

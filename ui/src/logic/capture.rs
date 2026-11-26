@@ -100,6 +100,46 @@ pub fn key_action(press: KeyPress<'_>, rules: KeyRules) -> Option<KeyAction> {
     }
 }
 
+/// Whether `press` is a paste chord handled at the app level on Linux, where
+/// WebKitGTK ignores virtual-keyboard `Ctrl+V` and `Shift+Insert`.
+pub fn is_paste_chord(press: KeyPress<'_>, os: Os) -> bool {
+    if os != Os::Linux || press.composing {
+        return false;
+    }
+    (press.primary && !press.shift && press.key.eq_ignore_ascii_case("v"))
+        || (press.shift && !press.primary && press.key == "Insert")
+}
+
+/// Replaces the UTF-16 code-unit range `start..end` in `current` with
+/// `inserted`, returning the new string and the UTF-16 caret offset after
+/// `inserted`. Out-of-range or inverted offsets are clamped safely.
+pub fn splice_utf16(current: &str, start: usize, end: usize, inserted: &str) -> (String, u32) {
+    let (start, end) = if start <= end {
+        (start, end)
+    } else {
+        (end, start)
+    };
+    let start_byte = utf16_to_byte(current, start);
+    let end_byte = utf16_to_byte(current, end);
+    let mut next = String::with_capacity(current.len() - (end_byte - start_byte) + inserted.len());
+    next.push_str(&current[..start_byte]);
+    next.push_str(inserted);
+    next.push_str(&current[end_byte..]);
+    let caret = current[..start_byte].encode_utf16().count() + inserted.encode_utf16().count();
+    (next, caret as u32)
+}
+
+fn utf16_to_byte(s: &str, utf16_offset: usize) -> usize {
+    let mut units = 0;
+    for (byte_idx, ch) in s.char_indices() {
+        if units >= utf16_offset {
+            return byte_idx;
+        }
+        units += ch.len_utf16();
+    }
+    s.len()
+}
+
 /// How much room a hint needs before it is shown, for the stylesheet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HintWeight {
@@ -322,5 +362,54 @@ mod tests {
             [vec!["⌘", "↵"], vec!["↵"], vec!["esc"]]
         );
         assert_eq!(caps(ENTER_ADDS_LINE, Os::Linux)[0], ["Ctrl", "↵"]);
+    }
+
+    #[test]
+    fn paste_chords_only_match_on_linux() {
+        let ctrl_v = KeyPress {
+            primary: true,
+            ..press("v")
+        };
+        let ctrl_upper_v = KeyPress {
+            primary: true,
+            ..press("V")
+        };
+        let shift_insert = KeyPress {
+            shift: true,
+            ..press("Insert")
+        };
+        assert!(is_paste_chord(ctrl_v, Os::Linux));
+        assert!(is_paste_chord(ctrl_upper_v, Os::Linux));
+        assert!(is_paste_chord(shift_insert, Os::Linux));
+        assert!(!is_paste_chord(ctrl_v, Os::Macos));
+        assert!(!is_paste_chord(ctrl_v, Os::Windows));
+        assert!(!is_paste_chord(shift_insert, Os::Macos));
+        assert!(!is_paste_chord(shift_insert, Os::Windows));
+        assert!(!is_paste_chord(
+            KeyPress {
+                composing: true,
+                ..ctrl_v
+            },
+            Os::Linux
+        ));
+        assert!(!is_paste_chord(
+            KeyPress {
+                shift: true,
+                ..ctrl_v
+            },
+            Os::Linux
+        ));
+    }
+
+    #[test]
+    fn splice_utf16_replaces_selection_and_places_caret_after_paste() {
+        assert_eq!(
+            splice_utf16("hello world", 6, 11, "Posthaste"),
+            ("hello Posthaste".to_owned(), 15)
+        );
+        // Emoji is 2 UTF-16 code units.
+        assert_eq!(splice_utf16("a😀b", 3, 3, "X"), ("a😀Xb".to_owned(), 4));
+        // Out-of-range offsets clamp to the end.
+        assert_eq!(splice_utf16("hi", 99, 99, "!"), ("hi!".to_owned(), 3));
     }
 }

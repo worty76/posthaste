@@ -4784,6 +4784,8 @@ dependencies = [
 name = "posthaste"
 version = "0.7.3"
 dependencies = [
+ "gdk",
+ "gtk",
  "keyring",
  "log",
  "posthaste-core",

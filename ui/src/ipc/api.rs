@@ -20,6 +20,10 @@ pub async fn app_info() -> Response<AppInfo> {
     invoke("app_info", &NoArgs {}).await
 }
 
+pub async fn capture_clipboard_read() -> Response<String> {
+    invoke("capture_clipboard_read", &NoArgs {}).await
+}
+
 #[derive(Serialize)]
 struct ShortcutsPaused {
     paused: bool,
