@@ -174,5 +174,12 @@
     "check_updates": "Check for updates",
     "update_to": "Update to {version}",
     "no_update": "No newer release was found automatically. Download the latest Posthaste from the releases page and open it instead."
+  },
+  "palette": {
+    "title": "Command palette",
+    "placeholder": "Type a command, view, or project…",
+    "empty": "No matching commands.",
+    "group_jump": "Jump to",
+    "group_actions": "Actions"
   }
 }

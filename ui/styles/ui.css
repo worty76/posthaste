@@ -347,6 +347,102 @@
   line-height: var(--lh-read);
 }
 
+/* ---- Command palette (Mod+K) ---- */
+.palette__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: min(14vh, 110px) var(--s-4) var(--s-4);
+  background: var(--scrim);
+  animation: pop var(--fast) var(--ease);
+}
+.palette {
+  width: min(520px, 100%);
+  max-height: min(440px, 72vh);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+.palette__search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+.palette__search-icon {
+  display: inline-flex;
+  color: var(--text-faint);
+  flex: none;
+}
+.palette__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--t-md);
+  outline: none;
+}
+.palette__input::placeholder {
+  color: var(--text-faint);
+}
+.palette__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s-2);
+}
+.palette__group {
+  padding: var(--s-2) var(--s-2) var(--s-1);
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.palette__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--t-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+.palette__item[data-active="true"] {
+  background: var(--active);
+}
+.palette__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette__subtitle {
+  color: var(--text-faint);
+  font-size: var(--t-xs);
+}
+.palette__empty {
+  padding: var(--s-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--t-sm);
+}
+
 /* ---- Calendar ---- */
 .calendar {
   position: static;

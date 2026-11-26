@@ -171,5 +171,12 @@
     "check_updates": "Kiểm tra cập nhật",
     "update_to": "Cập nhật lên {version}",
     "no_update": "Không tự động tìm thấy bản phát hành mới hơn. Hãy tải bản Posthaste mới nhất từ trang phát hành rồi mở lại."
+  },
+  "palette": {
+    "title": "Bảng lệnh",
+    "placeholder": "Nhập lệnh, mục hoặc dự án…",
+    "empty": "Không có lệnh nào khớp.",
+    "group_jump": "Đi tới",
+    "group_actions": "Thao tác"
   }
 }
