@@ -17,7 +17,8 @@
   "group": {
     "carried": "Chuyển từ trước",
     "today": "Hôm nay",
-    "that_day": "Hôm đó"
+    "that_day": "Hôm đó",
+    "completed": "Đã xong"
   },
   "more_in_inbox": "và {count} ghi chú nữa trong hộp thư",
   "more": "và {count} ghi chú nữa",

@@ -548,6 +548,18 @@ html.is-macos.is-main[data-glass="true"] .look {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--on-accent);
+  animation: check-pop var(--quick) var(--ease);
+}
+@keyframes check-pop {
+  0% {
+    transform: scale(0.84);
+  }
+  55% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .note__body {

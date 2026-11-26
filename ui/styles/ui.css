@@ -330,6 +330,14 @@
   padding: var(--s-7) 0;
   max-width: 44ch;
 }
+.empty::before {
+  content: "";
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  margin-bottom: var(--s-1);
+}
 .empty__title {
   font-size: var(--t-lg);
   font-weight: 600;

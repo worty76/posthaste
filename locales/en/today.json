@@ -17,7 +17,8 @@
   "group": {
     "carried": "Carried over",
     "today": "Today",
-    "that_day": "That day"
+    "that_day": "That day",
+    "completed": "Completed"
   },
   "more_in_inbox": "and {count} more in the inbox",
   "more": "and {count} more",
