@@ -10,12 +10,12 @@ export interface Download {
 
 export type Platform = "mac" | "windows" | "linux";
 
-const RELEASE = "https://github.com/worty76/posthaste/releases/download/v0.7.4";
+const RELEASE = "https://github.com/worty76/posthaste/releases/download/v0.7.5";
 
 export const PRODUCT = {
   name: "Posthaste",
   /** From src-tauri/Cargo.toml [workspace.package] version. */
-  version: "0.7.4",
+  version: "0.7.5",
   repoUrl: "https://github.com/worty76/Posthaste",
   releasesUrl: "https://github.com/worty76/Posthaste/releases/latest",
   /** The community server. A plain link in the header; the page loads nothing from Discord. */
@@ -23,20 +23,20 @@ export const PRODUCT = {
   /** The canonical home; canonical and share URLs use it. */
   siteUrl: "https://posthaste.ink" as string | null,
   /**
-   * The v0.7.4 installers, named the way the release workflow names them.
+   * The v0.7.5 installers, named the way the release workflow names them.
    * The build replaces these with the latest release's assets
    * when it can reach the GitHub API (see getDownloads in app/page.tsx);
    * null would mean "not released for this platform".
    */
   downloads: {
-    mac: { url: `${RELEASE}/Posthaste_0.7.4_aarch64.dmg`, label: "Apple Silicon, .dmg" },
-    windows: { url: `${RELEASE}/Posthaste_0.7.4_x64-setup.exe`, label: "64-bit installer, .exe" },
-    linux: { url: `${RELEASE}/Posthaste_0.7.4_amd64.AppImage`, label: "x86-64, .AppImage" },
+    mac: { url: `${RELEASE}/Posthaste_0.7.5_aarch64.dmg`, label: "Apple Silicon, .dmg" },
+    windows: { url: `${RELEASE}/Posthaste_0.7.5_x64-setup.exe`, label: "64-bit installer, .exe" },
+    linux: { url: `${RELEASE}/Posthaste_0.7.5_amd64.AppImage`, label: "x86-64, .AppImage" },
   } as Record<Platform, Download | null>,
   /** Extra Linux packages from the same release. */
   linuxExtras: [
-    { url: `${RELEASE}/Posthaste_0.7.4_amd64.deb`, label: ".deb" },
-    { url: `${RELEASE}/Posthaste-0.7.4-1.x86_64.rpm`, label: ".rpm" },
+    { url: `${RELEASE}/Posthaste_0.7.5_amd64.deb`, label: ".deb" },
+    { url: `${RELEASE}/Posthaste-0.7.5-1.x86_64.rpm`, label: ".rpm" },
   ] as Download[],
 } as const;
 
@@ -57,6 +57,14 @@ export const SYNC_VIDEO = {
 /** Release notes written for people, by version. They replace the automatic
     release body (commit subjects) in the changelog. */
 export const RELEASE_NOTES: Record<string, string[]> = {
+  "0.7.5": [
+    "Command Palette (⌘K / Ctrl+K) in the inbox to jump to views, projects, looks, or actions in a few keystrokes.",
+    "Translucent glass mode on macOS across every window, synced automatically to your active look's light or dark base.",
+    "Look Editor Palette Assistant: live mini-preview with WCAG AA contrast badge, curated light/dark presets, an interactive Around color 6-harmony generator, and one-click Fix contrast.",
+    "Calmer Today window with hairline group headers and a collapsible Completed drawer.",
+    "Quick Capture tints its header mark with the selected project's color and adds one-step Undo after AI polish.",
+    "Focus pill shows a step-progress hairline and opens Note details on double-click or from its hover action.",
+  ],
   "0.7.4": [
     "Posthaste now speaks Spanish (Español), German (Deutsch), Korean (한국어) and Hindi (हिन्दी), alongside English and Vietnamese.",
     "Tabbed Settings: switch between General, Keyboard, Appearance, AI, Devices and Data with clicks or ←/→ arrow keys.",
@@ -157,6 +165,7 @@ export const RELEASE_NOTES: Record<string, string[]> = {
 export const FALLBACK_RELEASES: { version: string; date: string; url: string; notes: string[] }[] =
   (
     [
+      ["0.7.5", "2026-11-26"],
       ["0.7.4", "2026-11-26"],
       ["0.7.3", "2026-11-24"],
       ["0.7.2", "2026-11-23"],

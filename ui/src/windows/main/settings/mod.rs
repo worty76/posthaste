@@ -397,10 +397,7 @@ pub(super) fn SettingsView(
                     }
                     .into_any(),
                     Tab::Appearance => view! {
-                        <section class="settings__section" aria-labelledby="s-appearance">
-                            <h2 class="settings__heading" id="s-appearance">{i18n.text(key::SETTINGS_TABS_APPEARANCE)}</h2>
-                            <appearance::AppearanceSection context=context appearance=appearance />
-                        </section>
+                        <appearance::AppearanceSection context=context appearance=appearance os=os />
                     }
                     .into_any(),
                     Tab::Ai => view! {

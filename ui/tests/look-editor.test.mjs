@@ -51,6 +51,43 @@ describe("look editor scene", () => {
     await w.close();
   });
 
+  it("applies a curated palette preset and generates palettes around a picked color", async () => {
+    const w = await editor(null);
+    const sage = w.dialog.getByRole("button", { name: "Sage" });
+    await eventually(
+      () => sage.count(),
+      (n) => n === 1,
+      "light palette presets to load",
+    );
+    await sage.click();
+    assert.equal(await w.dialog.getByLabel("Background", { exact: true }).inputValue(), "#f1f5f0");
+    assert.equal(await w.dialog.getByLabel("Accent", { exact: true }).inputValue(), "#4f8a5b");
+
+    // Pick a custom seed color: six harmonious palettes appear around it.
+    await w.dialog.getByLabel("Around color").fill("#3366ff");
+    const warm = w.dialog.getByRole("button", { name: "Warm" });
+    await eventually(
+      () => warm.count(),
+      (n) => n === 1,
+      "generated palettes around the picked color to appear",
+    );
+    await warm.click();
+    assert.equal(await w.dialog.getByLabel("Background", { exact: true }).inputValue(), "#f7f3ec");
+    assert.equal(await w.dialog.getByLabel("Accent", { exact: true }).inputValue(), "#3366ff");
+
+    // Picking a second color updates the pills live without switching modes.
+    await w.dialog.getByLabel("Around color").fill("#22aa66");
+    await eventually(
+      async () => {
+        await warm.click();
+        return w.dialog.getByLabel("Accent", { exact: true }).inputValue();
+      },
+      (v) => v === "#22aa66",
+      "second picked color to update the palette pills live",
+    );
+    await w.close();
+  });
+
   it("offers the seven font presets in order and saves the chosen one", async () => {
     const w = await editor(null);
     const picker = w.dialog.getByLabel("Font", { exact: true });

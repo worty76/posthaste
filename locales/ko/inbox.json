@@ -171,5 +171,12 @@
     "check_updates": "업데이트 확인",
     "update_to": "{version} 버전으로 업데이트",
     "no_update": "자동으로 새 버전을 찾지 못했습니다. 릴리스 페이지에서 최신 Posthaste를 다운로드하여 실행해 주세요."
+  },
+  "palette": {
+    "title": "명령 팔레트",
+    "placeholder": "명령, 화면 또는 프로젝트 입력…",
+    "empty": "일치하는 명령이 없습니다.",
+    "group_jump": "이동",
+    "group_actions": "작업"
   }
 }

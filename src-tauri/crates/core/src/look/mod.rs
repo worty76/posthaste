@@ -12,6 +12,7 @@ pub mod package;
 pub mod resolve;
 pub mod scene;
 pub mod store;
+pub mod suggest;
 
 #[cfg(test)]
 mod tests;
@@ -24,8 +25,9 @@ pub use posthaste_model::DEFAULT_LOOK_ID;
 pub use posthaste_model::LOOK_FORMAT;
 pub use posthaste_model::{
     Anchor, AssetRef, Base, Colors, EmojiLayer, Fit, FontFace, ImageLayer, Known, LayerRecord,
-    LookDoc, LookPreview, LookTheme, Read, Region, ResolvedLayer, ResolvedScene, ResolvedWindow,
-    Scene, SceneEdit, Shape, StickerSize, ThemeEdit, Window, WindowScene,
+    LookDoc, LookPreview, LookTheme, PaletteMood, PalettePreset, Read, Region, ResolvedLayer,
+    ResolvedScene, ResolvedWindow, Scene, SceneEdit, Shape, StickerSize, ThemeEdit, Window,
+    WindowScene,
 };
 pub use resolve::{resolve_live, resolve_parts, resolve_scene};
 pub const LOOK_VERSION: u32 = 2;

@@ -4782,7 +4782,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "gdk",
  "gtk",
@@ -4811,7 +4811,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-core"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "log",
  "posthaste-model",
@@ -4827,14 +4827,14 @@ dependencies = [
 
 [[package]]
 name = "posthaste-i18n"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "posthaste-model"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "serde",
  "serde_json",
@@ -4842,7 +4842,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-platform"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "objc2",
  "objc2-app-kit",
@@ -4853,7 +4853,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-sync-net"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "iroh",
  "posthaste-core",
@@ -4865,7 +4865,7 @@ dependencies = [
 
 [[package]]
 name = "posthaste-ui"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "console_error_panic_hook",
  "futures",

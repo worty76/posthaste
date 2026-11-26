@@ -62,19 +62,24 @@ pub(super) fn ColorRow(i18n: I18n, theme: RwSignal<ThemeEdit>, color: Color) -> 
     };
     view! {
         <div class="look-editor__color">
-            <input
-                class="field"
-                aria-label=i18n.text(color.name())
-                spellcheck="false"
-                use:bind_text=value
-                on:input=set
-            />
-            <input
-                type="color"
-                aria-label=picker_name
-                prop:value=move || picker_value(&value.get())
-                on:input=set
-            />
+            <span class="look-editor__color-label" aria-hidden="true">
+                {i18n.text(color.name())}
+            </span>
+            <div class="look-editor__color-inputs">
+                <input
+                    type="color"
+                    aria-label=picker_name
+                    prop:value=move || picker_value(&value.get())
+                    on:input=set
+                />
+                <input
+                    class="field"
+                    aria-label=i18n.text(color.name())
+                    spellcheck="false"
+                    use:bind_text=value
+                    on:input=set
+                />
+            </div>
         </div>
     }
 }

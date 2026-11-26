@@ -174,5 +174,12 @@
     "check_updates": "Buscar actualizaciones",
     "update_to": "Actualizar a {version}",
     "no_update": "No se encontró una versión más reciente automáticamente. Descarga la última versión de Posthaste desde la página de lanzamientos y ábrela."
+  },
+  "palette": {
+    "title": "Paleta de comandos",
+    "placeholder": "Escribe un comando, vista o proyecto…",
+    "empty": "No hay comandos que coincidan.",
+    "group_jump": "Ir a",
+    "group_actions": "Acciones"
   }
 }

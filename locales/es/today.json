@@ -17,7 +17,8 @@
   "group": {
     "carried": "De días anteriores",
     "today": "Hoy",
-    "that_day": "Ese día"
+    "that_day": "Ese día",
+    "completed": "Completadas"
   },
   "more_in_inbox": "y {count} más en la bandeja",
   "more": "y {count} más",

@@ -11,11 +11,18 @@ what makes the app themeable: a theme changes token values and nothing else.
 | `fonts.css` | The `@font-face` declarations for the bundled fonts. |
 | `fonts/` | The bundled font files, each with its OFL licence beside it. |
 | `base.css` | Element resets, focus ring, scrollbars. |
-| `ui.css` | Styles for `components/` (reusable controls). |
-| `capture.css` | The capture window. |
-| `today.css` | The Today window. |
-| `details.css` | The Note details window. |
-| `main.css` | Inbox, search, projects, settings layout. |
+| `components/controls.css` | Reusable controls: buttons, inputs, switch, segmented, kbd. |
+| `components/overlays.css` | Overlays & pickers: dialog, toasts, empty state, command palette, calendar, project picker. |
+| `components/scene.css` | Active look scene backdrop and stickers. |
+| `windows/capture.css` | The capture window. |
+| `windows/today.css` | The Today window. |
+| `windows/details.css` | The Note details window. |
+| `windows/focus.css` | The floating focus pill. |
+| `main/layout.css` | Main app shell, sidebar, macOS glass, header, search, filters, banners. |
+| `main/notes.css` | Note rows, checkboxes, overflow actions menu, inline editor, trash. |
+| `main/looks.css` | Looks gallery, swatches, look editor, live preview, palette assistant. |
+| `main/settings.css` | Settings tabs, cards, rows, devices, AI polish, shortcuts, fatal view. |
+| `main/projects.css` | Project page and Manage projects views. |
 
 ## Rules
 

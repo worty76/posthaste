@@ -17,6 +17,8 @@ html.is-focus #root {
 }
 
 .focus-pill {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -38,11 +40,44 @@ html.is-focus #root {
     opacity var(--quick) var(--ease);
 }
 
+html.is-macos.is-focus[data-glass="true"] .focus-shell {
+  padding: 0;
+}
+html.is-macos.is-focus[data-glass="true"] .focus-pill {
+  height: 100%;
+  border-color: transparent;
+  background: var(--glass-surface);
+  box-shadow: var(--glass-rim);
+}
+
 .focus-pill:active {
   cursor: grabbing;
 }
 
 /* Alive ambient pulse on the checkbox ring so you can tell focus is active. */
+.focus-pill__open {
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+}
+.focus-pill:hover .focus-pill__open,
+.focus-pill__open:focus-visible {
+  opacity: 1;
+}
+.focus-pill__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  pointer-events: none;
+}
+.focus-pill__progress-fill {
+  fill: var(--accent);
+  opacity: 0.55;
+  transition: width var(--quick) var(--ease);
+}
+
 .focus-pill__check {
   position: relative;
   flex: 0 0 auto;

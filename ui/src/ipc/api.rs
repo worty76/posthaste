@@ -564,6 +564,50 @@ pub async fn look_preview(theme: &ThemeEdit) -> Response<ResolvedLook> {
 }
 
 #[derive(Serialize)]
+struct PalettePresets {
+    base: posthaste_model::Base,
+}
+
+/// Curated WCAG-AA palette starting points for the given base.
+pub async fn look_palette_presets(
+    base: posthaste_model::Base,
+) -> Response<Vec<posthaste_model::PalettePreset>> {
+    invoke("look_palette_presets", &PalettePresets { base }).await
+}
+
+#[derive(Serialize)]
+struct PaletteAround<'a> {
+    seed: &'a str,
+    base: posthaste_model::Base,
+}
+
+/// Generates six harmonious WCAG-AA palettes around a user-picked seed colour.
+pub async fn look_palette_around(
+    seed: &str,
+    base: posthaste_model::Base,
+) -> Response<Vec<posthaste_model::PalettePreset>> {
+    invoke("look_palette_around", &PaletteAround { seed, base }).await
+}
+
+#[derive(Serialize)]
+struct PaletteFixContrast<'a> {
+    colors: &'a posthaste_model::Colors,
+    base: posthaste_model::Base,
+}
+
+/// Minimally nudges text and accent lightness so the palette passes WCAG AA.
+pub async fn look_palette_fix_contrast(
+    colors: &posthaste_model::Colors,
+    base: posthaste_model::Base,
+) -> Response<posthaste_model::Colors> {
+    invoke(
+        "look_palette_fix_contrast",
+        &PaletteFixContrast { colors, base },
+    )
+    .await
+}
+
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LookSave<'a> {
     theme: &'a ThemeEdit,
