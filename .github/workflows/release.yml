@@ -59,17 +59,26 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+  release-notes:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release notes need the history between tags
       - name: Fill the release notes from commits
-        if: matrix.platform == 'macos-latest' # one writer; the other legs only upload assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(grep -m1 '^version' src-tauri/Cargo.toml | cut -d'"' -f2)
           TAG="v$VERSION"
-          PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
           if [ -n "$PREV" ]; then
-            LOG=$(git log "$PREV..$TAG" --pretty=format:"- %s (%h)")
-            LINK="**Full changelog**: https://github.com/worty76/Posthaste/compare/$PREV...$TAG"
+            LOG=$(git log "$PREV..HEAD" --pretty=format:"- %s (%h)")
+            LINK="**Full changelog**: https://github.com/worty76/posthaste/compare/$PREV...$TAG"
           else
             LOG=""
             LINK=""
