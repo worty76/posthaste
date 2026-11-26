@@ -1,5 +1,6 @@
 mod colors;
 mod scene;
+mod suggest;
 
 use std::time::Duration;
 
@@ -16,6 +17,7 @@ use crate::state::{use_scene_preview, Appearance, I18n};
 
 use colors::{Color, ColorRow};
 use scene::{ScenePanel, SceneState};
+use suggest::PaletteSuggestions;
 
 /// How long typing pauses before the draft goes to the shell for a preview.
 const PREVIEW_PAUSE: Duration = Duration::from_millis(120);
@@ -66,6 +68,7 @@ pub(super) fn LookEditor(
 ) -> impl IntoView {
     let theme = RwSignal::new(initial);
     let error = RwSignal::new(None::<CommandError>);
+    let contrast_x10 = RwSignal::new(None::<u16>);
     // Whether the typed font name names a font this computer has; the
     // name is only checked here, never judged by the interface.
     let font_installed = RwSignal::new(true);
@@ -107,10 +110,12 @@ pub(super) fn LookEditor(
                     match answer {
                         Ok(look) => {
                             error.set(None);
+                            contrast_x10.set((look.contrast_x10 > 0).then_some(look.contrast_x10));
                             appearance.preview(Some(look));
                         }
                         Err(refused) => {
                             error.set(Some(refused));
+                            contrast_x10.set(None);
                             appearance.preview(None);
                         }
                     }
@@ -197,87 +202,146 @@ pub(super) fn LookEditor(
             }.into_any())
         >
             <div class="look-editor">
-                <input
-                    class="field"
-                    aria-label=i18n.text(key::LOOKS_EDITOR_NAME)
-                    maxlength=MAX_NAME_CHARS.to_string()
-                    use:bind_text=Signal::derive(move || theme.with(|t| t.name.clone()))
-                    on:input=move |event| theme.update(|t| t.name = event_target_value(&event))
-                />
-                <Segmented
-                    i18n=i18n
-                    label=key::LOOKS_EDITOR_BASE
-                    value=Signal::derive(move || theme.with(|t| t.base))
-                    options=vec![(Base::Light, key::LOOKS_LIGHT), (Base::Dark, key::LOOKS_DARK)]
-                    on_change=move |base| theme.update(|t| t.base = base)
-                />
+                <div class="look-editor__preview" aria-hidden="true">
+                    <div class="look-editor__preview-head">
+                        <span class="look-editor__preview-mark"></span>
+                        <span class="look-editor__preview-title">
+                            {move || {
+                                let name = theme.with(|t| t.name.trim().to_owned());
+                                if name.is_empty() {
+                                    i18n.translator().text(key::CAPTURE_TITLE).to_owned()
+                                } else {
+                                    name
+                                }
+                            }}
+                        </span>
+                        {move || contrast_x10.get().map(|x10| view! {
+                            <span class="look-editor__contrast">
+                                {format!("{}.{:01}:1 · AA", x10 / 10, x10 % 10)}
+                            </span>
+                        })}
+                    </div>
+                    <div class="look-editor__preview-card">
+                        <span class="look-editor__preview-row">
+                            <span class="look-editor__preview-dot look-editor__preview-dot--done"></span>
+                            <span class="look-editor__preview-line look-editor__preview-line--done"></span>
+                        </span>
+                        <span class="look-editor__preview-row">
+                            <span class="look-editor__preview-dot"></span>
+                            <span class="look-editor__preview-line"></span>
+                            <span class="look-editor__preview-pill"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="look-editor__row">
+                    <span class="look-editor__label" aria-hidden="true">
+                        {i18n.text(key::LOOKS_EDITOR_NAME)}
+                    </span>
+                    <input
+                        class="field"
+                        aria-label=i18n.text(key::LOOKS_EDITOR_NAME)
+                        maxlength=MAX_NAME_CHARS.to_string()
+                        use:bind_text=Signal::derive(move || theme.with(|t| t.name.clone()))
+                        on:input=move |event| theme.update(|t| t.name = event_target_value(&event))
+                    />
+                </div>
+                <div class="look-editor__row">
+                    <span class="look-editor__label" aria-hidden="true">
+                        {i18n.text(key::LOOKS_EDITOR_BASE)}
+                    </span>
+                    <Segmented
+                        i18n=i18n
+                        label=key::LOOKS_EDITOR_BASE
+                        value=Signal::derive(move || theme.with(|t| t.base))
+                        options=vec![(Base::Light, key::LOOKS_LIGHT), (Base::Dark, key::LOOKS_DARK)]
+                        on_change=move |base| theme.update(|t| t.base = base)
+                    />
+                </div>
+                <PaletteSuggestions i18n=i18n theme=theme />
                 <div class="look-editor__colors">
                     {Color::ALL
                         .into_iter()
                         .map(|color| view! { <ColorRow i18n=i18n theme=theme color=color /> })
                         .collect_view()}
                 </div>
-                <Segmented
-                    i18n=i18n
-                    label=key::LOOKS_EDITOR_SHAPE
-                    value=Signal::derive(move || theme.with(|t| t.shape))
-                    options=vec![
-                        (Shape::Sharp, key::LOOKS_EDITOR_SHARP),
-                        (Shape::Soft, key::LOOKS_EDITOR_SOFT),
-                        (Shape::Round, key::LOOKS_EDITOR_ROUND),
-                    ]
-                    on_change=move |shape| theme.update(|t| t.shape = shape)
-                />
-                <select
-                    class="field select"
-                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT)
-                    on:change=move |event| theme.update(|t| {
-                        t.font = match event_target_value(&event).as_str() {
-                            "rounded" => FontFace::Rounded,
-                            "serif" => FontFace::Serif,
-                            "mono" => FontFace::Mono,
-                            "be-vietnam-pro" => FontFace::BeVietnamPro,
-                            "nunito" => FontFace::Nunito,
-                            "quicksand" => FontFace::Quicksand,
-                            _ => FontFace::System,
-                        };
-                    })
-                >
-                    {FONT_CHOICES
-                        .into_iter()
-                        .map(|(face, label)| {
-                            let value = font_name(face);
-                            let selected = move || theme.with(|t| t.font) == face;
-                            view! {
-                                <option
-                                    value=value
-                                    selected=selected
-                                    class=format!("look-editor__font-option--{value}")
-                                >
-                                    {i18n.text(label)}
-                                </option>
-                            }
+                <div class="look-editor__row">
+                    <span class="look-editor__label" aria-hidden="true">
+                        {i18n.text(key::LOOKS_EDITOR_SHAPE)}
+                    </span>
+                    <Segmented
+                        i18n=i18n
+                        label=key::LOOKS_EDITOR_SHAPE
+                        value=Signal::derive(move || theme.with(|t| t.shape))
+                        options=vec![
+                            (Shape::Sharp, key::LOOKS_EDITOR_SHARP),
+                            (Shape::Soft, key::LOOKS_EDITOR_SOFT),
+                            (Shape::Round, key::LOOKS_EDITOR_ROUND),
+                        ]
+                        on_change=move |shape| theme.update(|t| t.shape = shape)
+                    />
+                </div>
+                <div class="look-editor__row">
+                    <span class="look-editor__label" aria-hidden="true">
+                        {i18n.text(key::LOOKS_EDITOR_FONT)}
+                    </span>
+                    <select
+                        class="field select"
+                        aria-label=i18n.text(key::LOOKS_EDITOR_FONT)
+                        on:change=move |event| theme.update(|t| {
+                            t.font = match event_target_value(&event).as_str() {
+                                "rounded" => FontFace::Rounded,
+                                "serif" => FontFace::Serif,
+                                "mono" => FontFace::Mono,
+                                "be-vietnam-pro" => FontFace::BeVietnamPro,
+                                "nunito" => FontFace::Nunito,
+                                "quicksand" => FontFace::Quicksand,
+                                _ => FontFace::System,
+                            };
                         })
-                        .collect_view()}
-                </select>
-                <input
-                    class="field"
-                    aria-label=i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)
-                    aria-describedby="look-editor-font-custom-hint"
-                    maxlength=MAX_FONT_FAMILY_CHARS.to_string()
-                    spellcheck="false"
-                    use:bind_text=Signal::derive(move || {
-                        theme.with(|t| t.font_family.clone().unwrap_or_default())
-                    })
-                    on:input=move |event| theme.update(|t| {
-                        let name = event_target_value(&event);
-                        let trimmed = name.trim().to_string();
-                        t.font_family = (!trimmed.is_empty()).then_some(trimmed);
-                    })
-                />
-                <p id="look-editor-font-custom-hint" class="row__help">
-                    {i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM_HINT)}
-                </p>
+                    >
+                        {FONT_CHOICES
+                            .into_iter()
+                            .map(|(face, label)| {
+                                let value = font_name(face);
+                                let selected = move || theme.with(|t| t.font) == face;
+                                view! {
+                                    <option
+                                        value=value
+                                        selected=selected
+                                        class=format!("look-editor__font-option--{value}")
+                                    >
+                                        {i18n.text(label)}
+                                    </option>
+                                }
+                            })
+                            .collect_view()}
+                    </select>
+                </div>
+                <div class="look-editor__row">
+                    <span class="look-editor__label" aria-hidden="true">
+                        {i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)}
+                    </span>
+                    <div class="look-editor__stack">
+                        <input
+                            class="field"
+                            aria-label=i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM)
+                            aria-describedby="look-editor-font-custom-hint"
+                            maxlength=MAX_FONT_FAMILY_CHARS.to_string()
+                            spellcheck="false"
+                            use:bind_text=Signal::derive(move || {
+                                theme.with(|t| t.font_family.clone().unwrap_or_default())
+                            })
+                            on:input=move |event| theme.update(|t| {
+                                let name = event_target_value(&event);
+                                let trimmed = name.trim().to_string();
+                                t.font_family = (!trimmed.is_empty()).then_some(trimmed);
+                            })
+                        />
+                        <p id="look-editor-font-custom-hint" class="row__help">
+                            {i18n.text(key::LOOKS_EDITOR_FONT_CUSTOM_HINT)}
+                        </p>
+                    </div>
+                </div>
                 {move || (!font_installed.get()).then(|| {
                     let name = theme
                         .with_untracked(|t| t.font_family.clone().unwrap_or_default());
@@ -302,12 +366,37 @@ pub(super) fn LookEditor(
                     </p>
                 })}
                 {move || match error.get() {
-                    Some(refused) => view! {
-                        <p class="dialog__alert" role="alert">
-                            {ipc::message(&refused, i18n.translator())}
-                        </p>
+                    Some(refused) => {
+                        let can_fix = refused.code == "invalid_look";
+                        view! {
+                            <div class="look-editor__alert-row">
+                                <p class="dialog__alert" role="alert">
+                                    {ipc::message(&refused, i18n.translator())}
+                                </p>
+                                {can_fix.then(|| view! {
+                                    <button
+                                        type="button"
+                                        class="look-editor__fix-btn"
+                                        on:click=move |_| {
+                                            let (colors, base) =
+                                                theme.with_untracked(|t| (t.colors.clone(), t.base));
+                                            spawn_local(async move {
+                                                if let Ok(fixed) =
+                                                    api::look_palette_fix_contrast(&colors, base)
+                                                        .await
+                                                {
+                                                    theme.update(|t| t.colors = fixed);
+                                                }
+                                            });
+                                        }
+                                    >
+                                        {i18n.text(key::LOOKS_EDITOR_FIX_CONTRAST)}
+                                    </button>
+                                })}
+                            </div>
+                        }
+                        .into_any()
                     }
-                    .into_any(),
                     None => view! {
                         <p class="dialog__status" role="status">{i18n.text(key::LOOKS_EDITOR_OK)}</p>
                     }

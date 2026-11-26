@@ -20,6 +20,16 @@ html.is-linux.is-today .today__panel {
   animation: none;
 }
 
+/* macOS translucent glass: native vibrancy fills the rounded panel and the OS
+   draws the drop shadow, so drop the CSS shadow margin. */
+html.is-macos.is-today[data-glass="true"] .today {
+  padding: 0;
+}
+html.is-macos.is-today[data-glass="true"] .today__panel {
+  background: var(--glass-surface);
+  box-shadow: var(--glass-rim);
+}
+
 .today {
   height: 100%;
   /* Room for the shadow; the OS window itself is invisible. */

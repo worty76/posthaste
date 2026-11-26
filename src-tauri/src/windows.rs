@@ -4,7 +4,7 @@
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use posthaste_core::{CapturePosition, CaptureShown, WindowSize};
+use posthaste_core::{Base, CapturePosition, CaptureShown, WindowSize};
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
@@ -75,6 +75,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible(false);
     #[cfg(target_os = "macos")]
     let main = main
+        .transparent(true)
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true);
     let main = main.build()?;
@@ -214,6 +215,84 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         }
     });
     Ok(())
+}
+
+/// Applies or clears the native macOS frosted glass material across all five
+/// windows (`main`, `capture`, `today`, `details`, `focus`), pinning each
+/// window's native appearance to the active look's light/dark base so vibrancy
+/// always matches the text colour. No-op on Windows and Linux.
+pub fn apply_glass(app: &AppHandle, enabled: bool, base: Base) {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::window::{Effect, EffectState, EffectsBuilder};
+        use tauri::Theme;
+
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let theme = match base {
+                Base::Light => Theme::Light,
+                Base::Dark => Theme::Dark,
+            };
+            let effect = match base {
+                Base::Light => Effect::Popover,
+                Base::Dark => Effect::HudWindow,
+            };
+
+            if let Some(main) = handle.get_webview_window(MAIN) {
+                let _ = main.set_theme(if enabled { Some(theme) } else { None });
+                let _ = main.set_effects(None);
+                if enabled {
+                    let effects = EffectsBuilder::new()
+                        .effect(effect)
+                        .state(EffectState::FollowsWindowActiveState)
+                        .build();
+                    if let Err(e) = main.set_effects(Some(effects)) {
+                        log::warn!("could not update glass effect on main window: {e}");
+                    }
+                }
+            }
+            for (label, radius) in [
+                (CAPTURE, 14.0),
+                (TODAY, 14.0),
+                (DETAILS, 14.0),
+                (FOCUS, 19.0),
+            ] {
+                if let Some(window) = handle.get_webview_window(label) {
+                    let _ = window.set_theme(if enabled { Some(theme) } else { None });
+                    let _ = window.set_effects(None);
+                    if enabled {
+                        let effects = EffectsBuilder::new()
+                            .effect(effect)
+                            .state(EffectState::Active)
+                            .radius(radius)
+                            .build();
+                        if let Err(e) = window.set_effects(Some(effects)) {
+                            log::warn!("could not update glass effect on {label}: {e}");
+                        }
+                    }
+                    if label == FOCUS {
+                        let h = if enabled { 38.0 } else { FOCUS_HEIGHT };
+                        let _ = window.set_size(LogicalSize::new(FOCUS_WIDTH, h));
+                    }
+                    panels::set_shadow(&handle, &window, enabled);
+                }
+            }
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, enabled, base);
+}
+
+/// Syncs macOS glass state and light/dark vibrancy with the current settings
+/// and active look.
+pub fn sync_glass(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let enabled = state.settings().macos_glass;
+    let base = state
+        .with_db(|db| db.active_look())
+        .map(|look| look.base)
+        .unwrap_or(Base::Dark);
+    apply_glass(app, enabled, base);
 }
 
 pub fn toggle_capture(app: &AppHandle) {

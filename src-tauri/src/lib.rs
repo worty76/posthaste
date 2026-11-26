@@ -190,6 +190,10 @@ pub fn run() {
             commands::look_active,
             commands::look_theme,
             commands::look_preview,
+            commands::look_palette_presets,
+            commands::look_palette_from_accent,
+            commands::look_palette_around,
+            commands::look_palette_fix_contrast,
             commands::look_save,
             commands::look_active_scene,
             commands::look_scene,
@@ -234,6 +238,9 @@ pub fn run() {
             let settings = state.settings();
 
             windows::create(&handle)?;
+            if settings.macos_glass {
+                windows::sync_glass(&handle);
+            }
             commands::sync_focus(&handle);
 
             // Copies written when an attachment was opened last session.

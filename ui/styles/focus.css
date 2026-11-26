@@ -38,6 +38,16 @@ html.is-focus #root {
     opacity var(--quick) var(--ease);
 }
 
+html.is-macos.is-focus[data-glass="true"] .focus-shell {
+  padding: 0;
+}
+html.is-macos.is-focus[data-glass="true"] .focus-pill {
+  height: 100%;
+  border-color: transparent;
+  background: var(--glass-surface);
+  box-shadow: var(--glass-rim);
+}
+
 .focus-pill:active {
   cursor: grabbing;
 }

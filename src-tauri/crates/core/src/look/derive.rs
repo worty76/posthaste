@@ -72,6 +72,7 @@ pub fn resolve(id: &str, edit: &ThemeEdit) -> Result<ResolvedLook> {
         );
     }
 
+    let min_contrast = contrast(text, bg).min(contrast(text, surface));
     Ok(ResolvedLook {
         id: id.to_string(),
         name: edit.name.clone(),
@@ -80,6 +81,7 @@ pub fn resolve(id: &str, edit: &ThemeEdit) -> Result<ResolvedLook> {
         shape: edit.shape,
         font: edit.font,
         tokens,
+        contrast_x10: (min_contrast * 10.0).round() as u16,
     })
 }
 

@@ -35,6 +35,7 @@ export const defaultSettings = {
   draft_retention: "forever",
   look_id: "builtin:ink",
   simple_looks: false,
+  macos_glass: false,
   sidebar_collapsed: false,
   language: "en",
   ai_provider: "none",
@@ -210,6 +211,94 @@ export async function open({
             tokens: { "--bg": "#101010" },
           },
         look_scene: ({ id }) => store.sceneEdits[id] ?? { scene: {}, assets: [] },
+        look_palette_presets: ({ base }) =>
+          base === "light"
+            ? [
+                {
+                  id: "paper",
+                  name: "Paper",
+                  base: "light",
+                  colors: {
+                    bg: "#f6f5f2",
+                    surface: "#ffffff",
+                    text: "#1d1d1b",
+                    accent: "#2d2d2a",
+                  },
+                },
+                {
+                  id: "sage",
+                  name: "Sage",
+                  base: "light",
+                  colors: {
+                    bg: "#f1f5f0",
+                    surface: "#ffffff",
+                    text: "#233024",
+                    accent: "#4f8a5b",
+                  },
+                },
+              ]
+            : [
+                {
+                  id: "midnight",
+                  name: "Midnight",
+                  base: "dark",
+                  colors: {
+                    bg: "#0f1422",
+                    surface: "#171f33",
+                    text: "#e8eeff",
+                    accent: "#6ea8ff",
+                  },
+                },
+                {
+                  id: "espresso",
+                  name: "Espresso",
+                  base: "dark",
+                  colors: {
+                    bg: "#161210",
+                    surface: "#211b18",
+                    text: "#f3ebe4",
+                    accent: "#e39c64",
+                  },
+                },
+              ],
+        look_palette_from_accent: ({ accent, base }) =>
+          base === "light"
+            ? { bg: "#f4f6f9", surface: "#ffffff", text: "#1a202c", accent }
+            : { bg: "#10141d", surface: "#19202e", text: "#edf2ff", accent },
+        look_palette_around: ({ seed, base }) =>
+          base === "light"
+            ? [
+                {
+                  id: "around:tinted",
+                  name: "Tinted",
+                  base: "light",
+                  colors: { bg: "#f4f6f9", surface: "#ffffff", text: "#1a202c", accent: seed },
+                },
+                {
+                  id: "around:warm",
+                  name: "Warm",
+                  base: "light",
+                  colors: { bg: "#f7f3ec", surface: "#fffdf9", text: "#2c241d", accent: seed },
+                },
+              ]
+            : [
+                {
+                  id: "around:tinted",
+                  name: "Tinted",
+                  base: "dark",
+                  colors: { bg: "#10141d", surface: "#19202e", text: "#edf2ff", accent: seed },
+                },
+                {
+                  id: "around:warm",
+                  name: "Warm",
+                  base: "dark",
+                  colors: { bg: "#161210", surface: "#211b18", text: "#f3ebe4", accent: seed },
+                },
+              ],
+        look_palette_fix_contrast: ({ colors, base }) => ({
+          ...colors,
+          text: base === "light" ? "#1a1a1a" : "#f2f2f2",
+        }),
         look_scene_preview: () =>
           store.previewScene ?? { main: {}, capture: {}, today: {}, details: {}, skipped: 0 },
         look_asset_pick: () => store.pick,

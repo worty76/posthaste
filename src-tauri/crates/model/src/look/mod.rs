@@ -153,6 +153,33 @@ pub struct ResolvedLook {
     pub shape: Shape,
     pub font: FontFace,
     pub tokens: BTreeMap<String, String>,
+    /// Minimum text contrast ratio (tenths, e.g. 148 = 14.8:1) across
+    /// background and surface. `0` when omitted by older payloads.
+    #[serde(default)]
+    pub contrast_x10: u16,
+}
+
+/// How strongly a generated palette tints its neutral background and surface
+/// from the chosen accent hue.
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum PaletteMood {
+    /// Clean grayscale neutrals with the accent providing the sole colour pop.
+    Neutral,
+    /// Subtle tint of the accent hue woven into background, surface and text.
+    #[default]
+    Tinted,
+    /// Warm paper / espresso neutrals paired with the accent.
+    Warm,
+}
+
+/// A curated four-colour starting palette shown in the Look Editor.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct PalettePreset {
+    pub id: String,
+    pub name: String,
+    pub base: Base,
+    pub colors: Colors,
 }
 
 pub mod asset;

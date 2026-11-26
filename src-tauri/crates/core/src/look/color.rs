@@ -83,3 +83,54 @@ pub fn mix(a: Rgb, b: Rgb, t: f64) -> Rgb {
         b: blend(a.b, b.b),
     }
 }
+
+/// Converts sRGB to `(hue 0..360, saturation 0..1, lightness 0..1)`.
+pub fn rgb_to_hsl(c: Rgb) -> (f64, f64, f64) {
+    let r = f64::from(c.r) / 255.0;
+    let g = f64::from(c.g) / 255.0;
+    let b = f64::from(c.b) / 255.0;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) * 0.5;
+    let d = max - min;
+    if d.abs() < 1e-9 {
+        return (0.0, 0.0, l);
+    }
+    let s = if l > 0.5 {
+        d / (2.0 - max - min)
+    } else {
+        d / (max + min)
+    };
+    let h = if (max - r).abs() < 1e-9 {
+        ((g - b) / d + if g < b { 6.0 } else { 0.0 }) * 60.0
+    } else if (max - g).abs() < 1e-9 {
+        ((b - r) / d + 2.0) * 60.0
+    } else {
+        ((r - g) / d + 4.0) * 60.0
+    };
+    (h.rem_euclid(360.0), s.clamp(0.0, 1.0), l.clamp(0.0, 1.0))
+}
+
+/// Converts `(hue 0..360, saturation 0..1, lightness 0..1)` to sRGB.
+pub fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Rgb {
+    let h = h.rem_euclid(360.0);
+    let s = s.clamp(0.0, 1.0);
+    let l = l.clamp(0.0, 1.0);
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = l - c * 0.5;
+    let (r, g, b) = match h as u32 {
+        0..=59 => (c, x, 0.0),
+        60..=119 => (x, c, 0.0),
+        120..=179 => (0.0, c, x),
+        180..=239 => (0.0, x, c),
+        240..=299 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let to_u8 = |v: f64| ((v + m).clamp(0.0, 1.0) * 255.0).round() as u8;
+    Rgb {
+        r: to_u8(r),
+        g: to_u8(g),
+        b: to_u8(b),
+    }
+}

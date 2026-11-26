@@ -4,7 +4,10 @@ use posthaste_core::look::code::{b64_encode_std, encode_code};
 use posthaste_core::look::derive::{resolve, ResolvedLook};
 use posthaste_core::look::package::{read_package, write_package};
 use posthaste_core::look::store::LookSummary;
-use posthaste_core::look::{resolve_live, validate_scene_parts, LookDocExt as _};
+use posthaste_core::look::{
+    resolve_live, suggest, validate_scene_parts, Base, Colors, LookDocExt as _, PaletteMood,
+    PalettePreset,
+};
 use posthaste_core::look::{AssetRef, LookDoc, ResolvedScene, SceneEdit, ThemeEdit};
 use posthaste_core::LookFilePreview;
 use posthaste_i18n::key;
@@ -37,6 +40,34 @@ pub fn look_preview(theme: ThemeEdit) -> AppResult<ResolvedLook> {
     Ok(resolve("preview", &theme)?)
 }
 
+/// Curated WCAG-AA palette starting points for the chosen light/dark base.
+#[tauri::command]
+pub fn look_palette_presets(base: Base) -> Vec<PalettePreset> {
+    suggest::presets(base)
+}
+
+/// Derives a harmonious WCAG-AA four-colour palette from a single accent hex.
+#[tauri::command]
+pub fn look_palette_from_accent(
+    accent: String,
+    base: Base,
+    mood: PaletteMood,
+) -> AppResult<Colors> {
+    Ok(suggest::from_accent(&accent, base, mood)?)
+}
+
+/// Generates six harmonious WCAG-AA palettes around a user-picked seed colour.
+#[tauri::command]
+pub fn look_palette_around(seed: String, base: Base) -> AppResult<Vec<PalettePreset>> {
+    Ok(suggest::around_color(&seed, base)?)
+}
+
+/// Minimally nudges text and accent lightness until the palette passes WCAG AA.
+#[tauri::command]
+pub fn look_palette_fix_contrast(colors: Colors, base: Base) -> AppResult<Colors> {
+    Ok(suggest::fix_contrast(&colors, base)?)
+}
+
 #[tauri::command]
 pub fn look_save(
     app: AppHandle,
@@ -46,6 +77,7 @@ pub fn look_save(
     id: Option<String>,
 ) -> AppResult<LookSummary> {
     let summary = state.with_db(|db| db.save_look(theme, scene, id.as_deref()))?;
+    crate::windows::sync_glass(&app);
     looks_changed(&app);
     Ok(summary)
 }

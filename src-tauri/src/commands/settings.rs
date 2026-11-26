@@ -88,6 +88,9 @@ pub fn settings_update(
         // next time so the new size shows.
         state.details_placed.store(false, Ordering::Relaxed);
     }
+    if settings.macos_glass != old.macos_glass || settings.look_id != old.look_id {
+        crate::windows::sync_glass(&app);
+    }
     if settings.language != old.language {
         // No tray on this system means no menu to rename.
         if let Some(menu) = app.try_state::<crate::tray::TrayMenu>() {
