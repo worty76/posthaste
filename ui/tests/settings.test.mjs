@@ -37,10 +37,31 @@ async function settings(options = {}) {
   );
   const saved = async () => (await w.mock.calls("settings_update")).at(-1)?.args.settings;
   const toast = w.page.locator(".toast");
-  return { ...w, saved, toast, calls: (cmd) => w.mock.calls(cmd) };
+  const tab = (name) => w.page.getByRole("tab", { name, exact: true }).click();
+  return { ...w, saved, toast, tab, calls: (cmd) => w.mock.calls(cmd) };
 }
 
 describe("settings", () => {
+  it("switches settings tabs by click and arrow keys", async () => {
+    const w = await settings();
+    const general = w.page.getByRole("tab", { name: "General", exact: true });
+    assert.equal(await general.getAttribute("aria-selected"), "true");
+    await general.focus();
+    await w.page.keyboard.press("ArrowRight");
+    assert.equal(
+      await w.page
+        .getByRole("tab", { name: "Keyboard", exact: true })
+        .getAttribute("aria-selected"),
+      "true",
+    );
+    await w.tab("Data");
+    assert.equal(
+      await w.page.getByRole("tab", { name: "Data", exact: true }).getAttribute("aria-selected"),
+      "true",
+    );
+    await w.close();
+  });
+
   it("keeps Settings mounted without reloading when a setting changes", async () => {
     const w = await settings();
     await w.page.evaluate(() => {
@@ -59,6 +80,7 @@ describe("settings", () => {
 
   it("turns Simple looks on and saves the setting", async () => {
     const w = await settings();
+    await w.tab("Appearance");
     await w.page.getByRole("switch", { name: "Simple looks" }).click();
     await eventually(
       async () => (await w.saved()).simple_looks,
@@ -71,7 +93,14 @@ describe("settings", () => {
   it("changes the language at once, in every part of the window", async () => {
     const w = await settings();
     const picker = w.page.getByLabel("Language");
-    assert.deepEqual(await picker.locator("option").allTextContents(), ["English", "Tiếng Việt"]);
+    assert.deepEqual(await picker.locator("option").allTextContents(), [
+      "English",
+      "Deutsch",
+      "Español",
+      "हिन्दी",
+      "한국어",
+      "Tiếng Việt",
+    ]);
     await picker.selectOption("vi");
     await text(w.page.locator(".content__title"), "Cài đặt");
     await text(w.page.locator("#s-general"), "Chung");
@@ -91,6 +120,7 @@ describe("settings", () => {
       await w.page.getByRole("switch", { name: "Launch at login" }).getAttribute("aria-checked"),
       "true",
     );
+    await w.tab("Keyboard");
     await w.page
       .getByRole("radiogroup", { name: "Enter key" })
       .getByRole("radio", { name: "Adds a line" })
@@ -118,6 +148,7 @@ describe("settings", () => {
 
   it("moves a window position with the arrow keys", async () => {
     const w = await settings();
+    await w.tab("Keyboard");
     const grid = w.page.getByRole("radiogroup", { name: "Capture window position" });
     await grid.getByRole("radio", { name: "Center", exact: true }).press("ArrowUp");
     await eventually(w.saved, (s) => s?.capture_position === "top", "position saved");
@@ -126,6 +157,7 @@ describe("settings", () => {
 
   it("records a shortcut, ignores unusable ones, and restores the default", async () => {
     const w = await settings();
+    await w.tab("Keyboard");
     const recorder = w.page.getByRole("button", { name: "Capture shortcut: change" });
     await recorder.click();
     await text(w.page.locator('.recorder[data-recording="true"]'), "Press shortcut…");
@@ -156,6 +188,7 @@ describe("settings", () => {
 
   it("exports, imports and backs up, saying what happened", async () => {
     const w = await settings();
+    await w.tab("Data");
     await text(w.page.locator(".path"), "/home/me/posthaste.db");
     await text(w.page.locator("#s-data + .row"), "0 notes, 86 KB.");
     await w.page.getByRole("button", { name: "Import…" }).click();
@@ -170,6 +203,7 @@ describe("settings", () => {
 
   it("clears everything only after the word is typed", async () => {
     const w = await settings();
+    await w.tab("Data");
     await w.page.getByRole("button", { name: "Clear data…" }).click();
     const dialog = w.page.getByRole("dialog");
     const confirm = dialog.getByRole("button", { name: "Delete everything" });
@@ -207,6 +241,7 @@ describe("AI polish settings", () => {
 
   it("sets up a provider: key, model and a test", async () => {
     const w = await settings({ store: ai() });
+    await w.tab("AI");
     await w.page.getByLabel("Polish with").selectOption("openai");
     await eventually(w.saved, (s) => s?.ai_provider === "openai", "provider saved");
     await text(
@@ -235,6 +270,7 @@ describe("AI polish settings", () => {
 
   it("asks the shell about keys again whenever the provider changes", async () => {
     const w = await settings({ store: ai() });
+    await w.tab("AI");
     await eventually(
       () => w.calls("ai_providers"),
       (c) => c.length >= 1,
@@ -252,6 +288,7 @@ describe("AI polish settings", () => {
 
   it("removes a saved key and shows a failed test in the shell's words", async () => {
     const w = await settings({ store: ai({ has_key: true }), settings: { ai_provider: "openai" } });
+    await w.tab("AI");
     await w.mock.fail("ai_test", "The key was refused.");
     await w.page.getByRole("button", { name: "Test" }).click();
     await text(w.page.locator(".ai__result"), "The key was refused.");
@@ -266,6 +303,7 @@ describe("AI polish settings", () => {
 
   it("keeps an unknown provider selected instead of turning polish off", async () => {
     const w = await settings({ store: ai(), settings: { ai_provider: "gone" } });
+    await w.tab("AI");
     await text(w.page.getByLabel("Polish with"), "gone (not available)");
     assert.equal(await w.page.getByLabel("Polish with").inputValue(), "gone");
     await w.close();
@@ -277,6 +315,7 @@ describe("looks", () => {
 
   it("picks a look by click and by arrow key, and wraps", async () => {
     const w = await settings({ store: looks() });
+    await w.tab("Appearance");
     await w.page.getByRole("radio", { name: "Mine" }).click();
     await eventually(w.saved, (s) => s?.look_id === "user:1", "look saved");
     await w.page.getByRole("radio", { name: "Mine" }).press("ArrowRight");
@@ -293,6 +332,7 @@ describe("looks", () => {
 
   it("shares a look as a code and adds one from a code", async () => {
     const w = await settings({ store: looks(), settings: { look_id: "user:1" } });
+    await w.tab("Appearance");
     await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
     await w.page.getByRole("button", { name: "Copy share code" }).click();
     await text(w.toast, "Copied share code");
@@ -314,6 +354,7 @@ describe("looks", () => {
     const store = looks();
     store.looks[1].font_family = "Fira Code";
     const w = await settings({ store, settings: { look_id: "user:1" } });
+    await w.tab("Appearance");
     await w.page.evaluate(() => (navigator.clipboard.writeText = async (t) => (window.copied = t)));
     await w.page.getByRole("button", { name: "Copy share code" }).click();
     await text(
@@ -325,6 +366,7 @@ describe("looks", () => {
 
   it("copies a bundled look into the editor, previews it, and saves", async () => {
     const w = await settings({ store: looks(), settings: { look_id: "builtin:ink" } });
+    await w.tab("Appearance");
     await w.page.getByRole("button", { name: "Make a copy" }).click();
     const dialog = w.page.getByRole("dialog", { name: "New look" });
     assert.equal(await dialog.getByLabel("Name").inputValue(), "Ink copy");
@@ -349,6 +391,7 @@ describe("looks", () => {
 
   it("deletes a look of the user's after asking", async () => {
     const w = await settings({ store: looks(), settings: { look_id: "user:1" } });
+    await w.tab("Appearance");
     await w.page.getByRole("button", { name: "Delete", exact: true }).click();
     const dialog = w.page.getByRole("dialog");
     await text(dialog, "Delete “Mine”?");
@@ -363,6 +406,7 @@ describe("looks", () => {
 
   it("enables sync, shows a pairing code, pairs a device, forgets after confirming, and refreshes on sync-changed", async () => {
     const w = await settings();
+    await w.tab("Devices");
     const devices = w.page.locator('section[aria-labelledby="s-devices"]');
 
     // Switch calls sync_set_enabled.

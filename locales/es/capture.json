@@ -1,0 +1,27 @@
+{
+  "title": "Posthaste",
+  "from_source": "de {app}",
+  "note_label": "Nota",
+  "placeholder": "¿Qué tienes en mente?",
+  "category_label": "Proyecto (opcional)",
+  "category_placeholder": "# proyecto",
+  "polish_label": "Pulir nota con IA",
+  "discard": "Descartar",
+  "status": {
+    "draft_restored": "Borrador restaurado",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "not_saved": "No se guardó: {reason}",
+    "draft_not_saved": "Borrador no guardado: {reason}",
+    "nothing_to_save": "Aún no hay nada que guardar",
+    "polishing": "Puliendo…",
+    "polished": "Pulido",
+    "nothing_to_polish": "Aún no hay nada que pulir"
+  },
+  "hint": {
+    "save": "guardar",
+    "new_line": "nueva línea",
+    "close": "cerrar",
+    "polish": "pulir"
+  }
+}

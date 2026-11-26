@@ -79,6 +79,8 @@ struct Main {
     selected: RwSignal<Option<String>>,
     focused_id: RwSignal<Option<String>>,
     editing: RwSignal<Option<String>>,
+    /// The note whose `⋯` actions menu is open, at most one at a time.
+    note_menu: RwSignal<Option<String>>,
     /// Project sections collapsed in this window while the app runs.
     collapsed_sections: RwSignal<HashSet<String>>,
     help_open: RwSignal<bool>,
@@ -112,6 +114,7 @@ impl Main {
             selected: RwSignal::new(None),
             focused_id: RwSignal::new(None),
             editing: RwSignal::new(None),
+            note_menu: RwSignal::new(None),
             collapsed_sections: RwSignal::new(HashSet::new()),
             help_open: RwSignal::new(false),
             revision: RwSignal::new(0),
@@ -148,6 +151,7 @@ impl Main {
         self.filters_open.set(false);
         self.limit.set(PAGE);
         self.editing.set(None);
+        self.note_menu.set(None);
         self.selected.set(None);
         if switching {
             self.loaded.set(false);
@@ -529,6 +533,11 @@ impl Main {
             return;
         }
         let key = event.key();
+        if key == "Escape" && self.note_menu.with_untracked(Option::is_some) {
+            event.prevent_default();
+            self.note_menu.set(None);
+            return;
+        }
         let in_search = self.search.get_untracked().is_some_and(|search| {
             event
                 .target()
@@ -555,6 +564,7 @@ impl Main {
             return;
         };
         event.prevent_default();
+        self.note_menu.set(None);
         // Worked out before the note leaves the list.
         let next = selected
             .as_ref()
@@ -673,12 +683,21 @@ pub fn MainWindow(info: AppInfo) -> impl IntoView {
         if document().visibility_state() == web_sys::VisibilityState::Hidden {
             main.picker.set(None);
             main.project_menu_open.set(false);
+            main.note_menu.set(None);
+        }
+    });
+    let close_menu = window_event_listener(leptos::ev::click, move |event| {
+        if main.note_menu.with_untracked(Option::is_some)
+            && !browser::is_within(&event, ".note__menu-wrap")
+        {
+            main.note_menu.set(None);
         }
     });
     on_cleanup(move || {
         refocus.remove();
         keys.remove();
         hidden.remove();
+        close_menu.remove();
     });
 
     let capture_keys = Memo::new(move |_| {

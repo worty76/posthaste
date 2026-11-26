@@ -1,0 +1,48 @@
+{
+  "title": "Hoy",
+  "previous_day": "Día anterior",
+  "next_day": "Día siguiente",
+  "choose_day_tip": "Elegir un día (C)",
+  "back_to_today": "Volver a hoy",
+  "count": "{done} de {total} listas",
+  "all_done": "Todo listo",
+  "progress_label": "Notas completadas",
+  "empty": {
+    "today_title": "Nada para hoy",
+    "past_title": "Nada en este día",
+    "past_text": "No hubo notas pendientes ni capturadas ese día.",
+    "capture_with_shortcut": "Presiona {keys} en cualquier lugar para capturar una.",
+    "capture_plain": "Captura una desde cualquier lugar con Posthaste."
+  },
+  "group": {
+    "carried": "De días anteriores",
+    "today": "Hoy",
+    "that_day": "Ese día"
+  },
+  "more_in_inbox": "y {count} más en la bandeja",
+  "more": "y {count} más",
+  "hint": {
+    "past": "Tal como estaba ese día",
+    "day": "día",
+    "done": "listo",
+    "focus": "enfocar",
+    "later": "después",
+    "project": "proyecto",
+    "today": "hoy",
+    "details": "detalles",
+    "close": "cerrar"
+  },
+  "row": {
+    "done_by_end": "Completada al final de este día",
+    "not_done_by_end": "Pendiente al final de este día",
+    "mark_not_completed": "Marcar como pendiente",
+    "mark_completed": "Marcar como completada",
+    "show_captured": "Mostrar notas capturadas {day}",
+    "show_captured_tip": "Mostrar las notas capturadas ese día",
+    "open_details": "Abrir detalles (Enter)"
+  },
+  "origin": {
+    "yesterday": "Ayer",
+    "days_ago": "{date} · hace {count} días"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "label": "Aktueller Fokus",
+  "badge": "Im Fokus",
+  "mark_done": "Als erledigt markieren",
+  "open_details": "Notizdetails öffnen",
+  "clear": "Fokus beenden",
+  "steps": "{done} von {total} Schritten erledigt"
+}

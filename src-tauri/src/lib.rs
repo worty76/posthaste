@@ -131,6 +131,7 @@ pub fn run() {
             commands::capture_save,
             commands::capture_dismiss,
             commands::capture_open,
+            commands::capture_clipboard_read,
             commands::draft_get,
             commands::draft_set,
             commands::draft_clear,

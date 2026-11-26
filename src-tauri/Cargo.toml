@@ -3,7 +3,7 @@ members = [".", "crates/core", "crates/i18n", "crates/model", "crates/platform",
 resolver = "2"
 
 [workspace.package]
-version = "0.7.3"
+version = "0.7.4"
 edition = "2021"
 license = "MIT"
 
@@ -47,6 +47,11 @@ log = "0.4"
 # The floating windows are non-activating panels on macOS.
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = "2.1"
+
+# Direct GTK clipboard read for Linux virtual-keyboard paste (already in Cargo.lock via Tauri).
+[target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.18"
+gtk = "0.18"
 
 [profile.release]
 codegen-units = 1

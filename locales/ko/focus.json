@@ -1,0 +1,8 @@
+{
+  "label": "현재 집중 항목",
+  "badge": "집중 중",
+  "mark_done": "완료로 표시",
+  "open_details": "노트 상세 열기",
+  "clear": "집중 해제",
+  "steps": "{total}단계 중 {done}단계 완료"
+}

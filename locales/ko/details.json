@@ -1,0 +1,75 @@
+{
+  "title": "노트 상세",
+  "title_field": "제목",
+  "text_field": "상세 내용",
+  "text_placeholder": "상세 내용 추가…",
+  "close": "닫기 (Esc)",
+  "status": {
+    "done": "완료",
+    "archived": "보관됨",
+    "later": "나중에",
+    "inbox": "수신함",
+    "mark_completed": "완료로 표시 ({keys})",
+    "mark_not_completed": "미완료로 표시 ({keys})"
+  },
+  "meta": {
+    "created_today": "오늘 {time}에 작성됨",
+    "created_yesterday": "어제 {time}에 작성됨",
+    "created_on": "{date} {time}에 작성됨",
+    "from": "{source}에서",
+    "carried": {
+      "other": "{count}일째 이월됨"
+    },
+    "edited_today": "오늘 {time}에 수정됨",
+    "edited_yesterday": "어제 {time}에 수정됨",
+    "edited_on": "{date} {time}에 수정됨"
+  },
+  "category": {
+    "label": "프로젝트",
+    "add": "프로젝트 추가",
+    "edit": "프로젝트 변경"
+  },
+  "files": {
+    "title": "첨부 파일",
+    "add": "파일 추가",
+    "drop_now": "놓아서 첨부하기",
+    "drop_hint": "여기에 파일을 끌어다 놓거나, 이미지를 붙여넣거나, {keys} 키를 누르세요",
+    "full": "이 노트에는 이미 파일이 {max}개 있습니다. 다른 파일을 추가하려면 하나를 제거하세요.",
+    "too_big": "{name}: 파일 크기가 {size}MB를 초과합니다. Posthaste는 최대 {size}MB까지 첨부할 수 있습니다.",
+    "failed": "{name}: {reason}",
+    "attached": "{name} 첨부됨",
+    "attached_many": {
+      "other": "파일 {count}개 첨부됨"
+    },
+    "pasted": "붙여넣은 이미지 첨부됨",
+    "pasted_many": {
+      "other": "이미지 {count}개 첨부됨"
+    },
+    "removed": "{name} 제거됨",
+    "copy_saved": "{name} 사본 저장됨",
+    "pasted_name": "붙여넣은 이미지 {stamp}"
+  },
+  "tile": {
+    "tip": "{name} 열기 (Enter) · 제거 (Delete)",
+    "label": "{name}, {size}. Enter 키로 열고 Delete 키로 제거합니다.",
+    "open": "{name} 열기",
+    "save_copy": "{name} 사본 저장",
+    "remove": "{name} 제거"
+  },
+  "save": {
+    "saving": "저장 중…",
+    "saved": "저장됨"
+  },
+  "hint": {
+    "close": "닫기",
+    "done": "완료",
+    "add_file": "파일 추가"
+  },
+  "steps": {
+    "title": "단계",
+    "add": "단계 추가",
+    "remove": "단계 삭제 (Delete)",
+    "removed": "단계가 삭제되었습니다.",
+    "limit": "이 노트에는 단계가 100개 이상 있습니다. 더 추가하려면 일부를 삭제하세요."
+  }
+}

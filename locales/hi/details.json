@@ -1,0 +1,78 @@
+{
+  "title": "नोट विवरण",
+  "title_field": "शीर्षक",
+  "text_field": "विवरण",
+  "text_placeholder": "विवरण जोड़ें…",
+  "close": "बंद करें (Esc)",
+  "status": {
+    "done": "पूरा",
+    "archived": "आर्काइव",
+    "later": "बाद में",
+    "inbox": "इनबॉक्स",
+    "mark_completed": "पूरा हुआ चिह्नित करें ({keys})",
+    "mark_not_completed": "अधूरा चिह्नित करें ({keys})"
+  },
+  "meta": {
+    "created_today": "आज बनाया गया, {time}",
+    "created_yesterday": "कल बनाया गया, {time}",
+    "created_on": "{date} को बनाया गया, {time}",
+    "from": "{source} से",
+    "carried": {
+      "one": "{count} दिन से बाकी",
+      "other": "{count} दिनों से बाकी"
+    },
+    "edited_today": "आज संपादित, {time}",
+    "edited_yesterday": "कल संपादित, {time}",
+    "edited_on": "{date} को संपादित, {time}"
+  },
+  "category": {
+    "label": "प्रोजेक्ट",
+    "add": "प्रोजेक्ट जोड़ें",
+    "edit": "प्रोजेक्ट बदलें"
+  },
+  "files": {
+    "title": "संलग्नक",
+    "add": "फ़ाइलें जोड़ें",
+    "drop_now": "संलग्न करने के लिए छोड़ें",
+    "drop_hint": "फ़ाइलें यहाँ छोड़ें, छवि पेस्ट करें या {keys} दबाएँ",
+    "full": "इस नोट में पहले से {max} फ़ाइलें हैं। नई जोड़ने के लिए एक हटाएँ।",
+    "too_big": "{name}: यह फ़ाइल {size} MB से बड़ी है। Posthaste अधिकतम {size} MB तक की फ़ाइलें संलग्न करता है।",
+    "failed": "{name}: {reason}",
+    "attached": "{name} संलग्न किया गया",
+    "attached_many": {
+      "one": "{count} फ़ाइल संलग्न की गई",
+      "other": "{count} फ़ाइलें संलग्न की गईं"
+    },
+    "pasted": "पेस्ट की गई छवि संलग्न की गई",
+    "pasted_many": {
+      "one": "{count} छवि संलग्न की गई",
+      "other": "{count} छवियाँ संलग्न की गईं"
+    },
+    "removed": "{name} हटाया गया",
+    "copy_saved": "{name} की प्रति सहेजी गई",
+    "pasted_name": "पेस्ट की गई छवि {stamp}"
+  },
+  "tile": {
+    "tip": "{name} खोलें (Enter) · हटाएँ (Delete)",
+    "label": "{name}, {size}. Enter से खुलता है, Delete से हटता है।",
+    "open": "{name} खोलें",
+    "save_copy": "{name} की प्रति सहेजें",
+    "remove": "{name} हटाएँ"
+  },
+  "save": {
+    "saving": "सहेजा जा रहा है…",
+    "saved": "सहेजा गया"
+  },
+  "hint": {
+    "close": "बंद करें",
+    "done": "पूरा",
+    "add_file": "फ़ाइल जोड़ें"
+  },
+  "steps": {
+    "title": "चरण",
+    "add": "चरण जोड़ें",
+    "remove": "चरण हटाएँ (Delete)",
+    "removed": "चरण हटाया गया।",
+    "limit": "इस नोट में 100 से अधिक चरण हैं। और जोड़ने के लिए कुछ हटाएँ।"
+  }
+}

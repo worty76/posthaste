@@ -124,7 +124,9 @@
     "to_inbox": "Move to Inbox (L)",
     "restore": "Move back to Inbox (R)",
     "archive": "Archive (A)",
-    "delete": "Delete (Delete)"
+    "delete": "Delete (Delete)",
+    "more_actions": "More actions",
+    "menu_to_inbox": "Move to Inbox"
   },
   "edit": {
     "label": "Edit note",

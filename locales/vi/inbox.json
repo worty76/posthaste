@@ -121,7 +121,9 @@
     "to_inbox": "Chuyển về Hộp thư (L)",
     "restore": "Chuyển lại về Hộp thư (R)",
     "archive": "Lưu trữ (A)",
-    "delete": "Xóa (Delete)"
+    "delete": "Xóa (Delete)",
+    "more_actions": "Tác vụ khác",
+    "menu_to_inbox": "Chuyển về Hộp thư"
   },
   "edit": {
     "label": "Sửa ghi chú",

@@ -549,7 +549,6 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                 <Meta details=details i18n=i18n locale=locale />
 
                 <div class="details__body">
-                    <StepsSection details=details i18n=i18n os=os />
                     <textarea
                         node_ref=details.text_field
                         class="details__text selectable"
@@ -559,15 +558,18 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                         disabled=move || !has_note()
                         on:input=move |event| details.edit_text(event_target_value(&event))
                     ></textarea>
+                    <StepsSection details=details i18n=i18n os=os />
 
-                    <section class="details__files" aria-label=i18n.text(key::DETAILS_FILES_TITLE)>
-                        <h2 class="details__files-title">
-                            {i18n.text(key::DETAILS_FILES_TITLE)}
-                            <Show when=has_files>
-                                <span class="details__count">{count}</span>
-                            </Show>
-                        </h2>
+                    <section
+                        class="details__files"
+                        data-empty=move || (count() == 0).to_string()
+                        aria-label=i18n.text(key::DETAILS_FILES_TITLE)
+                    >
                         <Show when=has_files>
+                            <h2 class="details__files-title">
+                                {i18n.text(key::DETAILS_FILES_TITLE)}
+                                <span class="details__count">{count}</span>
+                            </h2>
                             <ul class="details__grid">
                                 <For each=move || files.get() key=|file| file.id.clone() let:file>
                                     <Tile details=details i18n=i18n attachment=file />
@@ -578,12 +580,11 @@ pub fn DetailsWindow(os: Os) -> impl IntoView {
                             <button
                                 node_ref=details.add_button
                                 type="button"
-                                class="btn"
+                                class="details__add-file"
                                 disabled=move || !has_note()
                                 on:click=move |_| details.add_files()
                             >
                                 <Icon name=IconName::Paperclip size=14 />
-                                " "
                                 {i18n.text(key::DETAILS_FILES_ADD)}
                             </button>
                             <span class="details__drop-hint">

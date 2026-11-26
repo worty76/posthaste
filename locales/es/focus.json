@@ -1,0 +1,8 @@
+{
+  "label": "Enfoque actual",
+  "badge": "Enfocado",
+  "mark_done": "Marcar como completada",
+  "open_details": "Abrir detalles de la nota",
+  "clear": "Quitar enfoque",
+  "steps": "{done} de {total} pasos listos"
+}

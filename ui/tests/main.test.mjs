@@ -149,6 +149,43 @@ describe("inbox", () => {
     await w.close();
   });
 
+  it("keeps row actions to Focus, Open details and a More actions menu", async () => {
+    const w = await main();
+    const first = w.rows.first();
+    const directButtons = first.locator(
+      ".note__actions > button, .note__actions > .note__menu-wrap > button",
+    );
+    assert.equal(await directButtons.count(), 3);
+    assert.equal(await first.getByRole("button", { name: "Focus (F)" }).count(), 1);
+    assert.equal(await first.getByRole("button", { name: "Open details (O)" }).count(), 1);
+    const more = first.getByRole("button", { name: "More actions" });
+    assert.equal(await more.getAttribute("aria-expanded"), "false");
+
+    await more.click();
+    assert.equal(await more.getAttribute("aria-expanded"), "true");
+    const menu = first.getByRole("menu");
+    assert.equal(await menu.getByRole("menuitem", { name: "Edit (E)" }).count(), 1);
+    assert.equal(await menu.getByRole("menuitem", { name: "Copy (C)" }).count(), 1);
+    assert.equal(await menu.getByRole("menuitem", { name: "Later (L)" }).count(), 1);
+    assert.equal(await menu.getByRole("menuitem", { name: "Archive (A)" }).count(), 1);
+    assert.equal(await menu.getByRole("menuitem", { name: "Delete (Delete)" }).count(), 1);
+
+    // Escape closes the menu.
+    await w.key("Escape");
+    await eventually(
+      () => first.getByRole("menu").count(),
+      (n) => n === 0,
+      "menu closed on Escape",
+    );
+
+    // Right-clicking the row opens the menu and clicking Archive runs it.
+    await first.click({ button: "right" });
+    await first.getByRole("menuitem", { name: "Archive (A)" }).click();
+    await text(w.toast.last(), "Archived");
+    await eventually(w.contents, (c) => c.length === 2, "note archived from menu");
+    await w.close();
+  });
+
   it("searches every note, narrows by status, and Esc ends the search", async () => {
     const w = await main();
     await w.search();

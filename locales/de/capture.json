@@ -1,0 +1,27 @@
+{
+  "title": "Posthaste",
+  "from_source": "aus {app}",
+  "note_label": "Notiz",
+  "placeholder": "Was geht dir durch den Kopf?",
+  "category_label": "Projekt (optional)",
+  "category_placeholder": "# Projekt",
+  "polish_label": "Notiz mit KI überarbeiten",
+  "discard": "Verwerfen",
+  "status": {
+    "draft_restored": "Entwurf wiederhergestellt",
+    "saving": "Wird gespeichert…",
+    "saved": "Gespeichert",
+    "not_saved": "Nicht gespeichert: {reason}",
+    "draft_not_saved": "Entwurf nicht gespeichert: {reason}",
+    "nothing_to_save": "Noch nichts zum Speichern",
+    "polishing": "Wird überarbeitet…",
+    "polished": "Überarbeitet",
+    "nothing_to_polish": "Noch nichts zum Überarbeiten"
+  },
+  "hint": {
+    "save": "speichern",
+    "new_line": "neue Zeile",
+    "close": "schließen",
+    "polish": "überarbeiten"
+  }
+}

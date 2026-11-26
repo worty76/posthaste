@@ -1,0 +1,78 @@
+{
+  "title": "Notizdetails",
+  "title_field": "Titel",
+  "text_field": "Details",
+  "text_placeholder": "Details hinzufügen…",
+  "close": "Schließen (Esc)",
+  "status": {
+    "done": "Erledigt",
+    "archived": "Archiviert",
+    "later": "Später",
+    "inbox": "Eingang",
+    "mark_completed": "Als erledigt markieren ({keys})",
+    "mark_not_completed": "Als unerledigt markieren ({keys})"
+  },
+  "meta": {
+    "created_today": "Heute erstellt, {time}",
+    "created_yesterday": "Gestern erstellt, {time}",
+    "created_on": "Erstellt am {date}, {time}",
+    "from": "aus {source}",
+    "carried": {
+      "one": "seit {count} Tag übernommen",
+      "other": "seit {count} Tagen übernommen"
+    },
+    "edited_today": "heute bearbeitet, {time}",
+    "edited_yesterday": "gestern bearbeitet, {time}",
+    "edited_on": "bearbeitet am {date}, {time}"
+  },
+  "category": {
+    "label": "Projekt",
+    "add": "Projekt hinzufügen",
+    "edit": "Projekt ändern"
+  },
+  "files": {
+    "title": "Anhänge",
+    "add": "Dateien hinzufügen",
+    "drop_now": "Loslassen zum Anhängen",
+    "drop_hint": "Dateien hier ablegen, Bild einfügen oder {keys} drücken",
+    "full": "Diese Notiz hat bereits {max} Dateien. Entferne eine, um eine weitere hinzuzufügen.",
+    "too_big": "{name}: Diese Datei ist größer als {size} MB. Posthaste hängt Dateien bis {size} MB an.",
+    "failed": "{name}: {reason}",
+    "attached": "{name} angehängt",
+    "attached_many": {
+      "one": "{count} Datei angehängt",
+      "other": "{count} Dateien angehängt"
+    },
+    "pasted": "Eingefügtes Bild angehängt",
+    "pasted_many": {
+      "one": "{count} Bild angehängt",
+      "other": "{count} Bilder angehängt"
+    },
+    "removed": "{name} entfernt",
+    "copy_saved": "Kopie von {name} gespeichert",
+    "pasted_name": "Eingefügtes Bild {stamp}"
+  },
+  "tile": {
+    "tip": "{name} öffnen (Enter) · Entfernen (Entf)",
+    "label": "{name}, {size}. Enter öffnet, Entf entfernt.",
+    "open": "{name} öffnen",
+    "save_copy": "Kopie von {name} speichern",
+    "remove": "{name} entfernen"
+  },
+  "save": {
+    "saving": "Wird gespeichert…",
+    "saved": "Gespeichert"
+  },
+  "hint": {
+    "close": "schließen",
+    "done": "erledigt",
+    "add_file": "Datei anhängen"
+  },
+  "steps": {
+    "title": "Schritte",
+    "add": "Schritt hinzufügen",
+    "remove": "Schritt löschen (Entf)",
+    "removed": "Schritt entfernt.",
+    "limit": "Diese Notiz hat mehr als 100 Schritte. Entferne einige, um weitere hinzuzufügen."
+  }
+}

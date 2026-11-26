@@ -1,0 +1,48 @@
+{
+  "title": "Heute",
+  "previous_day": "Vorheriger Tag",
+  "next_day": "Nächster Tag",
+  "choose_day_tip": "Tag wählen (C)",
+  "back_to_today": "Zurück zu heute",
+  "count": "{done} von {total} erledigt",
+  "all_done": "Alles erledigt",
+  "progress_label": "Erledigte Notizen",
+  "empty": {
+    "today_title": "Nichts für heute",
+    "past_title": "An diesem Tag war nichts",
+    "past_text": "An diesem Tag waren keine Notizen offen oder erfasst.",
+    "capture_with_shortcut": "Drücke {keys} überall, um eine zu erfassen.",
+    "capture_plain": "Erfasse überall eine Notiz mit Posthaste."
+  },
+  "group": {
+    "carried": "Übernommen",
+    "today": "Heute",
+    "that_day": "An diesem Tag"
+  },
+  "more_in_inbox": "und {count} weitere im Eingang",
+  "more": "und {count} weitere",
+  "hint": {
+    "past": "Stand an diesem Tag",
+    "day": "Tag",
+    "done": "erledigt",
+    "focus": "Fokus",
+    "later": "später",
+    "project": "Projekt",
+    "today": "heute",
+    "details": "Details",
+    "close": "schließen"
+  },
+  "row": {
+    "done_by_end": "Am Ende dieses Tages erledigt",
+    "not_done_by_end": "Am Ende dieses Tages nicht erledigt",
+    "mark_not_completed": "Als unerledigt markieren",
+    "mark_completed": "Als erledigt markieren",
+    "show_captured": "Am {day} erfasste Notizen anzeigen",
+    "show_captured_tip": "Die an diesem Tag erfassten Notizen anzeigen",
+    "open_details": "Details öffnen (Enter)"
+  },
+  "origin": {
+    "yesterday": "Gestern",
+    "days_ago": "{date} · vor {count} Tagen"
+  }
+}

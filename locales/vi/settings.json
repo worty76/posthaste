@@ -1,4 +1,9 @@
 {
+  "tabs": {
+    "label": "Các mục cài đặt",
+    "appearance": "Giao diện",
+    "ai": "AI"
+  },
   "general": {
     "heading": "Chung",
     "language": "Ngôn ngữ",

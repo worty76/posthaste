@@ -1,0 +1,59 @@
+{
+  "unknown_error": "Algo salió mal.",
+  "badges": {
+    "has_details": "con detalles",
+    "files": {
+      "one": "{count} archivo",
+      "other": "{count} archivos"
+    },
+    "steps": "{done} de {total} pasos listos"
+  },
+  "calendar": {
+    "choose_day": "Elegir un día",
+    "previous_month": "Mes anterior",
+    "next_month": "Mes siguiente",
+    "today": "Hoy",
+    "clear": "Limpiar",
+    "day_open": "{date}, {count} pendientes",
+    "day_done": "{date}, todo listo",
+    "hint": {
+      "day": "día",
+      "month": "mes",
+      "today": "hoy"
+    }
+  },
+  "close": "Cerrar",
+  "cancel": "Cancelar",
+  "save": "Guardar",
+  "dismiss": "Ocultar",
+  "day": {
+    "today": "Hoy",
+    "yesterday": "Ayer"
+  },
+  "position": {
+    "top_left": "Arriba a la izquierda",
+    "top": "Arriba al centro",
+    "top_right": "Arriba a la derecha",
+    "left": "Centro a la izquierda",
+    "center": "Centro",
+    "right": "Centro a la derecha",
+    "bottom_left": "Abajo a la izquierda",
+    "bottom": "Abajo al centro",
+    "bottom_right": "Abajo a la derecha"
+  },
+  "project_picker": {
+    "title_set": "Asignar proyecto",
+    "title_jump": "Ir a proyecto",
+    "placeholder": "Filtrar o crear proyecto",
+    "placeholder_jump": "Filtrar proyectos",
+    "no_project": "Sin proyecto",
+    "create": "Crear “{name}”",
+    "unarchive": "Desarchivar y usar “{name}”",
+    "none": "Ningún proyecto coincide.",
+    "empty_hint": "Presiona P en una nota para crear un proyecto.",
+    "notes": {
+      "one": "{count} nota",
+      "other": "{count} notas"
+    }
+  }
+}

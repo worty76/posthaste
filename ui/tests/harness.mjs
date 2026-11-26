@@ -337,6 +337,7 @@ export async function open({
           mock.draft = null;
           return null;
         },
+        capture_clipboard_read: () => "",
         capture_save: ({ content, category }) => {
           const now = Date.now();
           const saved = {

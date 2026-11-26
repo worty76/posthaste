@@ -1,0 +1,27 @@
+{
+  "title": "Posthaste",
+  "from_source": "{app}에서",
+  "note_label": "노트",
+  "placeholder": "무슨 생각을 하고 계신가요?",
+  "category_label": "프로젝트 (선택 사항)",
+  "category_placeholder": "# 프로젝트",
+  "polish_label": "AI로 노트 다듬기",
+  "discard": "버리기",
+  "status": {
+    "draft_restored": "임시 보관본 복원됨",
+    "saving": "저장 중…",
+    "saved": "저장됨",
+    "not_saved": "저장되지 않음: {reason}",
+    "draft_not_saved": "임시 보관본 저장 실패: {reason}",
+    "nothing_to_save": "아직 저장할 내용이 없습니다",
+    "polishing": "다듬는 중…",
+    "polished": "다듬기 완료",
+    "nothing_to_polish": "아직 다듬할 내용이 없습니다"
+  },
+  "hint": {
+    "save": "저장",
+    "new_line": "줄바꿈",
+    "close": "닫기",
+    "polish": "다듬기"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "empty_title": "La papelera está vacía",
+  "empty_text": "Las notas eliminadas esperan aquí durante {days} días antes de borrarse para siempre.",
+  "note": "Las notas eliminadas se borran para siempre después de {days} días.",
+  "empty_action": "Vaciar papelera",
+  "returns": {
+    "inbox": "Bandeja",
+    "later": "Después",
+    "archive": "Archivo"
+  },
+  "erased_on": "Se borra el {date}",
+  "restore": "Restaurar (R)",
+  "delete_forever": "Eliminar para siempre (Del)",
+  "restored": {
+    "inbox": "Restaurada en la Bandeja",
+    "later": "Restaurada en Después",
+    "archive": "Restaurada en el Archivo"
+  },
+  "deleted": "Eliminada para siempre",
+  "deleted_many": {
+    "one": "Se eliminó {count} nota para siempre",
+    "other": "Se eliminaron {count} notas para siempre"
+  },
+  "confirm_one": {
+    "title": "¿Eliminar esta nota para siempre?",
+    "text": "Se eliminará junto con sus archivos y no se podrá recuperar.",
+    "action": "Eliminar para siempre"
+  },
+  "confirm_all": {
+    "title": "¿Vaciar la papelera?",
+    "text": {
+      "one": "Se eliminará {count} nota con sus archivos y no se podrá recuperar.",
+      "other": "Se eliminarán {count} notas con sus archivos y no se podrán recuperar."
+    },
+    "action": "Vaciar papelera"
+  }
+}

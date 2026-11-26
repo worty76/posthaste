@@ -1,0 +1,37 @@
+{
+  "empty_title": "Der Papierkorb ist leer",
+  "empty_text": "Gelöschte Notizen bleiben hier {days} Tage lang, bevor sie endgültig gelöscht werden.",
+  "note": "Gelöschte Notizen werden nach {days} Tagen endgültig gelöscht.",
+  "empty_action": "Papierkorb leeren",
+  "returns": {
+    "inbox": "Eingang",
+    "later": "Später",
+    "archive": "Archiv"
+  },
+  "erased_on": "Endgültig gelöscht am {date}",
+  "restore": "Wiederherstellen (R)",
+  "delete_forever": "Endgültig löschen (Del)",
+  "restored": {
+    "inbox": "Im Eingang wiederhergestellt",
+    "later": "Unter Später wiederhergestellt",
+    "archive": "Im Archiv wiederhergestellt"
+  },
+  "deleted": "Endgültig gelöscht",
+  "deleted_many": {
+    "one": "{count} Notiz endgültig gelöscht",
+    "other": "{count} Notizen endgültig gelöscht"
+  },
+  "confirm_one": {
+    "title": "Diese Notiz endgültig löschen?",
+    "text": "Sie wird zusammen mit ihren Dateien gelöscht und kann nicht wiederhergestellt werden.",
+    "action": "Endgültig löschen"
+  },
+  "confirm_all": {
+    "title": "Papierkorb leeren?",
+    "text": {
+      "one": "{count} Notiz wird zusammen mit ihren Dateien gelöscht und kann nicht wiederhergestellt werden.",
+      "other": "{count} Notizen werden zusammen mit ihren Dateien gelöscht und können nicht wiederhergestellt werden."
+    },
+    "action": "Papierkorb leeren"
+  }
+}

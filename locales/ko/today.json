@@ -1,0 +1,48 @@
+{
+  "title": "오늘",
+  "previous_day": "이전 날",
+  "next_day": "다음 날",
+  "choose_day_tip": "날짜 선택 (C)",
+  "back_to_today": "오늘로 돌아가기",
+  "count": "{total}개 중 {done}개 완료",
+  "all_done": "모두 완료",
+  "progress_label": "완료한 노트",
+  "empty": {
+    "today_title": "오늘 할 일이 없습니다",
+    "past_title": "이 날의 기록이 없습니다",
+    "past_text": "그날 열려 있었거나 작성된 노트가 없습니다.",
+    "capture_with_shortcut": "어디서든 {keys} 키를 눌러 노트를 작성하세요.",
+    "capture_plain": "Posthaste로 어디서든 노트를 작성하세요."
+  },
+  "group": {
+    "carried": "이월됨",
+    "today": "오늘",
+    "that_day": "그날"
+  },
+  "more_in_inbox": "외 수신함에 {count}개 더 있음",
+  "more": "외 {count}개 더 있음",
+  "hint": {
+    "past": "그날 마감 시점 기준",
+    "day": "날짜",
+    "done": "완료",
+    "focus": "집중",
+    "later": "나중에",
+    "project": "프로젝트",
+    "today": "오늘",
+    "details": "상세",
+    "close": "닫기"
+  },
+  "row": {
+    "done_by_end": "이 날 마감 시점에 완료됨",
+    "not_done_by_end": "이 날 마감 시점에 미완료",
+    "mark_not_completed": "미완료로 표시",
+    "mark_completed": "완료로 표시",
+    "show_captured": "{day}에 작성된 노트 보기",
+    "show_captured_tip": "그날 작성된 노트 보기",
+    "open_details": "상세 열기 (Enter)"
+  },
+  "origin": {
+    "yesterday": "어제",
+    "days_ago": "{date} · {count}일 전"
+  }
+}

@@ -14,11 +14,11 @@ macOS (Apple Silicon).
 |---|---|---|---|---|
 | Builds | verified | same binary | verified (Apple Silicon) | **not built** |
 | Global shortcut | verified | limited, see below | not verified | not run |
-| Capture window focus + typing | verified | not run | in daily use | not run |
+| Capture window focus + typing | verified | verified (Ubuntu 24.04.4, headless `sway 1.9`, WebKitGTK `2.52.6`, `wtype 0.4-3`: `--capture` focus, typing, and synthetic `Ctrl+V` / `Shift+Insert` paste; `niri` not run) | in daily use | not run |
 | Window follows the pointer's display | verified (two mixed-DPI displays) | compositor decides | verified (two mixed-DPI displays) | not run |
 | Focus returns to previous app | verified | left to compositor | in daily use | not run |
 | Draft survives `kill -9` | verified | same code | same code | same code |
-| Single instance, `--capture` | verified | not run | in daily use | not run |
+| Single instance, `--capture` | verified | verified (Ubuntu 24.04.4, headless `sway 1.9`, WebKitGTK `2.52.6`) | in daily use | not run |
 | Tray menu | code runs; no tray host in the test display | not run | not verified | not run |
 | Today window | not run (the e2e script covers it; run it on Linux) | not run | opens with `--today` and renders; keys not exercised | not run |
 | Note details window | e2e (Xvfb + openbox): Enter in Today opens it focused, typing autosaves, Esc saves, hides it and returns to Today, focus ends in the previous app; the window and attachment tiles checked by screenshot | not run | not run | not run |
@@ -53,6 +53,16 @@ window is focused, or position its own windows.
 - **Focus return**: Posthaste cannot ask for it, but compositors return focus
   to the previous window when ours hides.
 - **"from <app>"** on notes is not available.
+- **Capture focus and virtual-keyboard paste**: the capture window re-focuses
+  its textarea on window `focus` when nothing else in the window is focused,
+  in case `capture-shown` arrived before the webview had keyboard focus. On
+  Linux, `Ctrl+V` and `Shift+Insert` inside the capture textarea read the
+  clipboard through GTK (`capture_clipboard_read`) and insert at the selection,
+  because WebKitGTK ignores paste chords sent via `zwp_virtual_keyboard_v1`
+  (`wtype`, whose virtual keymap maps keys starting at hardware keycode 9) and
+  blocks `navigator.clipboard.readText()`. Verified on Ubuntu 24.04.4 under
+  headless `sway 1.9` with WebKitGTK `2.52.6` and `wtype 0.4-3`; `niri` and
+  `ydotool` were not run.
 
 ### Linux, general
 

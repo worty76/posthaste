@@ -1,0 +1,48 @@
+{
+  "title": "आज",
+  "previous_day": "पिछला दिन",
+  "next_day": "अगला दिन",
+  "choose_day_tip": "दिन चुनें (C)",
+  "back_to_today": "आज पर वापस जाएँ",
+  "count": "{total} में से {done} पूरे",
+  "all_done": "सब पूरा",
+  "progress_label": "पूरे हुए नोट्स",
+  "empty": {
+    "today_title": "आज के लिए कुछ नहीं",
+    "past_title": "इस दिन कुछ नहीं था",
+    "past_text": "उस दिन कोई नोट बाकी नहीं था और न ही लिखा गया था।",
+    "capture_with_shortcut": "नोट लिखने के लिए कहीं भी {keys} दबाएँ।",
+    "capture_plain": "Posthaste से कहीं से भी नोट लिखें।"
+  },
+  "group": {
+    "carried": "पिछले दिनों से",
+    "today": "आज",
+    "that_day": "उस दिन"
+  },
+  "more_in_inbox": "और {count} इनबॉक्स में",
+  "more": "और {count}",
+  "hint": {
+    "past": "जैसा इस दिन के अंत में था",
+    "day": "दिन",
+    "done": "पूरा",
+    "focus": "फ़ोकस",
+    "later": "बाद में",
+    "project": "प्रोजेक्ट",
+    "today": "आज",
+    "details": "विवरण",
+    "close": "बंद करें"
+  },
+  "row": {
+    "done_by_end": "इस दिन के अंत तक पूरा",
+    "not_done_by_end": "इस दिन के अंत तक अधूरा",
+    "mark_not_completed": "अधूरा चिह्नित करें",
+    "mark_completed": "पूरा हुआ चिह्नित करें",
+    "show_captured": "{day} को लिखे गए नोट्स दिखाएँ",
+    "show_captured_tip": "उस दिन लिखे गए नोट्स दिखाएँ",
+    "open_details": "विवरण खोलें (Enter)"
+  },
+  "origin": {
+    "yesterday": "कल",
+    "days_ago": "{date} · {count} दिन पहले"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "unknown_error": "문제가 발생했습니다.",
+  "badges": {
+    "has_details": "상세 내용 있음",
+    "files": {
+      "other": "파일 {count}개"
+    },
+    "steps": "{total}단계 중 {done}단계 완료"
+  },
+  "calendar": {
+    "choose_day": "날짜 선택",
+    "previous_month": "이전 달",
+    "next_month": "다음 달",
+    "today": "오늘",
+    "clear": "초기화",
+    "day_open": "{date}, {count}개 남음",
+    "day_done": "{date}, 모두 완료",
+    "hint": {
+      "day": "일",
+      "month": "월",
+      "today": "오늘"
+    }
+  },
+  "close": "닫기",
+  "cancel": "취소",
+  "save": "저장",
+  "dismiss": "숨기기",
+  "day": {
+    "today": "오늘",
+    "yesterday": "어제"
+  },
+  "position": {
+    "top_left": "왼쪽 위",
+    "top": "가운데 위",
+    "top_right": "오른쪽 위",
+    "left": "왼쪽 가운데",
+    "center": "정가운데",
+    "right": "오른쪽 가운데",
+    "bottom_left": "왼쪽 아래",
+    "bottom": "가운데 아래",
+    "bottom_right": "오른쪽 아래"
+  },
+  "project_picker": {
+    "title_set": "프로젝트 지정",
+    "title_jump": "프로젝트로 이동",
+    "placeholder": "프로젝트 검색 또는 생성",
+    "placeholder_jump": "프로젝트 검색",
+    "no_project": "프로젝트 없음",
+    "create": "“{name}” 만들기",
+    "unarchive": "“{name}” 보관 해제 후 사용",
+    "none": "일치하는 프로젝트가 없습니다.",
+    "empty_hint": "노트에서 P 키를 눌러 프로젝트를 만드세요.",
+    "notes": {
+      "other": "노트 {count}개"
+    }
+  }
+}
