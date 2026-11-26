@@ -27,6 +27,7 @@ async function editor(sceneEdit, extra = {}, settings = {}) {
     settings: { look_id: "user:1", ...settings },
   });
   await w.page.getByRole("button", { name: "Settings", exact: true }).click();
+  await w.page.getByRole("tab", { name: "Appearance", exact: true }).click();
   await w.page.getByRole("button", { name: "Edit" }).click();
   const dialog = w.page.getByRole("dialog", { name: "Edit look" });
   await eventually(
@@ -184,6 +185,7 @@ describe("look editor scene", () => {
     const w = await open({ label: "main", store, settings: { look_id: "user:1" } });
     const toast = w.page.locator(".toast");
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
+    await w.page.getByRole("tab", { name: "Appearance", exact: true }).click();
     // The scene load is held, so the editor cannot know the real scene.
     await w.mock.hold("look_scene");
     await w.page.getByRole("button", { name: "Edit" }).click();
@@ -239,6 +241,7 @@ describe("look editor scene", () => {
       store: { fileOpen: payload },
     });
     await w.page.getByRole("button", { name: "Settings", exact: true }).click();
+    await w.page.getByRole("tab", { name: "Appearance", exact: true }).click();
     await w.page.getByRole("button", { name: "Open a look file…" }).click();
     const dialog = w.page.getByRole("dialog", { name: "Import look" });
     await eventually(

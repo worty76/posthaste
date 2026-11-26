@@ -1,4 +1,9 @@
 {
+  "tabs": {
+    "label": "Settings sections",
+    "appearance": "Appearance",
+    "ai": "AI"
+  },
   "general": {
     "heading": "General",
     "language": "Language",

@@ -79,6 +79,45 @@ fn Row(
     }
 }
 
+/// The six Settings tabs, in display order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    General,
+    Keyboard,
+    Appearance,
+    Ai,
+    Devices,
+    Data,
+}
+
+impl Tab {
+    const ALL: [Tab; 6] = [
+        Tab::General,
+        Tab::Keyboard,
+        Tab::Appearance,
+        Tab::Ai,
+        Tab::Devices,
+        Tab::Data,
+    ];
+
+    fn label(self) -> Key {
+        match self {
+            Tab::General => key::SETTINGS_GENERAL_HEADING,
+            Tab::Keyboard => key::SETTINGS_KEYBOARD_HEADING,
+            Tab::Appearance => key::SETTINGS_TABS_APPEARANCE,
+            Tab::Ai => key::SETTINGS_TABS_AI,
+            Tab::Devices => key::SETTINGS_DEVICES_HEADING,
+            Tab::Data => key::SETTINGS_DATA_HEADING,
+        }
+    }
+
+    fn step(self, delta: isize) -> Tab {
+        let len = Self::ALL.len() as isize;
+        let idx = Self::ALL.iter().position(|&t| t == self).unwrap_or(0) as isize;
+        Self::ALL[(idx + delta).rem_euclid(len) as usize]
+    }
+}
+
 #[component]
 pub(super) fn SettingsView(
     info: AppInfo,
@@ -94,6 +133,8 @@ pub(super) fn SettingsView(
         toaster,
     };
     let os = info.os;
+    let tab = RwSignal::new(Tab::General);
+    let version = StoredValue::new(info.version);
     let minimized_help = if info.tray_available {
         key::SETTINGS_GENERAL_MINIMIZED_HELP
     } else {
@@ -123,198 +164,259 @@ pub(super) fn SettingsView(
 
     view! {
         <div class="settings">
-            <section class="settings__section" aria-labelledby="s-general">
-                <h2 class="settings__heading" id="s-general">{i18n.text(key::SETTINGS_GENERAL_HEADING)}</h2>
-                <Row i18n=i18n label=key::SETTINGS_GENERAL_LANGUAGE help=key::SETTINGS_GENERAL_LANGUAGE_HELP>
-                    <select
-                        class="field select"
-                        aria-label=i18n.text(key::SETTINGS_GENERAL_LANGUAGE)
-                        on:change=move |event| {
-                            let code = event_target_value(&event);
-                            context.set(move |s| s.language = code);
+            <div
+                class="settings__tabs"
+                role="tablist"
+                aria-label=i18n.text(key::SETTINGS_TABS_LABEL)
+            >
+                {Tab::ALL
+                    .into_iter()
+                    .map(|item| {
+                        let active = move || tab.get() == item;
+                        view! {
+                            <button
+                                type="button"
+                                role="tab"
+                                class="settings__tab"
+                                aria-selected=move || active().to_string()
+                                tabindex=move || if active() { "0" } else { "-1" }
+                                on:click=move |_| tab.set(item)
+                                on:keydown=move |event| {
+                                    let next = match event.key().as_str() {
+                                        "ArrowRight" => Some(item.step(1)),
+                                        "ArrowLeft" => Some(item.step(-1)),
+                                        "Home" => Some(Tab::ALL[0]),
+                                        "End" => Some(Tab::ALL[Tab::ALL.len() - 1]),
+                                        _ => None,
+                                    };
+                                    if let Some(next) = next {
+                                        event.prevent_default();
+                                        tab.set(next);
+                                    }
+                                }
+                            >
+                                {i18n.text(item.label())}
+                            </button>
                         }
-                    >
-                        // Each language under its own name, so it can be
-                        // found by someone who cannot read the current one.
-                        {posthaste_i18n::languages()
-                            .iter()
-                            .map(|choice| view! {
-                                <option
-                                    value=choice.code
-                                    lang=choice.code
-                                    selected=move || i18n.translator().language().code == choice.code
+                    })
+                    .collect_view()}
+            </div>
+
+            <div class="settings__panel" role="tabpanel">
+                {move || match tab.get() {
+                    Tab::General => view! {
+                        <section class="settings__section" aria-labelledby="s-general">
+                            <h2 class="settings__heading" id="s-general">{i18n.text(key::SETTINGS_GENERAL_HEADING)}</h2>
+                            <Row i18n=i18n label=key::SETTINGS_GENERAL_LANGUAGE help=key::SETTINGS_GENERAL_LANGUAGE_HELP>
+                                <select
+                                    class="field select"
+                                    aria-label=i18n.text(key::SETTINGS_GENERAL_LANGUAGE)
+                                    on:change=move |event| {
+                                        let code = event_target_value(&event);
+                                        context.set(move |s| s.language = code);
+                                    }
                                 >
-                                    {choice.name}
-                                </option>
-                            })
-                            .collect_view()}
-                    </select>
-                </Row>
-                <appearance::AppearanceSection context=context appearance=appearance />
-                <Row i18n=i18n label=key::SETTINGS_GENERAL_LAUNCH help=key::SETTINGS_GENERAL_LAUNCH_HELP>
-                    <Switch
-                        label=i18n.label(key::SETTINGS_GENERAL_LAUNCH)
-                        checked=context.read(|s| s.launch_at_login)
-                        on_change=move |on| context.set(move |s| s.launch_at_login = on)
-                    />
-                </Row>
-                <Row i18n=i18n label=key::SETTINGS_GENERAL_MINIMIZED help=minimized_help>
-                    <Switch
-                        label=i18n.label(key::SETTINGS_GENERAL_MINIMIZED)
-                        checked=context.read(|s| s.start_minimized)
-                        on_change=move |on| context.set(move |s| s.start_minimized = on)
-                    />
-                </Row>
-            </section>
-
-            <section class="settings__section" aria-labelledby="s-keyboard">
-                <h2 class="settings__heading" id="s-keyboard">{i18n.text(key::SETTINGS_KEYBOARD_HEADING)}</h2>
-                <ShortcutRow
-                    context=context
-                    os=os
-                    label=key::SETTINGS_KEYBOARD_CAPTURE
-                    help=key::SETTINGS_KEYBOARD_CAPTURE_HELP
-                    value=context.read(|s| s.capture_shortcut.clone())
-                    default=DEFAULT_CAPTURE_SHORTCUT
-                    status=shortcut(|report| &report.capture)
-                    limitation=limitation
-                    on_change=move |keys: String| context.set(move |s| s.capture_shortcut = keys)
-                />
-                <ShortcutRow
-                    context=context
-                    os=os
-                    label=key::SETTINGS_KEYBOARD_INBOX
-                    help=key::SETTINGS_KEYBOARD_INBOX_HELP
-                    value=context.read(|s| s.inbox_shortcut.clone())
-                    default=default_inbox_shortcut(os)
-                    status=shortcut(|report| &report.inbox)
-                    limitation=limitation
-                    on_change=move |keys: String| context.set(move |s| s.inbox_shortcut = keys)
-                />
-                <ShortcutRow
-                    context=context
-                    os=os
-                    label=key::SETTINGS_KEYBOARD_TODAY
-                    help=key::SETTINGS_KEYBOARD_TODAY_HELP
-                    value=context.read(|s| s.today_shortcut.clone())
-                    default=default_today_shortcut(os)
-                    status=shortcut(|report| &report.today)
-                    limitation=limitation
-                    on_change=move |keys: String| context.set(move |s| s.today_shortcut = keys)
-                />
-            </section>
-
-            <section class="settings__section" aria-labelledby="s-capture">
-                <h2 class="settings__heading" id="s-capture">{i18n.text(key::SETTINGS_CAPTURE_HEADING)}</h2>
-                <Row i18n=i18n label=key::SETTINGS_CAPTURE_POSITION help=position_help>
-                    <div class="positions">
-                        <div class="positions__item">
-                            <PositionPicker
-                                i18n=i18n
-                                label=key::SETTINGS_CAPTURE_POSITION_CAPTURE
-                                value=context.read(|s| s.capture_position)
-                                on_change=move |spot| context.set(move |s| s.capture_position = spot)
+                                    // Each language under its own name, so it can be
+                                    // found by someone who cannot read the current one.
+                                    {posthaste_i18n::languages()
+                                        .iter()
+                                        .map(|choice| view! {
+                                            <option
+                                                value=choice.code
+                                                lang=choice.code
+                                                selected=move || i18n.translator().language().code == choice.code
+                                            >
+                                                {choice.name}
+                                            </option>
+                                        })
+                                        .collect_view()}
+                                </select>
+                            </Row>
+                            <Row i18n=i18n label=key::SETTINGS_GENERAL_LAUNCH help=key::SETTINGS_GENERAL_LAUNCH_HELP>
+                                <Switch
+                                    label=i18n.label(key::SETTINGS_GENERAL_LAUNCH)
+                                    checked=context.read(|s| s.launch_at_login)
+                                    on_change=move |on| context.set(move |s| s.launch_at_login = on)
+                                />
+                            </Row>
+                            <Row i18n=i18n label=key::SETTINGS_GENERAL_MINIMIZED help=minimized_help>
+                                <Switch
+                                    label=i18n.label(key::SETTINGS_GENERAL_MINIMIZED)
+                                    checked=context.read(|s| s.start_minimized)
+                                    on_change=move |on| context.set(move |s| s.start_minimized = on)
+                                />
+                            </Row>
+                        </section>
+                        <UpdatesSection context=context updates=updates version=version.get_value() />
+                    }
+                    .into_any(),
+                    Tab::Keyboard => view! {
+                        <section class="settings__section" aria-labelledby="s-keyboard">
+                            <h2 class="settings__heading" id="s-keyboard">{i18n.text(key::SETTINGS_KEYBOARD_HEADING)}</h2>
+                            <ShortcutRow
+                                context=context
+                                os=os
+                                label=key::SETTINGS_KEYBOARD_CAPTURE
+                                help=key::SETTINGS_KEYBOARD_CAPTURE_HELP
+                                value=context.read(|s| s.capture_shortcut.clone())
+                                default=DEFAULT_CAPTURE_SHORTCUT
+                                status=shortcut(|report| &report.capture)
+                                limitation=limitation
+                                on_change=move |keys: String| context.set(move |s| s.capture_shortcut = keys)
                             />
-                            <span class="positions__caption" aria-hidden="true">
-                                {i18n.text(key::SETTINGS_CAPTURE_CAPTION_CAPTURE)}
-                            </span>
-                        </div>
-                        <div class="positions__item">
-                            <PositionPicker
-                                i18n=i18n
-                                label=key::SETTINGS_CAPTURE_POSITION_TODAY
-                                value=context.read(|s| s.today_position)
-                                on_change=move |spot| context.set(move |s| s.today_position = spot)
+                            <ShortcutRow
+                                context=context
+                                os=os
+                                label=key::SETTINGS_KEYBOARD_INBOX
+                                help=key::SETTINGS_KEYBOARD_INBOX_HELP
+                                value=context.read(|s| s.inbox_shortcut.clone())
+                                default=default_inbox_shortcut(os)
+                                status=shortcut(|report| &report.inbox)
+                                limitation=limitation
+                                on_change=move |keys: String| context.set(move |s| s.inbox_shortcut = keys)
                             />
-                            <span class="positions__caption" aria-hidden="true">
-                                {i18n.text(key::SETTINGS_CAPTURE_CAPTION_TODAY)}
-                            </span>
-                        </div>
-                    </div>
-                </Row>
-                <Row i18n=i18n label=key::SETTINGS_CAPTURE_SIZE help=key::SETTINGS_CAPTURE_SIZE_HELP>
-                    <Segmented
-                        i18n=i18n
-                        label=key::SETTINGS_CAPTURE_SIZE
-                        value=context.read(|s| s.window_size)
-                        options=vec![
-                            (WindowSize::Small, key::SETTINGS_CAPTURE_SIZE_SMALL),
-                            (WindowSize::Medium, key::SETTINGS_CAPTURE_SIZE_MEDIUM),
-                            (WindowSize::Large, key::SETTINGS_CAPTURE_SIZE_LARGE),
-                        ]
-                        on_change=move |size| context.set(move |s| s.window_size = size)
-                    />
-                </Row>
-                <Row
-                    i18n=i18n
-                    label=key::SETTINGS_CAPTURE_TEXT_SIZE
-                    help=key::SETTINGS_CAPTURE_TEXT_SIZE_HELP
-                >
-                    <Segmented
-                        i18n=i18n
-                        label=key::SETTINGS_CAPTURE_TEXT_SIZE
-                        value=context.read(|s| s.text_size)
-                        options=vec![
-                            (TextSize::Small, key::SETTINGS_CAPTURE_TEXT_SIZE_SMALL),
-                            (TextSize::Medium, key::SETTINGS_CAPTURE_TEXT_SIZE_MEDIUM),
-                            (TextSize::Large, key::SETTINGS_CAPTURE_TEXT_SIZE_LARGE),
-                        ]
-                        on_change=move |size| context.set(move |s| s.text_size = size)
-                    />
-                </Row>
-                <Row i18n=i18n label=key::SETTINGS_CAPTURE_ENTER help=key::SETTINGS_CAPTURE_ENTER_HELP>
-                    <Segmented
-                        i18n=i18n
-                        label=key::SETTINGS_CAPTURE_ENTER
-                        value=context.read(|s| s.enter_behavior)
-                        options=vec![
-                            (EnterBehavior::Save, key::SETTINGS_CAPTURE_ENTER_SAVE),
-                            (EnterBehavior::Newline, key::SETTINGS_CAPTURE_ENTER_NEWLINE),
-                        ]
-                        on_change=move |enter| context.set(move |s| s.enter_behavior = enter)
-                    />
-                </Row>
-                <Row
-                    i18n=i18n
-                    label=key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE
-                    help=key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE_HELP
-                >
-                    <Switch
-                        label=i18n.label(key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE)
-                        checked=context.read(|s| s.hide_after_save)
-                        on_change=move |on| context.set(move |s| s.hide_after_save = on)
-                    />
-                </Row>
-                <Row
-                    i18n=i18n
-                    label=key::SETTINGS_CAPTURE_CLOSE_ON_BLUR
-                    help=key::SETTINGS_CAPTURE_CLOSE_ON_BLUR_HELP
-                >
-                    <Switch
-                        label=i18n.label(key::SETTINGS_CAPTURE_CLOSE_ON_BLUR)
-                        checked=context.read(|s| s.hide_on_blur)
-                        on_change=move |on| context.set(move |s| s.hide_on_blur = on)
-                    />
-                </Row>
-                <Row i18n=i18n label=key::SETTINGS_CAPTURE_DRAFTS help=key::SETTINGS_CAPTURE_DRAFTS_HELP>
-                    <Segmented
-                        i18n=i18n
-                        label=key::SETTINGS_CAPTURE_DRAFTS
-                        value=context.read(|s| s.draft_retention)
-                        options=vec![
-                            (DraftRetention::Day, key::SETTINGS_CAPTURE_DRAFTS_DAY),
-                            (DraftRetention::Week, key::SETTINGS_CAPTURE_DRAFTS_WEEK),
-                            (DraftRetention::Forever, key::SETTINGS_CAPTURE_DRAFTS_FOREVER),
-                        ]
-                        on_change=move |keep| context.set(move |s| s.draft_retention = keep)
-                    />
-                </Row>
-            </section>
+                            <ShortcutRow
+                                context=context
+                                os=os
+                                label=key::SETTINGS_KEYBOARD_TODAY
+                                help=key::SETTINGS_KEYBOARD_TODAY_HELP
+                                value=context.read(|s| s.today_shortcut.clone())
+                                default=default_today_shortcut(os)
+                                status=shortcut(|report| &report.today)
+                                limitation=limitation
+                                on_change=move |keys: String| context.set(move |s| s.today_shortcut = keys)
+                            />
+                        </section>
 
-            <ai::AiSection context=context language=language />
-            <devices::DevicesSection context=context language=language />
-            <data::DataSection context=context />
-            <UpdatesSection context=context updates=updates version=info.version />
+                        <section class="settings__section" aria-labelledby="s-capture">
+                            <h2 class="settings__heading" id="s-capture">{i18n.text(key::SETTINGS_CAPTURE_HEADING)}</h2>
+                            <Row i18n=i18n label=key::SETTINGS_CAPTURE_POSITION help=position_help>
+                                <div class="positions">
+                                    <div class="positions__item">
+                                        <PositionPicker
+                                            i18n=i18n
+                                            label=key::SETTINGS_CAPTURE_POSITION_CAPTURE
+                                            value=context.read(|s| s.capture_position)
+                                            on_change=move |spot| context.set(move |s| s.capture_position = spot)
+                                        />
+                                        <span class="positions__caption" aria-hidden="true">
+                                            {i18n.text(key::SETTINGS_CAPTURE_CAPTION_CAPTURE)}
+                                        </span>
+                                    </div>
+                                    <div class="positions__item">
+                                        <PositionPicker
+                                            i18n=i18n
+                                            label=key::SETTINGS_CAPTURE_POSITION_TODAY
+                                            value=context.read(|s| s.today_position)
+                                            on_change=move |spot| context.set(move |s| s.today_position = spot)
+                                        />
+                                        <span class="positions__caption" aria-hidden="true">
+                                            {i18n.text(key::SETTINGS_CAPTURE_CAPTION_TODAY)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </Row>
+                            <Row i18n=i18n label=key::SETTINGS_CAPTURE_SIZE help=key::SETTINGS_CAPTURE_SIZE_HELP>
+                                <Segmented
+                                    i18n=i18n
+                                    label=key::SETTINGS_CAPTURE_SIZE
+                                    value=context.read(|s| s.window_size)
+                                    options=vec![
+                                        (WindowSize::Small, key::SETTINGS_CAPTURE_SIZE_SMALL),
+                                        (WindowSize::Medium, key::SETTINGS_CAPTURE_SIZE_MEDIUM),
+                                        (WindowSize::Large, key::SETTINGS_CAPTURE_SIZE_LARGE),
+                                    ]
+                                    on_change=move |size| context.set(move |s| s.window_size = size)
+                                />
+                            </Row>
+                            <Row
+                                i18n=i18n
+                                label=key::SETTINGS_CAPTURE_TEXT_SIZE
+                                help=key::SETTINGS_CAPTURE_TEXT_SIZE_HELP
+                            >
+                                <Segmented
+                                    i18n=i18n
+                                    label=key::SETTINGS_CAPTURE_TEXT_SIZE
+                                    value=context.read(|s| s.text_size)
+                                    options=vec![
+                                        (TextSize::Small, key::SETTINGS_CAPTURE_TEXT_SIZE_SMALL),
+                                        (TextSize::Medium, key::SETTINGS_CAPTURE_TEXT_SIZE_MEDIUM),
+                                        (TextSize::Large, key::SETTINGS_CAPTURE_TEXT_SIZE_LARGE),
+                                    ]
+                                    on_change=move |size| context.set(move |s| s.text_size = size)
+                                />
+                            </Row>
+                            <Row i18n=i18n label=key::SETTINGS_CAPTURE_ENTER help=key::SETTINGS_CAPTURE_ENTER_HELP>
+                                <Segmented
+                                    i18n=i18n
+                                    label=key::SETTINGS_CAPTURE_ENTER
+                                    value=context.read(|s| s.enter_behavior)
+                                    options=vec![
+                                        (EnterBehavior::Save, key::SETTINGS_CAPTURE_ENTER_SAVE),
+                                        (EnterBehavior::Newline, key::SETTINGS_CAPTURE_ENTER_NEWLINE),
+                                    ]
+                                    on_change=move |enter| context.set(move |s| s.enter_behavior = enter)
+                                />
+                            </Row>
+                            <Row
+                                i18n=i18n
+                                label=key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE
+                                help=key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE_HELP
+                            >
+                                <Switch
+                                    label=i18n.label(key::SETTINGS_CAPTURE_CLOSE_AFTER_SAVE)
+                                    checked=context.read(|s| s.hide_after_save)
+                                    on_change=move |on| context.set(move |s| s.hide_after_save = on)
+                                />
+                            </Row>
+                            <Row
+                                i18n=i18n
+                                label=key::SETTINGS_CAPTURE_CLOSE_ON_BLUR
+                                help=key::SETTINGS_CAPTURE_CLOSE_ON_BLUR_HELP
+                            >
+                                <Switch
+                                    label=i18n.label(key::SETTINGS_CAPTURE_CLOSE_ON_BLUR)
+                                    checked=context.read(|s| s.hide_on_blur)
+                                    on_change=move |on| context.set(move |s| s.hide_on_blur = on)
+                                />
+                            </Row>
+                            <Row i18n=i18n label=key::SETTINGS_CAPTURE_DRAFTS help=key::SETTINGS_CAPTURE_DRAFTS_HELP>
+                                <Segmented
+                                    i18n=i18n
+                                    label=key::SETTINGS_CAPTURE_DRAFTS
+                                    value=context.read(|s| s.draft_retention)
+                                    options=vec![
+                                        (DraftRetention::Day, key::SETTINGS_CAPTURE_DRAFTS_DAY),
+                                        (DraftRetention::Week, key::SETTINGS_CAPTURE_DRAFTS_WEEK),
+                                        (DraftRetention::Forever, key::SETTINGS_CAPTURE_DRAFTS_FOREVER),
+                                    ]
+                                    on_change=move |keep| context.set(move |s| s.draft_retention = keep)
+                                />
+                            </Row>
+                        </section>
+                    }
+                    .into_any(),
+                    Tab::Appearance => view! {
+                        <section class="settings__section" aria-labelledby="s-appearance">
+                            <h2 class="settings__heading" id="s-appearance">{i18n.text(key::SETTINGS_TABS_APPEARANCE)}</h2>
+                            <appearance::AppearanceSection context=context appearance=appearance />
+                        </section>
+                    }
+                    .into_any(),
+                    Tab::Ai => view! {
+                        <ai::AiSection context=context language=language />
+                    }
+                    .into_any(),
+                    Tab::Devices => view! {
+                        <devices::DevicesSection context=context language=language />
+                    }
+                    .into_any(),
+                    Tab::Data => view! {
+                        <data::DataSection context=context />
+                    }
+                    .into_any(),
+                }}
+            </div>
         </div>
     }
 }
